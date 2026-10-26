@@ -2052,3 +2052,208 @@
   outline: 2px solid var(--upscale-purple);
   outline-offset: 3px;
 }
+
+
+/* === UPSCALE IA / COSMIC RESIN VISUAL SYSTEM v2 === */
+:root {
+  --upscale-bg: #080b12;
+  --upscale-panel: #0e1420;
+  --upscale-panel-raised: #121b2a;
+  --upscale-border: rgba(148, 166, 205, .18);
+  --upscale-text: #f3f0ff;
+  --upscale-muted: #9aa8bf;
+  --upscale-gold: #e9bb63;
+  --upscale-gold-light: #ffe1a0;
+  --upscale-purple: #a58aff;
+  --upscale-purple-soft: rgba(165, 138, 255, .12);
+  --upscale-cyan: #55e1dc;
+}
+
+/* Ambient light: subtle, layered and non-intrusive */
+body {
+  background:
+    radial-gradient(ellipse at 13% 12%, rgba(78, 119, 183, .11), transparent 34%),
+    radial-gradient(ellipse at 88% 16%, rgba(165, 83, 255, .075), transparent 30%),
+    #080b12;
+}
+.app-shell {
+  background:
+    radial-gradient(ellipse at 78% -8%, rgba(165, 138, 255, .12), transparent 34%),
+    radial-gradient(ellipse at 43% 105%, rgba(63, 199, 205, .045), transparent 36%),
+    #080b12;
+}
+.sidebar {
+  background: rgba(7, 10, 17, .96);
+  border-right-color: rgba(129, 151, 190, .19);
+}
+.brand-mark {
+  background: linear-gradient(135deg, #fff0c5 0%, #e9bb63 46%, #a56b2d 100%);
+  box-shadow: 0 0 0 1px rgba(255, 224, 158, .2), 0 5px 24px rgba(233, 187, 99, .2);
+}
+.nav-item.active {
+  background: linear-gradient(100deg, rgba(233,187,99,.13), rgba(165,138,255,.055) 70%, transparent);
+  border-color: rgba(233,187,99,.3);
+  box-shadow: inset 2px 0 0 rgba(233,187,99,.85);
+}
+.hero-row h1 span {
+  background: linear-gradient(100deg, #fff0c3 0%, #e9bb63 34%, #a58aff 68%, #55e1dc 100%);
+  background-size: 220% 100%;
+  animation: upscale-spectrum 9s ease-in-out infinite alternate;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.hero-row { isolation: isolate; }
+.hero-art::before {
+  content: "";
+  position: absolute;
+  width: 230px;
+  height: 160px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(233,187,99,.10), rgba(165,138,255,.07) 34%, rgba(85,225,220,.035) 52%, transparent 72%);
+  filter: blur(10px);
+  pointer-events: none;
+  animation: upscale-resin-breathe 8s ease-in-out infinite alternate;
+}
+.hero-target {
+  background: radial-gradient(circle at 36% 28%, rgba(255,225,160,.15), rgba(165,138,255,.075) 42%, rgba(9,13,22,.8) 76%);
+  border-color: rgba(233,187,99,.42);
+  box-shadow: 0 0 40px rgba(233,187,99,.08), inset 0 0 25px rgba(165,138,255,.06);
+}
+.orb-one { border-color: rgba(233,187,99,.34); animation: upscale-orbit 22s linear infinite; }
+.orb-two { border-color: rgba(165,138,255,.25); animation: upscale-orbit 28s linear infinite reverse; }
+.metric-card, .panel {
+  background:
+    linear-gradient(145deg, rgba(20,29,45,.94), rgba(10,15,24,.97) 72%),
+    #0e1420;
+  border-color: rgba(133,155,197,.2);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.018);
+  transition: border-color .22s ease, transform .22s ease, box-shadow .22s ease;
+}
+.metric-card:hover, .panel:hover {
+  border-color: rgba(165,138,255,.28);
+  box-shadow: 0 10px 32px rgba(0,0,0,.16), 0 0 24px rgba(165,138,255,.035);
+}
+.metric-icon.violet, .ai-icon, .assistant-glow {
+  color: #c1afff;
+  background: linear-gradient(145deg, rgba(165,138,255,.18), rgba(85,225,220,.055));
+  border-color: rgba(165,138,255,.28);
+}
+.metric-icon.amber, .panel-icon {
+  color: #f4cd7c;
+  background: linear-gradient(145deg, rgba(233,187,99,.16), rgba(233,187,99,.045));
+  border-color: rgba(233,187,99,.22);
+}
+.button-primary {
+  background: linear-gradient(105deg, #ffe4a5, #e9bb63 55%, #c9903d);
+  border-color: rgba(255,225,160,.7);
+  box-shadow: 0 5px 18px rgba(233,187,99,.11);
+  transition: filter .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.button-primary:hover {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(233,187,99,.17);
+}
+.connection-banner.connected {
+  background: linear-gradient(105deg, rgba(19,48,42,.82), rgba(12,25,30,.85));
+  border-color: rgba(85,225,220,.22);
+}
+
+/* Login: rich, restrained cosmic-resin lighting */
+.premium-login {
+  background:
+    radial-gradient(ellipse at 18% 20%, rgba(48,91,151,.16), transparent 37%),
+    radial-gradient(ellipse at 76% 13%, rgba(165,138,255,.11), transparent 33%),
+    radial-gradient(ellipse at 45% 100%, rgba(85,225,220,.055), transparent 42%),
+    #080b12 !important;
+}
+.premium-login .login-showcase,
+.premium-login .showcase-copy,
+.premium-login .login-panel-wrap {
+  position: relative;
+  isolation: isolate;
+}
+.premium-login .login-showcase::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: min(66vw, 780px);
+  height: 390px;
+  top: -115px;
+  left: 8%;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 28% 48%, rgba(233,187,99,.12), transparent 23%),
+    radial-gradient(ellipse at 58% 45%, rgba(165,138,255,.13), transparent 29%),
+    radial-gradient(ellipse at 72% 62%, rgba(85,225,220,.07), transparent 27%);
+  filter: blur(22px);
+  animation: upscale-resin-breathe 10s ease-in-out infinite alternate;
+}
+.premium-login .showcase-copy h2 span,
+.premium-login .hero-v2 h1 span {
+  background: linear-gradient(100deg, #fff0c3 0%, #e9bb63 36%, #a58aff 73%, #55e1dc 100%);
+  background-size: 220% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: upscale-spectrum 9s ease-in-out infinite alternate;
+}
+.premium-login .login-card,
+.premium-login .login-panel,
+.premium-login .live-demo,
+.premium-login .demo-content {
+  background-color: rgba(12,17,28,.9);
+  border-color: rgba(135,158,203,.23);
+  box-shadow: 0 18px 54px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.025);
+}
+.premium-login .premium-brand-icon,
+.premium-login .showcase-brand-icon,
+.premium-login .login-card-logo,
+.premium-login .login-logo {
+  background: linear-gradient(135deg, #fff0c5, #e9bb63 48%, #98652f);
+  box-shadow: 0 0 0 1px rgba(255,225,160,.22), 0 5px 22px rgba(233,187,99,.15);
+}
+.premium-login .login-submit {
+  background: linear-gradient(105deg, #ffe4a5, #e9bb63 55%, #c9903d);
+  box-shadow: 0 7px 25px rgba(233,187,99,.14);
+}
+.premium-login .login-submit:hover:not(:disabled) {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+}
+.premium-login .showcase-eyebrow,
+.premium-login .login-eyebrow,
+.premium-login .demo-label {
+  color: #f1c56d;
+}
+.premium-login .demo-heading-icon,
+.premium-login .login-security > svg {
+  color: var(--upscale-cyan);
+}
+.premium-login .system-status,
+.premium-login .demo-live {
+  border-color: rgba(85,225,220,.23);
+  background: rgba(85,225,220,.045);
+}
+
+/* Soft lateral motion for emphasis, never for entire paragraphs */
+@keyframes upscale-spectrum {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 100% 50%; }
+}
+@keyframes upscale-resin-breathe {
+  0% { opacity: .55; transform: translate3d(-7px, 0, 0) scale(.98); }
+  100% { opacity: 1; transform: translate3d(10px, 5px, 0) scale(1.04); }
+}
+@keyframes upscale-orbit {
+  from { transform: rotate(-25deg); }
+  to { transform: rotate(335deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-row h1 span, .premium-login .showcase-copy h2 span, .premium-login .hero-v2 h1 span,
+  .premium-login .login-showcase::before, .hero-art::before, .orb-one, .orb-two {
+    animation: none !important;
+  }
+  .metric-card, .panel, .button-primary { transition: none !important; }
+}
