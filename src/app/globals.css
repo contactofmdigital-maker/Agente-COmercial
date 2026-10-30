@@ -2257,3 +2257,22 @@ body {
   }
   .metric-card, .panel, .button-primary { transition: none !important; }
 }
+
+
+/* =========================================================
+   UPSCALE IA — LOGO ORIGINAL EN EL SIDEBAR
+   Usa el archivo: public/images/upscale-ia-horizontal.png
+   ========================================================= */
+.brand {
+  min-width: 0;
+}
+
+.brand-logo {
+  display: block;
+  width: 190px;
+  max-width: 100%;
+  height: auto;
+  max-height: 58px;
+  object-fit: contain;
+  object-position: left center;
+}
