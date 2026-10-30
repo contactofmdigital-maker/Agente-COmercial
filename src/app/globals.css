@@ -2575,3 +2575,33 @@ body {
   .business-settings-footer { align-items: stretch; flex-direction: column; }
   .business-settings-footer .button { width: 100%; justify-content: center; }
 }
+
+
+/* === UPSCALE IA · PIPELINE DE OPORTUNIDADES === */
+.opportunity-panel { margin: 22px 0; }
+.opportunity-summary { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin-bottom:16px; }
+.opportunity-summary > div { display:flex; flex-direction:column; gap:7px; padding:13px; border:1px solid var(--upscale-border); border-radius:11px; background:rgba(255,255,255,.025); min-width:0; }
+.opportunity-summary span { color:var(--upscale-muted); font-size:10px; }
+.opportunity-summary strong { color:var(--upscale-gold-light); font-size:clamp(14px,2vw,20px); overflow-wrap:anywhere; }
+.opportunity-toolbar { display:flex; align-items:center; gap:9px; flex-wrap:wrap; margin-bottom:14px; }
+.opportunity-hint { color:var(--upscale-muted); font-size:11px; }
+.opportunity-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:15px; margin-bottom:16px; border:1px solid var(--upscale-border); border-radius:12px; background:rgba(4,8,15,.35); }
+.opportunity-form .field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.opportunity-form .field label { color:#aeb9c9; font-size:11px; }
+.opportunity-form .field input,.opportunity-form .field select,.opportunity-form .field textarea,.opportunity-card select { width:100%; min-width:0; box-sizing:border-box; padding:9px 10px; border:1px solid #303a4a; border-radius:8px; color:var(--upscale-text); background:#151c28; font:inherit; font-size:11px; }
+.opportunity-form-wide,.opportunity-form .form-footer { grid-column:1/-1; }
+.opportunity-form .form-footer { display:flex; justify-content:flex-end; gap:8px; }
+.opportunity-board { display:grid; grid-template-columns:repeat(6,minmax(190px,1fr)); gap:10px; overflow-x:auto; padding:2px 2px 12px; align-items:start; }
+.opportunity-column { min-width:190px; padding:10px; border:1px solid var(--upscale-border); border-radius:11px; background:rgba(4,8,15,.3); }
+.opportunity-column-head { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:2px 1px 11px; color:#dce3ef; font-size:11px; }
+.opportunity-column-head span { display:grid; place-items:center; min-width:21px; height:21px; padding:0 5px; border-radius:7px; color:var(--upscale-gold-light); background:rgba(233,187,99,.1); font-size:10px; }
+.opportunity-column-empty { margin:0; padding:14px 5px; color:#748197; font-size:10px; text-align:center; }
+.opportunity-card { display:grid; gap:8px; padding:11px; margin-bottom:9px; border:1px solid rgba(148,166,205,.16); border-radius:10px; background:linear-gradient(145deg,rgba(20,29,45,.88),rgba(10,15,24,.95)); }
+.opportunity-card > strong { color:var(--upscale-text); font-size:11px; line-height:1.5; overflow-wrap:anywhere; }
+.opportunity-prospect { color:var(--upscale-muted); font-size:10px; line-height:1.4; }
+.opportunity-value { color:var(--upscale-gold-light); font-size:13px; }
+.opportunity-date { display:flex; align-items:center; gap:5px; color:var(--upscale-muted); font-size:10px; }
+.opportunity-stage-label { color:#8f9cb1; font-size:9px; }
+.opportunity-empty { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:9px; min-height:130px; color:var(--upscale-muted); font-size:11px; text-align:center; }
+.opportunity-empty strong { color:var(--upscale-text); font-size:13px; }
+@media(max-width:680px) { .opportunity-summary { grid-template-columns:1fr; } .opportunity-form { grid-template-columns:1fr; } .opportunity-form-wide,.opportunity-form .form-footer { grid-column:auto; } .opportunity-form .form-footer { flex-direction:column-reverse; } .opportunity-form .form-footer .button { width:100%; } }
