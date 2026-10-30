@@ -1,10 +1,12 @@
+
 "use client";
 
+import Image from "next/image";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
-  Zap, Eye, EyeOff, LoaderCircle, ArrowLeft, Clock3,
+  Eye, EyeOff, LoaderCircle, ArrowLeft, Clock3,
   MessageSquareText, Target, TrendingUp, Users, ShieldCheck,
   ArrowRight, Building2, Bot, CheckCircle2, Sparkles,
   BrainCircuit, Workflow, ChevronRight
@@ -205,8 +207,19 @@ export default function LoginPage() {
       <section className="login-showcase" aria-label="Presentación de UpScale IA">
         <header className="showcase-header">
           <a href="/login" className="showcase-brand" aria-label="UpScale IA">
-            <span className="showcase-brand-icon"><Zap size={23} fill="currentColor" /></span>
-            <span><strong>UpScale IA</strong><small>REVENUE INTELLIGENCE PLATFORM</small></span>
+            <Image
+              src="/images/upscale-ia-horizontal.png"
+              alt="UpScale IA"
+              width={240}
+              height={60}
+              priority
+              style={{
+                width: "220px",
+                maxWidth: "100%",
+                height: "auto",
+                objectFit: "contain"
+              }}
+            />
           </a>
           <span className="system-status"><span className="status-dot" /> SISTEMA COMERCIAL 24/7</span>
         </header>
@@ -274,8 +287,19 @@ export default function LoginPage() {
       <aside className="login-panel-wrap">
         <section className="login-panel">
           <a href="/login" className="login-brand" aria-label="UpScale IA">
-            <span className="login-logo"><Zap size={25} fill="currentColor" /></span>
-            <span><strong>UpScale IA</strong><small>COMMERCIAL INTELLIGENCE</small></span>
+            <Image
+              src="/images/upscale-ia-horizontal.png"
+              alt="UpScale IA"
+              width={220}
+              height={60}
+              priority
+              style={{
+                width: "190px",
+                maxWidth: "100%",
+                height: "auto",
+                objectFit: "contain"
+              }}
+            />
           </a>
           <div className="login-heading">
             <span className="login-eyebrow">TU ESPACIO COMERCIAL</span>
