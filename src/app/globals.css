@@ -2520,3 +2520,19 @@ body {
 @media (max-width: 420px) {
   .assistant-mode-switch button { gap: 5px; padding-inline: 6px; font-size: 10px; }
 }
+
+
+/* === UPSCALE IA · MODOS DEMO / CRM / OPENAI Y PERFIL DE NEGOCIO === */
+.assistant-mode-switch { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; padding:5px; border:1px solid var(--upscale-border); border-radius:12px; background:rgba(4,8,15,.48); }
+.assistant-mode-switch button { display:inline-flex; align-items:center; justify-content:center; gap:6px; min-width:0; min-height:38px; padding:8px 5px; border:1px solid transparent; border-radius:8px; color:var(--upscale-muted); background:transparent; font-size:10px; cursor:pointer; }
+.assistant-mode-switch button.active { color:#f3dfb7; border-color:rgba(233,187,99,.28); background:linear-gradient(110deg,rgba(233,187,99,.13),rgba(165,138,255,.09)); }
+.assistant-mode-switch button:disabled { opacity:.55; cursor:not-allowed; }
+.assistant-mode-switch small { padding:2px 5px; border-radius:5px; color:#8de4c1; background:rgba(85,225,220,.09); font-size:8px; font-weight:700; }
+.assistant-mode-note { margin-top:-7px; color:var(--upscale-muted); font-size:9px; line-height:1.5; }
+.assistant-mode-note.demo,.assistant-mode-note.crm { color:#8de4c1; }
+.assistant-mode-note.openai { color:#c2b5ff; }
+.assistant-segment-picker { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:7px 10px; padding:10px 11px; border:1px solid rgba(148,166,205,.16); border-radius:10px; background:rgba(255,255,255,.025); }
+.assistant-segment-picker label { display:flex; align-items:center; gap:6px; color:#c6d0df; font-size:10px; white-space:nowrap; }
+.assistant-segment-picker select { min-width:0; width:100%; padding:7px 9px; border:1px solid #303a4a; border-radius:7px; color:#edf2fa; background:#151c28; font:inherit; font-size:10px; }
+.assistant-segment-picker p { grid-column:1/-1; margin:0; color:var(--upscale-muted); font-size:9px; line-height:1.5; }
+@media(max-width:420px) { .assistant-mode-switch button { gap:4px; padding-inline:3px; font-size:9px; } .assistant-mode-switch small { display:none; } }
