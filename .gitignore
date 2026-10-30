@@ -1,0 +1,25 @@
+
+# Dependencias
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Variables de entorno y credenciales
+.env
+.env.local
+.env.*
+!.env.example
+
+# Archivos generados
+dist/
+build/
+coverage/
+
+# Netlify y Vercel
+.netlify/
+.vercel/
+
+# Logs
+*.log
