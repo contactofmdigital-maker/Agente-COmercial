@@ -3,11 +3,9 @@ import Image from "next/image";
 import {
   Activity,
   ArrowUpRight,
-  Bot,
   Building2,
   ChartNoAxesCombined,
   CircleHelp,
-  Command,
   LayoutDashboard,
   MessageSquareText,
   Search,
@@ -20,6 +18,7 @@ import {
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProspectWorkspace } from "@/features/prospects/components/prospect-workspace";
+import { AssistantChat } from "@/features/assistant/components/assistant-chat";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -307,39 +306,15 @@ export default async function Home() {
               <div className="panel-heading">
                 <div>
                   <div className="panel-kicker">AI SALES COPILOT</div>
-                  <h3>Asistente comercial</h3>
-                  <p>Prepara el siguiente paso con contexto.</p>
+                  <h3>Agente Comercial</h3>
+                  <p>Consulta tu CRM y prepara tu siguiente movimiento comercial.</p>
                 </div>
                 <div className="ai-icon">
-                  <Bot size={19} />
+                  <Sparkles size={19} />
                 </div>
               </div>
-              <div className="assistant-preview">
-                <div className="assistant-glow">
-                  <Sparkles size={20} />
-                </div>
-                <b>Una buena conversación empieza con contexto.</b>
-                <p>
-                  El módulo de IA se habilitará al configurar un proveedor y
-                  su clave privada en el servidor.
-                </p>
-                <div className="feature-row">
-                  <span>
-                    <ShieldCheck size={14} /> Revisión humana
-                  </span>
-                  <span>
-                    <Command size={14} /> Contexto comercial
-                  </span>
-                </div>
-              </div>
-              <button className="button button-disabled" disabled>
-                <Bot size={16} /> IA pendiente de configuración
-              </button>
-              <div className="assistant-foot">
-                <span className="mini-dot" /> No se envían mensajes
-                automáticamente
-              </div>
-            </section>
+              <AssistantChat />
+            </section>  </section>
           </div>
 
           <footer className="footer">
