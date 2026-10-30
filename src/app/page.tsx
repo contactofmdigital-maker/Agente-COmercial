@@ -20,6 +20,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ProspectWorkspace } from "@/features/prospects/components/prospect-workspace";
 import { AssistantChat } from "@/features/assistant/components/assistant-chat";
 import { BusinessSettings } from "@/features/business/components/business-settings";
+import { OpportunityPipeline } from "@/features/opportunities/components/opportunity-pipeline";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -289,6 +290,8 @@ export default async function Home() {
           </div>
 
           <BusinessSettings />
+
+          <OpportunityPipeline />
 
           <div className="workspace-grid">
             <section className="panel prospect-panel">
