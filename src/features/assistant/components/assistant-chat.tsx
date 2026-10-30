@@ -143,14 +143,56 @@ export function AssistantChat() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("upscale-business-segment");
-    if (saved === "agency" || saved === "local" || saved === "company" || saved === "startup") setSegment(saved);
+    let active = true;
+    async function loadBusinessSegment() {
+      const cached = window.localStorage.getItem("upscale-business-segment");
+      if (cached === "agency" || cached === "local" || cached === "company" || cached === "startup") setSegment(cached);
+      try {
+        const supabase = createClient();
+        const { data: auth } = await supabase.auth.getUser();
+        if (!auth.user) return;
+        const { data } = await supabase
+          .from("business_profiles")
+          .select("segment")
+          .eq("user_id", auth.user.id)
+          .maybeSingle();
+        if (active && data && (data.segment === "agency" || data.segment === "local" || data.segment === "company" || data.segment === "startup")) {
+          setSegment(data.segment);
+          window.localStorage.setItem("upscale-business-segment", data.segment);
+        }
+      } catch {
+        // El modo CRM sigue disponible aunque el perfil aún no esté configurado.
+      }
+    }
+    void loadBusinessSegment();
+    const handleProfileUpdate = (event: Event) => {
+      const custom = event as CustomEvent<{ segment?: BusinessSegment }>;
+      const value = custom.detail?.segment;
+      if (value === "agency" || value === "local" || value === "company" || value === "startup") setSegment(value);
+    };
+    window.addEventListener("upscale-business-profile-updated", handleProfileUpdate);
+    return () => {
+      active = false;
+      window.removeEventListener("upscale-business-profile-updated", handleProfileUpdate);
+    };
   }, []);
 
-  function changeSegment(value: BusinessSegment) {
+  async function changeSegment(value: BusinessSegment) {
     setSegment(value);
     window.localStorage.setItem("upscale-business-segment", value);
     if (mode === "crm") setMessages([{ role: "assistant", content: "Perfil actualizado. " + segmentGuidance[value] + " La próxima consulta aplicará este enfoque." }]);
+    try {
+      const supabase = createClient();
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) return;
+      const { error: saveError } = await supabase
+        .from("business_profiles")
+        .upsert({ user_id: auth.user.id, segment: value }, { onConflict: "user_id" });
+      if (saveError) throw saveError;
+      window.dispatchEvent(new CustomEvent("upscale-business-profile-updated", { detail: { segment: value } }));
+    } catch {
+      // La selección local se mantiene; el panel de configuración muestra errores al guardar el perfil completo.
+    }
   }
 
   async function sendMessage(event?: FormEvent<HTMLFormElement>, text?: string) {
