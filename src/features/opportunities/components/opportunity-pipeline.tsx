@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BriefcaseBusiness, Plus, RefreshCw, LoaderCircle, CalendarDays, DollarSign } from "lucide-react";
+import { BriefcaseBusiness, Plus, RefreshCw, LoaderCircle, CalendarDays } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Stage = "qualification" | "diagnosis" | "proposal" | "negotiation" | "won" | "lost";
@@ -63,8 +63,13 @@ export function OpportunityPipeline() {
 
   const prospectNames = useMemo(() => new Map(prospects.map(p => [p.id, p.company_name ? p.full_name + " · " + p.company_name : p.full_name])), [prospects]);
   const active = opportunities.filter(o => !["won", "lost"].includes(o.stage));
-  const totalActive = active.reduce((sum, o) => sum + Number(o.estimated_value || 0), 0);
-  const totalWon = opportunities.filter(o => o.stage === "won").reduce((sum, o) => sum + Number(o.estimated_value || 0), 0);
+  const totalsByCurrency = (items: Opportunity[]) => {
+    const totals = new Map<string, number>();
+    items.forEach(item => totals.set(item.currency, (totals.get(item.currency) ?? 0) + Number(item.estimated_value || 0)));
+    return totals.size ? Array.from(totals, ([code, value]) => money(value, code)).join(" · ") : money(0, currency);
+  };
+  const totalActive = totalsByCurrency(active);
+  const totalWon = totalsByCurrency(opportunities.filter(o => o.stage === "won"));
 
   async function createOpportunity(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSaving(true); setError(""); setNotice("");
@@ -102,8 +107,8 @@ export function OpportunityPipeline() {
       </div>
       <div className="opportunity-summary">
         <div><span>Oportunidades activas</span><strong>{active.length}</strong></div>
-        <div><span>Valor del pipeline</span><strong>{money(totalActive, currency)}</strong></div>
-        <div><span>Ventas ganadas</span><strong>{money(totalWon, currency)}</strong></div>
+        <div><span>Valor del pipeline</span><strong>{totalActive}</strong></div>
+        <div><span>Ventas ganadas</span><strong>{totalWon}</strong></div>
       </div>
       {(error || notice) && <div className={error ? "notice error" : "notice success"} role={error ? "alert" : "status"}>{error || notice}</div>}
       <div className="opportunity-toolbar">
