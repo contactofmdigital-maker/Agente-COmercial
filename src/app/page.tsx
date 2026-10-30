@@ -317,7 +317,7 @@ export default async function Home() {
                 </div>
               </div>
               <AssistantChat />
-            </section>  </section>
+            </section>
           </div>
 
           <footer className="footer">
