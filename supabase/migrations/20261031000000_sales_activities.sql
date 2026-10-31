@@ -16,9 +16,8 @@ create table if not exists public.sales_activities (
   completed_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  constraint sales_activities_link_check check (
-    prospect_id is not null or opportunity_id is not null
-  )
+  -- Las relaciones son opcionales a nivel de base para permitir conservar
+  -- actividades históricas si se elimina un registro relacionado.
 );
 
 create index if not exists sales_activities_user_due_idx
