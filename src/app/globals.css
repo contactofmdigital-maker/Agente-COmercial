@@ -2604,7 +2604,8 @@ body {
 .opportunity-stage-label { color:#8f9cb1; font-size:9px; }
 .opportunity-empty { display:flex; align-items:center; justify-content:center; flex-direction:column; gap:9px; min-height:130px; color:var(--upscale-muted); font-size:11px; text-align:center; }
 .opportunity-empty strong { color:var(--upscale-text); font-size:13px; }
-@media(max-width:980px) { .opportunity-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }\n@media(max-width:680px) { .opportunity-summary { grid-template-columns:1fr; } .opportunity-form { grid-template-columns:1fr; } .opportunity-form-wide,.opportunity-form .form-footer { grid-column:auto; } .opportunity-form .form-footer { flex-direction:column-reverse; } .opportunity-form .form-footer .button { width:100%; } }
+@media(max-width:980px) { .opportunity-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:680px) { .opportunity-summary { grid-template-columns:1fr; } .opportunity-form { grid-template-columns:1fr; } .opportunity-form-wide,.opportunity-form .form-footer { grid-column:auto; } .opportunity-form .form-footer { flex-direction:column-reverse; } .opportunity-form .form-footer .button { width:100%; } }
 
 
 /* Navegación por módulos */
