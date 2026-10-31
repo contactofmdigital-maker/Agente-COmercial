@@ -107,6 +107,7 @@ export function OpportunityPipeline() {
         <div className="panel-icon"><BriefcaseBusiness size={18} /></div>
       </div>
       <div className="opportunity-summary">
+        <div><span>Total de oportunidades</span><strong>{totalOpportunities}</strong></div>
         <div><span>Oportunidades activas</span><strong>{active.length}</strong></div>
         <div><span>Valor del pipeline</span><strong>{totalActive}</strong></div>
         <div><span>Ventas ganadas</span><strong>{totalWon}</strong></div>
