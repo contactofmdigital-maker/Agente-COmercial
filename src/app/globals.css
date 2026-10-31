@@ -2630,3 +2630,19 @@ body {
   .module-title-row h1 { font-size: 27px; }
   .module-placeholder { min-height: 230px; padding: 25px 16px; }
 }
+
+
+/* Pipeline: cuatro indicadores */
+.opportunity-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 980px) {
+  .opportunity-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .opportunity-summary {
+    grid-template-columns: 1fr;
+  }
+}
