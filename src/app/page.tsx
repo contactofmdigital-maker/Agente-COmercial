@@ -11,6 +11,7 @@ import { ProspectWorkspace } from "@/features/prospects/components/prospect-work
 import { AssistantChat } from "@/features/assistant/components/assistant-chat";
 import { BusinessSettings } from "@/features/business/components/business-settings";
 import { OpportunityPipeline } from "@/features/opportunities/components/opportunity-pipeline";
+import { ActivityWorkspace } from "@/features/activities/components/activity-workspace";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
@@ -175,12 +176,7 @@ export default async function Home({ searchParams }: PageProps) {
           )}
           {activeSection === "activities" && (
             <ModuleHeader kicker="WORKSPACE · SEGUIMIENTO" title="Actividades" description="Centraliza llamadas, reuniones y tareas para que ninguna oportunidad quede sin seguimiento." icon={<Activity size={18} />}>
-              <div className="module-placeholder">
-                <div className="placeholder-icon"><Activity size={22} /></div>
-                <h3>Seguimiento comercial</h3>
-                <p>Este será el próximo módulo que conectaremos con Supabase. Aquí podrás crear tareas, asignar fechas y relacionarlas con prospectos u oportunidades.</p>
-                <span className="placeholder-status">MÓDULO EN IMPLEMENTACIÓN</span>
-              </div>
+              <ActivityWorkspace />
             </ModuleHeader>
           )}
           {activeSection === "assistant" && (
