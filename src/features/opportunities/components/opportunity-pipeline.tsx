@@ -62,6 +62,7 @@ export function OpportunityPipeline() {
   useEffect(() => { void load(); }, [load]);
 
   const prospectNames = useMemo(() => new Map(prospects.map(p => [p.id, p.company_name ? p.full_name + " · " + p.company_name : p.full_name])), [prospects]);
+  const totalOpportunities = opportunities.length;
   const active = opportunities.filter(o => !["won", "lost"].includes(o.stage));
   const totalsByCurrency = (items: Opportunity[]) => {
     const totals = new Map<string, number>();
