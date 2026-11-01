@@ -13,6 +13,7 @@ import { BusinessSettings } from "@/features/business/components/business-settin
 import { OpportunityPipeline } from "@/features/opportunities/components/opportunity-pipeline";
 import { ActivityWorkspace } from "@/features/activities/components/activity-workspace";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
+import { filterRealActivities, filterRealOpportunities, filterRealProspects } from "@/features/data-classification/lib/record-classification";
 import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 
@@ -49,16 +50,36 @@ export default async function Home({ searchParams }: PageProps) {
 
   let connected = false;
   let prospectCount: number | null = null;
+  let activeOpportunityCount: number | null = null;
+  let conversionRate: string | null = null;
+  let pendingActivityCount: number | null = null;
   let connectionMessage = "Configura las variables de Supabase para activar los datos reales.";
   try {
     connected = true;
-    const { count, error } = await supabase.from("sales_prospects")
-      .select("*", { count: "exact", head: true }).eq("user_id", user.id);
-    if (!error) {
-      prospectCount = count ?? 0;
-      connectionMessage = "Resumen consultado para el usuario autenticado.";
+    const [prospectResult, opportunityResult, activityResult] = await Promise.all([
+      supabase.from("sales_prospects").select("id").eq("user_id", user.id),
+      supabase.from("sales_opportunities").select("id,prospect_id,stage").eq("user_id", user.id),
+      supabase.from("sales_activities").select("id,prospect_id,opportunity_id,status").eq("user_id", user.id),
+    ]);
+    const queryError = prospectResult.error || opportunityResult.error || activityResult.error;
+    if (queryError) {
+      connectionMessage = `Supabase responde, pero falta revisar el esquema o los permisos: ${queryError.message}`;
     } else {
-      connectionMessage = `Supabase responde, pero falta revisar el esquema o la migración: ${error.message}`;
+      const realProspects = filterRealProspects(prospectResult.data ?? []);
+      const realOpportunities = filterRealOpportunities(opportunityResult.data ?? []);
+      const demoOpportunityIds = new Set(
+        (opportunityResult.data ?? [])
+          .filter((item) => !realOpportunities.some((real) => real.id === item.id))
+          .map((item) => item.id),
+      );
+      const realActivities = filterRealActivities(activityResult.data ?? [], demoOpportunityIds);
+      prospectCount = realProspects.length;
+      activeOpportunityCount = realOpportunities.filter((item) => !["won", "lost"].includes(item.stage)).length;
+      const closed = realOpportunities.filter((item) => ["won", "lost"].includes(item.stage));
+      const won = closed.filter((item) => item.stage === "won").length;
+      conversionRate = closed.length ? `${Math.round((won / closed.length) * 100)}%` : "—";
+      pendingActivityCount = realActivities.filter((item) => ["pending", "in_progress"].includes(item.status)).length;
+      connectionMessage = "Resumen comercial real consultado para el usuario autenticado. Los registros demo auditados no participan en los indicadores.";
     }
   } catch {
     connectionMessage = "Supabase no está configurado o no se pudo conectar. Revisa .env.local.";
@@ -152,9 +173,9 @@ export default async function Home({ searchParams }: PageProps) {
               </div>
               <div className="metrics-grid">
                 <Metric icon={<Users size={18} />} label="Prospectos registrados" value={prospectCount === null ? "—" : String(prospectCount)} change={connected && prospectCount !== null ? "Dato consultado en Supabase" : "Pendiente de conexión"} tone="violet" />
-                <Metric icon={<Target size={18} />} label="Oportunidades activas" value="—" change="Consulta el módulo Oportunidades" tone="blue" />
-                <Metric icon={<ChartNoAxesCombined size={18} />} label="Conversión comercial" value="—" change="Se calculará con actividad real" tone="green" />
-                <Metric icon={<Activity size={18} />} label="Seguimientos pendientes" value="—" change="Consulta el módulo Actividades" tone="amber" />
+                <Metric icon={<Target size={18} />} label="Oportunidades activas" value={activeOpportunityCount === null ? "—" : String(activeOpportunityCount)} change="Negociaciones abiertas, sin demos" tone="blue" />
+                <Metric icon={<ChartNoAxesCombined size={18} />} label="Conversión comercial" value={conversionRate ?? "—"} change="Ganadas / oportunidades cerradas" tone="green" />
+                <Metric icon={<Activity size={18} />} label="Seguimientos pendientes" value={pendingActivityCount === null ? "—" : String(pendingActivityCount)} change="Pendientes y en curso, sin demos" tone="amber" />
               </div>
               <div className="overview-shortcuts">
                 <Link href="/?section=prospects">Ir a Prospectos <ArrowUpRight size={14} /></Link>
