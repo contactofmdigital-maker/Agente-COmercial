@@ -105,7 +105,7 @@ function evaluateIntent(prospect: PrioritizationProspect, hasActiveOpportunity: 
   const status = normalize(prospect.status);
   if (!notes && !["qualified", "proposal"].includes(status)) return null;
 
-  const rejection = /\b(no interesado|no le interesa|rechaz|descart|no desea|no necesita)\b/.test(notes);
+  const rejection = /\b(no interesado|no le interesa|rechaz\w*|descart\w*|no desea|no necesita)\b/.test(notes);
   if (rejection) return { points: 0, reason: "Existe un rechazo o una incompatibilidad explícita en las notas." };
   if (/\b(cotiz|presupuesto|contrat|comprar|orden de compra|solicita propuesta|solicito propuesta)\w*/.test(notes)) {
     return { points: 30, reason: "Las notas registran una solicitud comercial concreta." };
