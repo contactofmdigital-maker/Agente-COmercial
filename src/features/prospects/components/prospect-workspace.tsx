@@ -6,6 +6,8 @@ import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Papa from "papaparse";
 import {
+  AlertTriangle,
+  Check,
   FileUp,
   Plus,
   RefreshCw,
@@ -81,6 +83,8 @@ export function ProspectWorkspace() {
   const [showForm, setShowForm] = useState(false);
   const [csvRows, setCsvRows] = useState<CsvRow[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [duplicateDialog, setDuplicateDialog] = useState<{ title: string; description: string; items: string[]; confirmLabel: string } | null>(null);
+  const [pendingDuplicateAction, setPendingDuplicateAction] = useState<"save" | "import" | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -174,13 +178,22 @@ export function ProspectWorkspace() {
 
       const matches = detectProspectDuplicates(candidate, existing ?? []);
       if (matches.length) {
-        const detail = matches.slice(0, 5).map((match) =>
-          `• ${match.prospect.full_name} — ${match.kind === "confirmed" ? "correo coincidente" : "posible coincidencia de nombre"}`
-        ).join("\n");
-        const confirmed = window.confirm(
-          `Encontramos ${matches.length} posible(s) duplicado(s):\\n\\n${detail}\\n\\n¿Deseas guardar el prospecto igualmente? No se modificará ningún registro existente.`
-        );
-        if (!confirmed) return;
+        const grouped = new Map<string, { label: string; count: number }>();
+        for (const match of matches) {
+          const identity = `${(match.prospect.full_name ?? "").trim().toLocaleLowerCase()}|${(match.prospect.email ?? "").trim().toLocaleLowerCase()}|${match.kind}`;
+          const current = grouped.get(identity);
+          if (current) current.count += 1;
+          else grouped.set(identity, { label: `${match.prospect.full_name} — ${match.kind === "confirmed" ? "correo coincidente" : "posible coincidencia de nombre"}`, count: 1 });
+        }
+        const items = [...grouped.values()].map((item) => item.count > 1 ? `${item.label} (${item.count} registros)` : item.label);
+        setPendingDuplicateAction("save");
+        setDuplicateDialog({
+          title: "Posible prospecto duplicado",
+          description: `Encontramos ${matches.length} coincidencia(s) en la base. Revisa el detalle antes de continuar.`,
+          items,
+          confirmLabel: "Guardar igualmente",
+        });
+        return;
       }
 
       const { error: insertError } = await supabase
@@ -332,19 +345,25 @@ export function ProspectWorkspace() {
       if (duplicateQueryError) throw duplicateQueryError;
 
       const duplicateMatches = rows.flatMap((row) =>
-        detectProspectDuplicates(row, existing ?? []).map((match) => ({
-          row,
-          match,
-        }))
+        detectProspectDuplicates(row, existing ?? []).map((match) => ({ row, match }))
       );
       if (duplicateMatches.length) {
-        const detail = duplicateMatches.slice(0, 8).map(({ row, match }) =>
-          `• ${row.full_name} ↔ ${match.prospect.full_name} (${match.kind === "confirmed" ? "correo coincidente" : "posible coincidencia de nombre"})`
-        ).join("\n");
-        const confirmed = window.confirm(
-          `El CSV contiene ${duplicateMatches.length} coincidencia(s) con prospectos existentes:\\n\\n${detail}\\n\\n¿Deseas importar igualmente? Los registros existentes no se modificarán.`
-        );
-        if (!confirmed) return;
+        const grouped = new Map<string, { label: string; count: number }>();
+        for (const { row, match } of duplicateMatches) {
+          const identity = `${(row.email ?? "").trim().toLocaleLowerCase()}|${(match.prospect.email ?? "").trim().toLocaleLowerCase()}|${match.kind}`;
+          const current = grouped.get(identity);
+          if (current) current.count += 1;
+          else grouped.set(identity, { label: `${row.full_name} ↔ ${match.prospect.full_name} (${match.kind === "confirmed" ? "correo coincidente" : "posible coincidencia de nombre"})`, count: 1 });
+        }
+        const items = [...grouped.values()].map((item) => item.count > 1 ? `${item.label} (${item.count} coincidencias)` : item.label);
+        setPendingDuplicateAction("import");
+        setDuplicateDialog({
+          title: "Coincidencias en el archivo CSV",
+          description: `El archivo contiene ${duplicateMatches.length} coincidencia(s) con prospectos existentes. Los registros actuales no se modificarán.`,
+          items,
+          confirmLabel: "Importar igualmente",
+        });
+        return;
       }
 
       const payload = rows.map((row) => ({
@@ -387,6 +406,91 @@ export function ProspectWorkspace() {
 
   return (
     <div>
+
+      {duplicateDialog && (
+        <div className="duplicate-modal-backdrop">
+          <section className="duplicate-modal" role="dialog" aria-modal="true" aria-labelledby="duplicate-modal-title">
+            <div className="duplicate-modal-icon"><AlertTriangle size={20} /></div>
+            <div className="duplicate-modal-heading">
+              <span>REVISIÓN DE DUPLICADOS</span>
+              <h3 id="duplicate-modal-title">{duplicateDialog.title}</h3>
+              <p>{duplicateDialog.description}</p>
+            </div>
+            <div className="duplicate-modal-list">
+              {duplicateDialog.items.map((item, index) => (
+                <div className="duplicate-modal-item" key={item + index}>
+                  <span className="duplicate-modal-bullet" />
+                  <span>{item}</span>
+                </div>
+              ))}
+            </div>
+            <p className="duplicate-modal-footnote">Continuar no modifica ni elimina los prospectos existentes.</p>
+            <div className="duplicate-modal-actions">
+              <button type="button" className="button button-secondary" onClick={() => { setDuplicateDialog(null); setPendingDuplicateAction(null); }} disabled={busy}>Cancelar</button>
+              <button
+                type="button"
+                className="button button-primary"
+                disabled={busy}
+                onClick={async () => {
+                  const action = pendingDuplicateAction;
+                  setDuplicateDialog(null);
+                  setPendingDuplicateAction(null);
+                  if (!action) return;
+                  setBusy(true);
+                  setError("");
+                  try {
+                    const supabase = createClient();
+                    const { data: auth, error: authError } = await supabase.auth.getUser();
+                    if (authError) throw authError;
+                    if (!auth.user) throw new Error("Tu sesión no está activa. Inicia sesión nuevamente.");
+                    if (action === "save") {
+                      const candidate = {
+                        full_name: form.full_name.trim(),
+                        company_name: form.company_name.trim() || null,
+                        email: form.email.trim() || null,
+                        website: form.website.trim() || null,
+                      };
+                      const { error: insertError } = await supabase.from("sales_prospects").insert({
+                        user_id: auth.user.id, ...candidate,
+                        country: form.country.trim() || null,
+                        notes: form.notes.trim() || null,
+                      });
+                      if (insertError) throw insertError;
+                      setForm({ full_name: "", company_name: "", email: "", website: "", country: "", notes: "" });
+                      setShowForm(false);
+                      setSuccess("Prospecto guardado. Se conservaron intactos los registros coincidentes.");
+                    } else {
+                      const rows = validCsvRows;
+                      const payload = rows.map((row) => ({
+                        user_id: auth.user!.id,
+                        full_name: row.full_name!.trim(),
+                        company_name: row.company_name?.trim() || null,
+                        email: row.email?.trim() || null,
+                        website: row.website?.trim() || null,
+                        country: row.country?.trim() || null,
+                        notes: row.notes?.trim() || null,
+                      }));
+                      const { error: insertError } = await supabase.from("sales_prospects").insert(payload);
+                      if (insertError) throw insertError;
+                      setCsvRows(null);
+                      if (fileRef.current) fileRef.current.value = "";
+                      setSuccess(`Importación completada: ${payload.length} prospectos guardados. Los registros existentes no se modificaron.`);
+                    }
+                    await loadProspects();
+                    router.refresh();
+                  } catch (err) {
+                    setError(getReadableError(err, "No se pudo completar la operación."));
+                  } finally {
+                    setBusy(false);
+                  }
+                }}
+              >
+                <Check size={14} /> {duplicateDialog.confirmLabel}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
       {(error || success) && (
         <div
           className={`notice ${
