@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { BriefcaseBusiness, Plus, RefreshCw, LoaderCircle, CalendarDays } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { filterRealOpportunities, filterRealProspects } from "@/features/data-classification/lib/record-classification";
 
 type Stage = "qualification" | "diagnosis" | "proposal" | "negotiation" | "won" | "lost";
 type Prospect = { id: string; full_name: string; company_name: string | null };
@@ -50,8 +51,8 @@ export function OpportunityPipeline() {
       ]);
       if (opResult.error) throw opResult.error;
       if (prospectResult.error) throw prospectResult.error;
-      setOpportunities((opResult.data ?? []) as Opportunity[]);
-      setProspects((prospectResult.data ?? []) as Prospect[]);
+      setOpportunities(filterRealOpportunities((opResult.data ?? []) as Opportunity[]));
+      setProspects(filterRealProspects((prospectResult.data ?? []) as Prospect[]));
       const defaultCurrency = profileResult.data?.currency || "CLP";
       setCurrency(defaultCurrency);
       setForm(current => ({ ...current, currency: defaultCurrency, prospect_id: current.prospect_id || prospectResult.data?.[0]?.id || "" }));
