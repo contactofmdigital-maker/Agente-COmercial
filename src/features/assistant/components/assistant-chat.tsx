@@ -108,7 +108,7 @@ function buildDemoAnswer(prompt: string) {
 }
 
 
-function getSegmentAction(segment: BusinessSegment, prospect: Prospect) {
+function getSegmentAction(segment: BusinessSegment, prospect: Pick<Prospect, "status">) {
   const status = prospect.status.toLowerCase();
   if (status === "won") return "Mantener la relación: evaluar recompra, recomendación o venta complementaria.";
   if (status === "lost") return "Revisar el motivo de pérdida antes de intentar reactivar el contacto.";
