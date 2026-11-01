@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isValidActivityDueDate } from "@/features/assistant/lib/prioritization";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -91,8 +92,15 @@ export async function GET() {
     const pendingActivities = activities.filter((item) =>
       ["pending", "in_progress"].includes(item.status),
     );
+    const invalidDateActivities = pendingActivities.filter(
+      (item) => item.due_at !== null && !isValidActivityDueDate(item.due_at, item.created_at),
+    );
+    const invalidDateIds = new Set(invalidDateActivities.map((item) => item.id));
     const overdueActivities = pendingActivities.filter(
-      (item) => item.due_at && new Date(item.due_at).getTime() < Date.now(),
+      (item) =>
+        item.due_at !== null &&
+        !invalidDateIds.has(item.id) &&
+        new Date(item.due_at).getTime() < Date.now(),
     );
     const wonOpportunities = opportunities.filter(
       (item) => item.stage === "won",
@@ -110,6 +118,7 @@ export async function GET() {
         activities_loaded: activities.length,
         pending_activities: pendingActivities.length,
         overdue_activities: overdueActivities.length,
+        invalid_date_activities: invalidDateActivities.length,
       },
       data: {
         prospects,
