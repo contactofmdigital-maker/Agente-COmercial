@@ -237,7 +237,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
       "Potencial: " + (potential.score === null ? "Sin clasificación" : potential.score + "/100") +
       " · Cobertura: " + potential.coverage + "% · Clasificación: " + potential.classification + "\n\n" +
       "DESGLOSE DE CRITERIOS\n" + breakdown + "\n\n" +
-      "Urgencia de gestión: " + selected.urgency.level.toUpperCase() + ". " + selected.urgency.reasons.join("; ") + "\n" +
+      "Urgencia de gestión: " + ({ high: "ALTA", medium: "MEDIA", low: "BAJA", not_evaluable: "NO EVALUABLE" }[selected.urgency.level]) + ". " + selected.urgency.reasons.join("; ") + "\n" +
       (potential.missingEvidence.length ? "Información faltante: " + potential.missingEvidence.join(", ") + "\n" : "No se detectan criterios faltantes.\n") +
       "\nLa puntuación es una evaluación heurística basada en los datos registrados, no una predicción de cierre. No se han modificado registros ni enviado mensajes.";
   }
