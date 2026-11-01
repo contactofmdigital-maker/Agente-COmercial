@@ -21,7 +21,7 @@ async function fetchAllActivities(supabase: ReturnType<typeof createClient>, use
   const pageSize = 500;
   const records: SalesActivity[] = [];
   for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase.from("sales_activities").select("id,prospect_id,opportunity_id,activity_type,title,description,due_at,priority,status,created_at").eq("user_id", userId).order("due_at", { ascending: true, nullsFirst: false }).range(offset, offset + pageSize - 1);
+    const { data, error } = await supabase.from("sales_activities").select("id,prospect_id,opportunity_id,activity_type,title,description,due_at,priority,status,created_at").eq("user_id", userId).order("due_at", { ascending: true, nullsFirst: false }).order("id", { ascending: true }).range(offset, offset + pageSize - 1);
     if (error) throw error;
     records.push(...((data ?? []) as SalesActivity[]));
     if (!data || data.length < pageSize) break;
@@ -33,7 +33,7 @@ async function fetchAllOpportunities(supabase: ReturnType<typeof createClient>, 
   const pageSize = 500;
   const records: Opportunity[] = [];
   for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase.from("sales_opportunities").select("id,prospect_id,title").eq("user_id", userId).order("created_at", { ascending: false }).range(offset, offset + pageSize - 1);
+    const { data, error } = await supabase.from("sales_opportunities").select("id,prospect_id,title").eq("user_id", userId).order("created_at", { ascending: false }).order("id", { ascending: true }).range(offset, offset + pageSize - 1);
     if (error) throw error;
     records.push(...((data ?? []) as Opportunity[]));
     if (!data || data.length < pageSize) break;
@@ -115,8 +115,12 @@ export function ActivityWorkspace() {
   }, [load]);
 
   useEffect(() => {
+    const initialClockTimer = window.setTimeout(() => setNow(Date.now()), 0);
     const clockTimer = window.setInterval(() => setNow(Date.now()), 60_000);
-    return () => window.clearInterval(clockTimer);
+    return () => {
+      window.clearTimeout(initialClockTimer);
+      window.clearInterval(clockTimer);
+    };
   }, []);
 
   const prospectNames = useMemo(() => new Map(prospects.map(p => [p.id, p.company_name ? p.full_name + " · " + p.company_name : p.full_name])), [prospects]);

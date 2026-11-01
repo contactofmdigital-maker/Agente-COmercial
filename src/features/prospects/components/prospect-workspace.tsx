@@ -78,7 +78,7 @@ async function fetchExistingProspects(supabase: ReturnType<typeof createClient>,
   const pageSize = 500;
   const records: { id: string; full_name: string; company_name: string | null; email: string | null; website: string | null }[] = [];
   for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase.from("sales_prospects").select("id,full_name,company_name,email,website").eq("user_id", userId).order("created_at", { ascending: false }).range(offset, offset + pageSize - 1);
+    const { data, error } = await supabase.from("sales_prospects").select("id,full_name,company_name,email,website").eq("user_id", userId).order("created_at", { ascending: false }).order("id", { ascending: true }).range(offset, offset + pageSize - 1);
     if (error) throw error;
     records.push(...(data ?? []));
     if (!data || data.length < pageSize) break;

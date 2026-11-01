@@ -61,7 +61,7 @@ export default async function Home({ searchParams }: PageProps) {
       (async () => {
         const rows: { id: string }[] = [];
         for (let offset = 0; ; offset += pageSize) {
-          const { data, error } = await supabase.from("sales_prospects").select("id").eq("user_id", user.id).range(offset, offset + pageSize - 1);
+          const { data, error } = await supabase.from("sales_prospects").select("id").eq("user_id", user.id).order("id", { ascending: true }).range(offset, offset + pageSize - 1);
           if (error) throw error;
           rows.push(...(data ?? []));
           if (!data || data.length < pageSize) break;

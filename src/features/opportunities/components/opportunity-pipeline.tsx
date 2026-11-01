@@ -17,7 +17,7 @@ async function fetchAllOpportunities(supabase: ReturnType<typeof createClient>, 
   const pageSize = 500;
   const records: Opportunity[] = [];
   for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase.from("sales_opportunities").select("id,prospect_id,title,description,stage,estimated_value,currency,expected_close_date,created_at").eq("user_id", userId).order("created_at", { ascending: false }).range(offset, offset + pageSize - 1);
+    const { data, error } = await supabase.from("sales_opportunities").select("id,prospect_id,title,description,stage,estimated_value,currency,expected_close_date,created_at").eq("user_id", userId).order("created_at", { ascending: false }).order("id", { ascending: true }).range(offset, offset + pageSize - 1);
     if (error) throw error;
     records.push(...((data ?? []) as Opportunity[]));
     if (!data || data.length < pageSize) break;
