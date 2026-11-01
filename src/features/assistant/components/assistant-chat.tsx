@@ -215,14 +215,13 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     value ? new Date(value).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }) : "Sin fecha";
 
   if (intent === "explain_prospect") {
-    const query = normalized.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
     const selected = prioritized.find(({ prospect }) => {
-      const name = prospect.full_name.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
-      const company = (prospect.company_name ?? "").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+      const name = prospect.full_name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      const company = (prospect.company_name ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       return (name.length >= 5 && query.includes(name)) || (company.length >= 5 && query.includes(company));
     });
     if (!selected) {
-      return header + "EXPLICACIÓN DE PUNTUACIÓN\\nNo puedo identificar con seguridad a qué prospecto te refieres. Indícame su nombre completo o empresa y te mostraré el desglose de criterios, puntos, evidencia, cobertura y datos faltantes.\\n\\nNo se han modificado registros ni enviado mensajes.";
+      return header + "EXPLICACIÓN DE PUNTUACIÓN\nNo puedo identificar con seguridad a qué prospecto te refieres. Indícame su nombre completo o empresa y te mostraré el desglose de criterios, puntos, evidencia, cobertura y datos faltantes.\n\nNo se han modificado registros ni enviado mensajes.";
     }
     const p = selected.prospect;
     const potential = selected.potential;
@@ -231,15 +230,15 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
       "- " + criterion.name + ": " +
       (criterion.points === null ? "No evaluado" : criterion.points + "/" + criterion.weight + " puntos") +
       ". " + criterion.reason
-    ).join("\\n");
-    return header + "EXPLICACIÓN DE PUNTUACIÓN\\n" +
-      p.full_name + company + "\\n" +
+    ).join("\n");
+    return header + "EXPLICACIÓN DE PUNTUACIÓN\n" +
+      p.full_name + company + "\n" +
       "Potencial: " + (potential.score === null ? "Sin clasificación" : potential.score + "/100") +
-      " · Cobertura: " + potential.coverage + "% · Clasificación: " + potential.classification + "\\n\\n" +
-      "DESGLOSE DE CRITERIOS\\n" + breakdown + "\\n\\n" +
-      "Urgencia de gestión: " + selected.urgency.level.toUpperCase() + ". " + selected.urgency.reasons.join("; ") + "\\n" +
-      (potential.missingEvidence.length ? "Información faltante: " + potential.missingEvidence.join(", ") + "\\n" : "No se detectan criterios faltantes.\\n") +
-      "\\nLa puntuación es una evaluación heurística basada en los datos registrados, no una predicción de cierre. No se han modificado registros ni enviado mensajes.";
+      " · Cobertura: " + potential.coverage + "% · Clasificación: " + potential.classification + "\n\n" +
+      "DESGLOSE DE CRITERIOS\n" + breakdown + "\n\n" +
+      "Urgencia de gestión: " + selected.urgency.level.toUpperCase() + ". " + selected.urgency.reasons.join("; ") + "\n" +
+      (potential.missingEvidence.length ? "Información faltante: " + potential.missingEvidence.join(", ") + "\n" : "No se detectan criterios faltantes.\n") +
+      "\nLa puntuación es una evaluación heurística basada en los datos registrados, no una predicción de cierre. No se han modificado registros ni enviado mensajes.";
   }
 
   if (intent === "missing_information") {
@@ -254,10 +253,10 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     if (!profile?.ideal_customer?.trim()) profileMissing.push("cliente ideal");
     if (!profile?.products_services?.trim()) profileMissing.push("productos o servicios");
     if (!profile?.description?.trim()) profileMissing.push("descripción del negocio");
-    return header + "INFORMACIÓN QUE FALTA PARA PRIORIZAR MEJOR\\n" +
-      (details.length ? details.join("\\n") : "Los prospectos activos tienen evidencia en todos los criterios evaluables.") +
-      (profileMissing.length ? "\\n\\nCOMPLETAR PERFIL DEL NEGOCIO\\n- " + profileMissing.join("\\n- ") : "") +
-      "\\n\\nPrioriza registrar necesidad e intención, completar el perfil del cliente ideal y registrar las interacciones comerciales cuando se realicen. No se han modificado registros ni enviado mensajes.";
+    return header + "INFORMACIÓN QUE FALTA PARA PRIORIZAR MEJOR\n" +
+      (details.length ? details.join("\n") : "Los prospectos activos tienen evidencia en todos los criterios evaluables.") +
+      (profileMissing.length ? "\n\nCOMPLETAR PERFIL DEL NEGOCIO\n- " + profileMissing.join("\n- ") : "") +
+      "\n\nPrioriza registrar necesidad e intención, completar el perfil del cliente ideal y registrar las interacciones comerciales cuando se realicen. No se han modificado registros ni enviado mensajes.";
   }
 
   let response = header;
