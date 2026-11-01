@@ -290,8 +290,8 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
             (activity.prospect_id === p.id || (activity.opportunity_id && related.some((opportunity) => opportunity.id === activity.opportunity_id))) &&
             !invalidDateIds.has(activity.id)
           );
-          const potentialLabel = item.potential.score === null
-            ? "Evidencia insuficiente"
+          const potentialLabel = item.potential.classification === "insufficient" || item.potential.score === null
+            ? "Sin clasificación · evidencia insuficiente · cobertura " + item.potential.coverage + "%"
             : item.potential.score + "/100 · cobertura " + item.potential.coverage + "% · " +
               (item.potential.classification === "sufficient" ? "suficiente" : "provisional");
           const urgencyLabel = item.urgency.level === "high" ? "ALTA" :
