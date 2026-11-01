@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { detectProspectDuplicates } from "@/features/prospects/lib/duplicate-detection";
+import { filterRealProspects, isDemoProspectId } from "@/features/data-classification/lib/record-classification";
 
 type Prospect = {
   id: string;
@@ -133,7 +134,7 @@ export function ProspectWorkspace() {
 
       if (queryError) throw queryError;
 
-      setProspects((data ?? []) as Prospect[]);
+      setProspects(filterRealProspects((data ?? []) as Prospect[]));
       setLoaded(true);
     } catch (err) {
       setError(
@@ -176,7 +177,7 @@ export function ProspectWorkspace() {
         .limit(500);
       if (duplicateQueryError) throw duplicateQueryError;
 
-      const matches = detectProspectDuplicates(candidate, existing ?? []);
+      const matches = detectProspectDuplicates(candidate, (existing ?? []).filter((item) => !isDemoProspectId(item.id)));
       if (matches.length) {
         const uniqueMatches = new Map<string, (typeof matches)[number]>();
         for (const match of matches) {
