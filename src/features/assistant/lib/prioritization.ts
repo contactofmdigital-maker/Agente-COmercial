@@ -100,7 +100,7 @@ const commercialActivities = (activities: PrioritizationActivity[]) =>
     validDate(item.completed_at, item.created_at) !== null
   );
 
-function evaluateIntent(prospect: PrioritizationProspect) {
+function evaluateIntent(prospect: PrioritizationProspect, hasActiveOpportunity: boolean) {
   const notes = normalize(prospect.notes);
   const status = normalize(prospect.status);
   if (!notes && !["qualified", "proposal"].includes(status)) return null;
@@ -113,8 +113,8 @@ function evaluateIntent(prospect: PrioritizationProspect) {
   if (/\b(necesita|necesidad|requiere|busca|quiere|interesad|interes)\w*/.test(notes)) {
     return { points: 22, reason: "Las notas describen una necesidad o interés comercial." };
   }
-  if (status === "proposal") return { points: 22, reason: "El prospecto figura en estado de propuesta." };
-  if (status === "qualified") return { points: 18, reason: "El prospecto figura como calificado." };
+  if (!hasActiveOpportunity && status === "proposal") return { points: 22, reason: "El prospecto figura en estado de propuesta y no hay oportunidad activa vinculada." };
+  if (!hasActiveOpportunity && status === "qualified") return { points: 18, reason: "El prospecto figura como calificado y no hay oportunidad activa vinculada." };
   if (notes) return { points: 10, reason: "Hay notas comerciales, pero no describen intención concreta." };
   return null;
 }
@@ -211,8 +211,9 @@ export function calculatePotential(
     (item.opportunity_id !== null && relatedOpportunityIds.has(item.opportunity_id))
   );
 
+  const hasActiveOpportunity = opportunities.some((item) => item.prospect_id === prospect.id && item.stage in ACTIVE_STAGES);
   const evaluated = [
-    { name: "Intención y necesidad", weight: WEIGHTS.intent, result: evaluateIntent(prospect) },
+    { name: "Intención y necesidad", weight: WEIGHTS.intent, result: evaluateIntent(prospect, hasActiveOpportunity) },
     { name: "Avance de oportunidad", weight: WEIGHTS.opportunity, result: evaluateOpportunity(prospect, opportunities) },
     { name: "Ajuste al cliente ideal", weight: WEIGHTS.icp, result: evaluateIcpFit(prospect, profile) },
     { name: "Interacción comercial", weight: WEIGHTS.interaction, result: evaluateInteraction(relatedActivities) },
