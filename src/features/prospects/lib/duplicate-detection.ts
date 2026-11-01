@@ -15,11 +15,18 @@ export type DuplicateMatch = {
 const normalize = (value: string | null | undefined) =>
   (value ?? "")
     .normalize("NFD")
-    .replace(/[\\u0300-\\u036f]/g, "")
+    .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9@.\\s-]/g, " ")
-    .replace(/\\s+/g, " ")
+    .replace(/[^a-z0-9@.\s-]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
+
+const normalizeWebsite = (value: string | null | undefined) =>
+  normalize(value)
+    .replace(/^https?:/, "")
+    .replace(/^\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/\/$/, "");
 
 export const normalizeProspectEmail = (email: string | null | undefined) =>
   normalize(email);
@@ -31,7 +38,7 @@ export function detectProspectDuplicates(
   const email = normalizeProspectEmail(candidate.email);
   const name = normalize(candidate.full_name);
   const company = normalize(candidate.company_name);
-  const website = normalize(candidate.website).replace(/^https?:\\/\\//, "").replace(/^www\\./, "").replace(/\\/$/, "");
+  const website = normalizeWebsite(candidate.website);
 
   if (!email && !name) return [];
 
@@ -41,10 +48,7 @@ export function detectProspectDuplicates(
       const existingEmail = normalizeProspectEmail(prospect.email);
       const existingName = normalize(prospect.full_name);
       const existingCompany = normalize(prospect.company_name);
-      const existingWebsite = normalize(prospect.website)
-        .replace(/^https?:\\/\\//, "")
-        .replace(/^www\\./, "")
-        .replace(/\\/$/, "");
+      const existingWebsite = normalizeWebsite(prospect.website);
 
       if (email && existingEmail && email === existingEmail) {
         return {
@@ -55,8 +59,8 @@ export function detectProspectDuplicates(
       }
 
       if (name && existingName && name === existingName) {
-        const sameCompany = company && existingCompany && company === existingCompany;
-        const sameWebsite = website && existingWebsite && website === existingWebsite;
+        const sameCompany = Boolean(company && existingCompany && company === existingCompany);
+        const sameWebsite = Boolean(website && existingWebsite && website === existingWebsite);
         return {
           prospect,
           kind: "possible",
