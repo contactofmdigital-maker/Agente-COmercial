@@ -56,7 +56,7 @@ export async function GET() {
         supabase
           .from("sales_activities")
           .select(
-            "id,prospect_id,opportunity_id,activity_type,title,description,due_at,priority,status,created_at",
+            "id,prospect_id,opportunity_id,activity_type,title,description,due_at,priority,status,created_at,completed_at",
           )
           .eq("user_id", user.id)
           .order("due_at", { ascending: true, nullsFirst: false })
