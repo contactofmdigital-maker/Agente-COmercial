@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Bot, Send, Sparkles, User, RotateCcw, LoaderCircle, FlaskConical, Zap, Database, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { prioritizeProspects } from "@/features/assistant/lib/prioritization";
+import { classifyCrmQuery, isValidActivityDueDate, prioritizeProspects } from "@/features/assistant/lib/prioritization";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type AssistantMode = "demo" | "crm" | "openai";
@@ -62,6 +62,7 @@ type CommercialContext = {
     activities_loaded: number;
     pending_activities: number;
     overdue_activities: number;
+    invalid_date_activities?: number;
   };
   data: {
     prospects: Prospect[];
@@ -140,30 +141,25 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     " · Activas: " + context.summary.active_opportunities +
     " · Ganadas: " + context.summary.won_opportunities +
     " · Actividades pendientes: " + context.summary.pending_activities +
-    " · Vencidas según fecha registrada: " + context.summary.overdue_activities + "\n\n";
+    " · Actividades vencidas válidas: " + context.summary.overdue_activities +
+    " · Fechas por revisar: " + (context.summary.invalid_date_activities ?? 0) + "\n\n";
 
   if (!prospects.length && !opportunities.length && !activities.length) {
     return header + "Todavía no hay registros comerciales en tu espacio. Registra prospectos, oportunidades o actividades para comenzar.";
   }
 
   const normalized = prompt.toLowerCase();
-  const asksActivities = /actividad|seguimiento|vencid|atrasad|tarea|llamad|reunion|reunión|correo|hoy/i.test(normalized);
-  const asksOpportunities = /oportunidad|pipeline|negociaci|estancad|cierre|venta|propuesta/i.test(normalized);
-  const asksProspects = /prospect|cliente|contact|prioriz|captar|lead|conseguir|analiza mis prospectos/i.test(normalized);
-  const asksSummary = /analiza mi negocio|resumen|situacion|situación|estado comercial|que deberia priorizar|qué debería priorizar/i.test(normalized);
-  const broadAnalysis = asksSummary || (!asksActivities && !asksOpportunities && !asksProspects);
-  const showActivities = asksActivities || broadAnalysis;
-  const showOpportunities = asksOpportunities || broadAnalysis;
-  const showProspects = asksProspects || broadAnalysis;
+  const intent = classifyCrmQuery(prompt);
+  const broadAnalysis = intent === "summary" || intent === "general";
+  const showActivities = intent === "activities" || broadAnalysis;
+  const showOpportunities = intent === "opportunities" || broadAnalysis;
+  const showProspects = intent === "prospects" || broadAnalysis;
   const now = Date.now();
 
   const pending = activities.filter((item) => ["pending", "in_progress"].includes(item.status));
-  const invalidDateActivities = pending.filter((item) => {
-    if (!item.due_at) return false;
-    const due = new Date(item.due_at).getTime();
-    const created = new Date(item.created_at).getTime();
-    return !Number.isFinite(due) || due < Date.UTC(2000, 0, 1) || due < created - 30 * 86400000;
-  });
+  const invalidDateActivities = pending.filter((item) =>
+    item.due_at !== null && !isValidActivityDueDate(item.due_at, item.created_at)
+  );
   const invalidDateIds = new Set(invalidDateActivities.map((item) => item.id));
   const overdue = pending.filter((item) =>
     item.due_at !== null &&
@@ -217,6 +213,52 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
   };
   const dateLabel = (value: string | null) =>
     value ? new Date(value).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }) : "Sin fecha";
+
+  if (intent === "explain_prospect") {
+    const query = normalized.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+    const selected = prioritized.find(({ prospect }) => {
+      const name = prospect.full_name.toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+      const company = (prospect.company_name ?? "").toLowerCase().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "");
+      return (name.length >= 5 && query.includes(name)) || (company.length >= 5 && query.includes(company));
+    });
+    if (!selected) {
+      return header + "EXPLICACIÓN DE PUNTUACIÓN\\nNo puedo identificar con seguridad a qué prospecto te refieres. Indícame su nombre completo o empresa y te mostraré el desglose de criterios, puntos, evidencia, cobertura y datos faltantes.\\n\\nNo se han modificado registros ni enviado mensajes.";
+    }
+    const p = selected.prospect;
+    const potential = selected.potential;
+    const company = p.company_name ? " · " + p.company_name : "";
+    const breakdown = potential.criteria.map((criterion) =>
+      "- " + criterion.name + ": " +
+      (criterion.points === null ? "No evaluado" : criterion.points + "/" + criterion.weight + " puntos") +
+      ". " + criterion.reason
+    ).join("\\n");
+    return header + "EXPLICACIÓN DE PUNTUACIÓN\\n" +
+      p.full_name + company + "\\n" +
+      "Potencial: " + (potential.score === null ? "Sin clasificación" : potential.score + "/100") +
+      " · Cobertura: " + potential.coverage + "% · Clasificación: " + potential.classification + "\\n\\n" +
+      "DESGLOSE DE CRITERIOS\\n" + breakdown + "\\n\\n" +
+      "Urgencia de gestión: " + selected.urgency.level.toUpperCase() + ". " + selected.urgency.reasons.join("; ") + "\\n" +
+      (potential.missingEvidence.length ? "Información faltante: " + potential.missingEvidence.join(", ") + "\\n" : "No se detectan criterios faltantes.\\n") +
+      "\\nLa puntuación es una evaluación heurística basada en los datos registrados, no una predicción de cierre. No se han modificado registros ni enviado mensajes.";
+  }
+
+  if (intent === "missing_information") {
+    const incomplete = prioritized.filter((item) => item.potential.missingEvidence.length > 0);
+    const details = incomplete.slice(0, 10).map((item) =>
+      "- " + item.prospect.full_name +
+      (item.prospect.company_name ? " · " + item.prospect.company_name : "") +
+      ": completar " + item.potential.missingEvidence.join(", ") +
+      (item.potential.classification === "insufficient" ? " (evidencia insuficiente)" : " (clasificación " + item.potential.classification + ")")
+    );
+    const profileMissing = [];
+    if (!profile?.ideal_customer?.trim()) profileMissing.push("cliente ideal");
+    if (!profile?.products_services?.trim()) profileMissing.push("productos o servicios");
+    if (!profile?.description?.trim()) profileMissing.push("descripción del negocio");
+    return header + "INFORMACIÓN QUE FALTA PARA PRIORIZAR MEJOR\\n" +
+      (details.length ? details.join("\\n") : "Los prospectos activos tienen evidencia en todos los criterios evaluables.") +
+      (profileMissing.length ? "\\n\\nCOMPLETAR PERFIL DEL NEGOCIO\\n- " + profileMissing.join("\\n- ") : "") +
+      "\\n\\nPrioriza registrar necesidad e intención, completar el perfil del cliente ideal y registrar las interacciones comerciales cuando se realicen. No se han modificado registros ni enviado mensajes.";
+  }
 
   let response = header;
 
