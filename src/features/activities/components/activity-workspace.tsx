@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, CalendarClock, Check, Circle, Clock3, LoaderCircle, Mail, MessageCircle, Plus, RefreshCw, Users, Video } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { filterRealActivities, filterRealOpportunities, filterRealProspects } from "@/features/data-classification/lib/record-classification";
+import { isValidActivityDueDate } from "@/features/assistant/lib/prioritization";
 
 type ActivityType = "task" | "call" | "meeting" | "email" | "follow_up";
 type ActivityStatus = "pending" | "in_progress" | "completed" | "cancelled";
@@ -89,7 +90,7 @@ export function ActivityWorkspace() {
   const prospectNames = useMemo(() => new Map(prospects.map(p => [p.id, p.company_name ? p.full_name + " · " + p.company_name : p.full_name])), [prospects]);
   const visibleActivities = activities.filter(item => filter === "all" || item.status === filter);
   const pendingCount = activities.filter(item => item.status === "pending" || item.status === "in_progress").length;
-  const overdueCount = activities.filter(item => item.due_at && new Date(item.due_at) < new Date() && !["completed", "cancelled"].includes(item.status)).length;
+  const overdueCount = activities.filter(item => item.due_at && isValidActivityDueDate(item.due_at, item.created_at) && new Date(item.due_at).getTime() < Date.now() && !["completed", "cancelled"].includes(item.status)).length;
 
   async function createActivity(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSaving(true); setError(""); setNotice("");
@@ -115,7 +116,7 @@ export function ActivityWorkspace() {
   async function updateStatus(id: string, status: ActivityStatus) {
     setError(""); setNotice("");
     const supabase = createClient();
-    const { error: updateError } = await supabase.from("sales_activities").update({ status }).eq("id", id);
+    const { error: updateError } = await supabase.from("sales_activities").update({ status, completed_at: status === "completed" ? new Date().toISOString() : null }).eq("id", id);
     if (updateError) { setError(updateError.message); return; }
     setActivities(current => current.map(item => item.id === id ? { ...item, status } : item));
     setNotice("Estado actualizado.");
