@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Bot, Send, Sparkles, User, RotateCcw, LoaderCircle, FlaskConical, Zap, Database, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { prioritizeProspects } from "@/features/assistant/lib/prioritization";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type AssistantMode = "demo" | "crm" | "openai";
@@ -31,7 +32,7 @@ type Opportunity = {
 };
 type Activity = {
   id: string;
-  prospect_id: string;
+  prospect_id: string | null;
   opportunity_id: string | null;
   activity_type: string;
   title: string;
@@ -40,6 +41,7 @@ type Activity = {
   priority: string;
   status: string;
   created_at: string;
+  completed_at: string | null;
 };
 type CommercialContext = {
   profile: {
@@ -105,32 +107,6 @@ function buildDemoAnswer(prompt: string) {
   return disclaimer + "ANÁLISIS COMERCIAL DE EJEMPLO\n\n1. Empresa Norte — prioridad alta: solicitó información y tiene una necesidad definida. Acción: contactar hoy y agendar diagnóstico.\n2. Estudio Central — prioridad media: mostró interés, pero no confirmó presupuesto ni plazo. Acción: enviar una pregunta de calificación.\n3. Comercio Sur — prioridad baja: contacto inicial sin respuesta. Acción: realizar un seguimiento breve y luego pausar.\n\nCriterios: intención, necesidad, interacción reciente y claridad del próximo paso. Estos datos son ficticios.";
 }
 
-function scoreProspect(prospect: Prospect) {
-  let score = 20;
-  const reasons: string[] = [];
-  const status = prospect.status.toLowerCase();
-  if (status === "qualified") { score += 30; reasons.push("Está calificado"); }
-  else if (status === "proposal") { score += 35; reasons.push("Tiene propuesta en curso"); }
-  else if (status === "contacted") { score += 15; reasons.push("Ya existe contacto"); }
-  else if (status === "new") { score += 5; reasons.push("Es un contacto nuevo"); }
-  else if (status === "won") { score += 10; reasons.push("Cliente ganado: oportunidad de continuidad"); }
-  else if (status === "lost") { score -= 15; reasons.push("Figura como perdido"); }
-
-  if (prospect.email) { score += 8; reasons.push("Tiene correo disponible"); }
-  if (prospect.website) { score += 7; reasons.push("Tiene sitio web para investigar"); }
-  if (prospect.company_name) { score += 5; reasons.push("Tiene empresa identificada"); }
-
-  const notes = (prospect.notes ?? "").toLowerCase();
-  const positiveSignals = ["interes", "solicit", "cotiz", "presupuesto", "reunion", "urgente", "necesita", "propuesta", "comprar", "reserv"];
-  const negativeSignals = ["no responde", "sin respuesta", "no interesado", "rechaz", "más adelante", "mas adelante"];
-  if (positiveSignals.some((term) => notes.includes(term))) { score += 15; reasons.push("Las notas contienen señales de interés o necesidad"); }
-  if (negativeSignals.some((term) => notes.includes(term))) { score -= 10; reasons.push("Las notas indican fricción o baja respuesta"); }
-
-  const daysSinceCreated = Math.floor((Date.now() - new Date(prospect.created_at).getTime()) / 86400000);
-  if (daysSinceCreated <= 7) { score += 5; reasons.push("Registro reciente"); }
-  score = Math.max(0, Math.min(100, score));
-  return { score, reasons };
-}
 
 function getSegmentAction(segment: BusinessSegment, prospect: Prospect) {
   const status = prospect.status.toLowerCase();
@@ -195,20 +171,31 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     new Date(item.due_at).getTime() < now
   );
   const activeOpps = opportunities.filter((item) => !["won", "lost"].includes(item.stage));
-  const ranked = prospects
-    .map((prospect) => ({ prospect, ...scoreProspect(prospect) }))
-    .sort((a, b) => b.score - a.score);
-
+  const prioritized = prioritizeProspects(
+    prospects,
+    opportunities,
+    activities,
+    profile ? {
+      description: profile.description,
+      products_services: profile.products_services,
+      ideal_customer: profile.ideal_customer,
+    } : null,
+    now,
+  );
   const normalizedIdentity = (value: string | null | undefined) =>
     (value ?? "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").trim().toLowerCase().replace(/\\s+/g, " ");
   const identityKey = (prospect: Prospect) => {
     const email = normalizedIdentity(prospect.email);
     return email || normalizedIdentity(prospect.full_name) + "|" + normalizedIdentity(prospect.company_name);
   };
-  const uniqueRanked = ranked.filter((item, index, all) =>
-    all.findIndex((candidate) => identityKey(candidate.prospect) === identityKey(item.prospect)) === index
-  );
-  const possibleDuplicateCount = ranked.length - uniqueRanked.length;
+  const duplicateKeys = new Set<string>();
+  const seenKeys = new Set<string>();
+  for (const prospect of prospects) {
+    const key = identityKey(prospect);
+    if (key.replace(/\\|/g, "").trim() && seenKeys.has(key)) duplicateKeys.add(key);
+    seenKeys.add(key);
+  }
+  const possibleDuplicateCount = duplicateKeys.size;
   const prospectById = new Map(prospects.map((item) => [item.id, item]));
   const safeCompanyName = (value: string | null) => {
     if (!value) return "";
@@ -293,28 +280,42 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
   }
 
   if (showProspects) {
-    response += "PROSPECTOS PRIORIZADOS\n";
-    response += uniqueRanked.length
-      ? uniqueRanked.slice(0, 10).map((item, index) => {
+    response += "PROSPECTOS PRIORIZADOS\\n";
+    response += prioritized.length
+      ? prioritized.slice(0, 10).map((item, index) => {
           const p = item.prospect;
           const company = safeCompanyName(p.company_name);
           const related = opportunities.filter((opportunity) => opportunity.prospect_id === p.id && !["won", "lost"].includes(opportunity.stage));
-          const nextActivity = pending.find((activity) => activity.prospect_id === p.id && !invalidDateIds.has(activity.id));
+          const nextActivity = pending.find((activity) =>
+            (activity.prospect_id === p.id || (activity.opportunity_id && related.some((opportunity) => opportunity.id === activity.opportunity_id))) &&
+            !invalidDateIds.has(activity.id)
+          );
+          const potentialLabel = item.potential.score === null
+            ? "Evidencia insuficiente"
+            : item.potential.score + "/100 · cobertura " + item.potential.coverage + "% · " +
+              (item.potential.classification === "sufficient" ? "suficiente" : "provisional");
+          const urgencyLabel = item.urgency.level === "high" ? "ALTA" :
+            item.urgency.level === "medium" ? "MEDIA" :
+            item.urgency.level === "low" ? "BAJA" : "NO EVALUABLE";
+          const action = item.urgency.level === "high" ? item.nextAction : getSegmentAction(segment, p);
           return (index + 1) + ". " + p.full_name +
             (company ? " · " + company : "") +
             " · " + (statusLabels[p.status] ?? p.status) +
-            " · Prioridad orientativa: " + item.score + "/100" +
-            (related.length ? " · Oportunidades abiertas: " + related.length : "") +
-            (nextActivity ? " · Próxima actividad: " + nextActivity.title : "") +
-            "\n   Motivos: " + (item.reasons.join("; ") || "Información limitada") +
-            "\n   Acción sugerida: " + getSegmentAction(segment, p);
-        }).join("\n\n")
-      : "No hay prospectos registrados.";
+            "\\n   Potencial comercial: " + potentialLabel +
+            "\\n   Urgencia de gestión: " + urgencyLabel +
+            (related.length ? " · Oportunidades activas: " + related.length : "") +
+            (nextActivity ? "\\n   Actividad relacionada: " + nextActivity.title : "") +
+            "\\n   Evidencia: " + (item.potential.reasons.join("; ") || "No hay evidencia comercial suficiente.") +
+            (item.potential.missingEvidence.length ? "\\n   Falta información: " + item.potential.missingEvidence.join(", ") : "") +
+            "\\n   Urgencia: " + item.urgency.reasons.join("; ") +
+            "\\n   Siguiente acción: " + action;
+        }).join("\\n\\n")
+      : "No hay prospectos activos para priorizar.";
     if (possibleDuplicateCount > 0) {
-      response += "\n\nAVISO DE POSIBLES DUPLICADOS\nSe detectaron " + possibleDuplicateCount +
-        " registros adicionales con el mismo correo o identidad y empresa. Se muestran una sola vez en esta priorización; los registros originales permanecen intactos. Revisa los duplicados en Prospectos.";
+      response += "\\n\\nAVISO DE POSIBLES DUPLICADOS\\nSe detectaron " + possibleDuplicateCount +
+        " identidad(es) repetida(s). Los registros se mantienen y se evalúan individualmente; no se fusionan ni se eliminan.";
     }
-    response += "\n\n";
+    response += "\\n\\n";
   }
 
   if (showProspects) {
