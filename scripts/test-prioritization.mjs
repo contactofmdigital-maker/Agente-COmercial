@@ -82,4 +82,24 @@ const closed = engine.prioritizeProspects(
 );
 assert.equal(closed.length, 0, "Prospectos ganados o perdidos no entran al ranking activo");
 
-console.log("OK: 12 pruebas del motor de priorización comercial.");
+const explainIntent = engine.classifyCrmQuery("¿Por qué este prospecto tiene esa puntuación?");
+assert.equal(explainIntent, "explain_prospect", "Debe detectar una solicitud de explicación de puntuación");
+
+const missingIntent = engine.classifyCrmQuery("¿Qué información me falta para priorizar mejor?");
+assert.equal(missingIntent, "missing_information", "Debe detectar una solicitud de datos faltantes");
+
+const rankingIntent = engine.classifyCrmQuery("¿Qué prospectos debería priorizar?");
+assert.equal(rankingIntent, "prospects", "Debe mantener la consulta de ranking");
+
+assert.equal(
+  engine.isValidActivityDueDate("1995-03-28T22:50:00.000Z", "2026-10-30T10:00:00.000Z"),
+  false,
+  "Una fecha anterior al año 2000 debe considerarse inválida",
+);
+assert.equal(
+  engine.isValidActivityDueDate("2026-10-31T10:00:00.000Z", "2026-10-30T10:00:00.000Z"),
+  true,
+  "Una fecha válida posterior a la creación debe aceptarse",
+);
+
+console.log("OK: 17 pruebas del motor y clasificación CRM.");
