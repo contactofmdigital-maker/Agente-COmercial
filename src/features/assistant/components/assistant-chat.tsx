@@ -215,6 +215,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     value ? new Date(value).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }) : "Sin fecha";
 
   if (intent === "explain_prospect") {
+    const query = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const selected = prioritized.find(({ prospect }) => {
       const name = prospect.full_name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       const company = (prospect.company_name ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
