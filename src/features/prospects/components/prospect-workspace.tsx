@@ -74,6 +74,18 @@ function getReadableError(error: unknown, fallback: string): string {
   return fallback;
 }
 
+async function fetchExistingProspects(supabase: ReturnType<typeof createClient>, userId: string) {
+  const pageSize = 500;
+  const records: { id: string; full_name: string; company_name: string | null; email: string | null; website: string | null }[] = [];
+  for (let offset = 0; ; offset += pageSize) {
+    const { data, error } = await supabase.from("sales_prospects").select("id,full_name,company_name,email,website").eq("user_id", userId).order("created_at", { ascending: false }).range(offset, offset + pageSize - 1);
+    if (error) throw error;
+    records.push(...(data ?? []));
+    if (!data || data.length < pageSize) break;
+  }
+  return records;
+}
+
 export function ProspectWorkspace() {
   const router = useRouter();
   const [prospects, setProspects] = useState<Prospect[]>([]);
@@ -170,14 +182,8 @@ export function ProspectWorkspace() {
         email: form.email.trim() || null,
         website: form.website.trim() || null,
       };
-      const { data: existing, error: duplicateQueryError } = await supabase
-        .from("sales_prospects")
-        .select("id,full_name,company_name,email,website")
-        .eq("user_id", auth.user.id)
-        .limit(500);
-      if (duplicateQueryError) throw duplicateQueryError;
-
-      const matches = detectProspectDuplicates(candidate, (existing ?? []).filter((item) => !isDemoProspectId(item.id)));
+      const existing = await fetchExistingProspects(supabase, auth.user.id);
+      const matches = detectProspectDuplicates(candidate, existing.filter((item) => !isDemoProspectId(item.id)));
       if (matches.length) {
         const uniqueMatches = new Map<string, (typeof matches)[number]>();
         for (const match of matches) {
@@ -251,6 +257,11 @@ export function ProspectWorkspace() {
     setError("");
     setSuccess("");
 
+    if (file.size > 5 * 1024 * 1024) {
+      setError("El archivo CSV supera el límite de 5 MB.");
+      return;
+    }
+
     Papa.parse<CsvRow>(file, {
       header: true,
       skipEmptyLines: true,
@@ -303,6 +314,10 @@ export function ProspectWorkspace() {
           );
           return;
         }
+        if (rows.length > 1000) {
+          setError("El CSV supera el máximo de 1.000 filas por importación. Divide el archivo e inténtalo nuevamente.");
+          return;
+        }
 
         setCsvRows(rows);
       },
@@ -351,15 +366,10 @@ export function ProspectWorkspace() {
         );
       }
 
-      const { data: existing, error: duplicateQueryError } = await supabase
-        .from("sales_prospects")
-        .select("id,full_name,company_name,email,website")
-        .eq("user_id", auth.user.id)
-        .limit(500);
-      if (duplicateQueryError) throw duplicateQueryError;
-
+      const existing = await fetchExistingProspects(supabase, auth.user.id);
+      const realExisting = existing.filter((item) => !isDemoProspectId(item.id));
       const duplicateMatches = rows.flatMap((row) =>
-        detectProspectDuplicates(row, existing ?? []).map((match) => ({ row, match }))
+        detectProspectDuplicates(row, realExisting).map((match) => ({ row, match }))
       );
       if (duplicateMatches.length) {
         const uniqueMatches = new Map<string, (typeof duplicateMatches)[number]>();
