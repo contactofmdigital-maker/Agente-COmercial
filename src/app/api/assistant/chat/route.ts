@@ -15,6 +15,14 @@ const requestSchema = z.object({
   ).min(1).max(12),
 });
 
+function privateJson(body: unknown, status = 200, headers?: HeadersInit) {
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("Cache-Control", "private, no-store, max-age=0");
+  responseHeaders.set("Vary", "Cookie");
+  responseHeaders.set("X-Content-Type-Options", "nosniff");
+  return NextResponse.json(body, { status, headers: responseHeaders });
+}
+
 const agentInstructions = `
 Eres el Agente Comercial VIP de UpScale IA. Tu función es ayudar a equipos comerciales y agencias a captar, calificar y convertir prospectos.
 Responde siempre en español claro, profesional, directo y accionable.
@@ -29,46 +37,47 @@ export async function POST(request: Request) {
   try {
     const supabase = await createClient();
     if (!supabase) {
-      return NextResponse.json({ error: "La conexión con Supabase no está configurada." }, { status: 503 });
+      return privateJson({ error: "La conexión con Supabase no está configurada." }, 503);
     }
 
     const { data: authData, error: authError } = await supabase.auth.getUser();
     const user = authData.user;
     if (authError || !user) {
-      return NextResponse.json({ error: "Tu sesión no es válida. Inicia sesión nuevamente." }, { status: 401 });
+      return privateJson({ error: "Tu sesión no es válida. Inicia sesión nuevamente." }, 401);
     }
 
     const rateLimit = checkRateLimit(`assistant:${user.id}`, 10, 60_000);
     if (!rateLimit.allowed) {
-      return NextResponse.json(
+      return privateJson(
         { error: "Alcanzaste el límite temporal de 10 mensajes por minuto. Espera un momento e inténtalo nuevamente." },
-        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+        429,
+        { "Retry-After": String(rateLimit.retryAfterSeconds) },
       );
     }
 
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
-      return NextResponse.json({ error: "Falta configurar OPENAI_API_KEY en las variables de entorno del servidor." }, { status: 503 });
+      return privateJson({ error: "Falta configurar OPENAI_API_KEY en las variables de entorno del servidor." }, 503);
     }
 
     const contentLength = Number(request.headers.get("content-length") || 0);
     if (contentLength > 64 * 1024) {
-      return NextResponse.json({ error: "La solicitud supera el tamaño máximo permitido." }, { status: 413 });
+      return privateJson({ error: "La solicitud supera el tamaño máximo permitido." }, 413);
     }
     let body: unknown;
     try {
       const rawBody = await request.text();
       if (new TextEncoder().encode(rawBody).byteLength > 64 * 1024) {
-        return NextResponse.json({ error: "La solicitud supera el tamaño máximo permitido." }, { status: 413 });
+        return privateJson({ error: "La solicitud supera el tamaño máximo permitido." }, 413);
       }
       body = JSON.parse(rawBody);
     } catch {
-      return NextResponse.json({ error: "El cuerpo de la solicitud no contiene JSON válido." }, { status: 400 });
+      return privateJson({ error: "El cuerpo de la solicitud no contiene JSON válido." }, 400);
     }
 
     const parsed = requestSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: "El mensaje no tiene un formato válido." }, { status: 400 });
+      return privateJson({ error: "El mensaje no tiene un formato válido." }, 400);
     }
 
     const { data: prospects, error: prospectsError } = await supabase
@@ -79,7 +88,7 @@ export async function POST(request: Request) {
       .limit(12);
 
     if (prospectsError) {
-      return NextResponse.json({ error: "No se pudo consultar el contexto comercial. Revisa los permisos de Supabase." }, { status: 500 });
+      return privateJson({ error: "No se pudo consultar el contexto comercial. Revisa los permisos de Supabase." }, 500);
     }
 
     const prospectContext = filterRealProspects(prospects ?? []).map((prospect, index) => ({
@@ -123,13 +132,13 @@ export async function POST(request: Request) {
     const payload = await openAIResponse.json();
     if (!openAIResponse.ok) {
       console.error("OpenAI API error:", payload?.error?.type || openAIResponse.status);
-      return NextResponse.json(
+      return privateJson(
         { error: openAIResponse.status === 401
           ? "OpenAI rechazó la clave API. Verifica OPENAI_API_KEY."
           : openAIResponse.status === 429
             ? "Se alcanzó un límite de uso de OpenAI. Revisa tu cuota o inténtalo más tarde."
             : "No se pudo generar la respuesta. Inténtalo nuevamente." },
-        { status: openAIResponse.status === 401 ? 502 : openAIResponse.status === 429 ? 429 : 502 },
+        openAIResponse.status === 401 ? 502 : openAIResponse.status === 429 ? 429 : 502,
       );
     }
 
@@ -140,12 +149,12 @@ export async function POST(request: Request) {
       ).join("\n").trim();
 
     if (!answer) {
-      return NextResponse.json({ error: "El asistente no devolvió texto. Inténtalo nuevamente." }, { status: 502 });
+      return privateJson({ error: "El asistente no devolvió texto. Inténtalo nuevamente." }, 502);
     }
 
-    return NextResponse.json({ answer });
+    return privateJson({ answer });
   } catch (error) {
     console.error("Assistant route error:", error instanceof Error ? error.message : "unknown");
-    return NextResponse.json({ error: "Ocurrió un problema al procesar tu mensaje." }, { status: 500 });
+    return privateJson({ error: "Ocurrió un problema al procesar tu mensaje." }, 500);
   }
 }
