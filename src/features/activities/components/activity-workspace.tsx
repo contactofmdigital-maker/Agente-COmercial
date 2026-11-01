@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Activity, CalendarClock, Check, Circle, Clock3, LoaderCircle, Mail, MessageCircle, Plus, RefreshCw, Users, Video } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { filterRealActivities, filterRealOpportunities, filterRealProspects } from "@/features/data-classification/lib/record-classification";
 
 type ActivityType = "task" | "call" | "meeting" | "email" | "follow_up";
 type ActivityStatus = "pending" | "in_progress" | "completed" | "cancelled";
@@ -69,9 +70,15 @@ export function ActivityWorkspace() {
       if (activityResult.error) throw activityResult.error;
       if (prospectResult.error) throw prospectResult.error;
       if (opportunityResult.error) throw opportunityResult.error;
-      setActivities((activityResult.data ?? []) as SalesActivity[]);
-      setProspects((prospectResult.data ?? []) as Prospect[]);
-      setOpportunities((opportunityResult.data ?? []) as Opportunity[]);
+      const realOpportunities = filterRealOpportunities((opportunityResult.data ?? []) as Opportunity[]);
+      const demoOpportunityIds = new Set(
+        (opportunityResult.data ?? [])
+          .filter((item) => !realOpportunities.some((real) => real.id === item.id))
+          .map((item) => item.id),
+      );
+      setActivities(filterRealActivities((activityResult.data ?? []) as SalesActivity[], demoOpportunityIds));
+      setProspects(filterRealProspects((prospectResult.data ?? []) as Prospect[]));
+      setOpportunities(realOpportunities);
       setForm(current => ({ ...current, prospect_id: current.prospect_id || prospectResult.data?.[0]?.id || "" }));
     } catch (e) { setError(e instanceof Error ? e.message : "No se pudieron cargar las actividades."); }
     finally { setLoading(false); }
