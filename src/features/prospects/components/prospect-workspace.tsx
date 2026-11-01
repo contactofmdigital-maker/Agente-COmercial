@@ -176,7 +176,7 @@ export function ProspectWorkspace() {
       if (matches.length) {
         const detail = matches.slice(0, 5).map((match) =>
           `• ${match.prospect.full_name} — ${match.kind === "confirmed" ? "correo coincidente" : "posible coincidencia de nombre"}`
-        ).join("\\n");
+        ).join("\n");
         const confirmed = window.confirm(
           `Encontramos ${matches.length} posible(s) duplicado(s):\\n\\n${detail}\\n\\n¿Deseas guardar el prospecto igualmente? No se modificará ningún registro existente.`
         );
@@ -340,7 +340,7 @@ export function ProspectWorkspace() {
       if (duplicateMatches.length) {
         const detail = duplicateMatches.slice(0, 8).map(({ row, match }) =>
           `• ${row.full_name} ↔ ${match.prospect.full_name} (${match.kind === "confirmed" ? "correo coincidente" : "posible coincidencia de nombre"})`
-        ).join("\\n");
+        ).join("\n");
         const confirmed = window.confirm(
           `El CSV contiene ${duplicateMatches.length} coincidencia(s) con prospectos existentes:\\n\\n${detail}\\n\\n¿Deseas importar igualmente? Los registros existentes no se modificarán.`
         );
