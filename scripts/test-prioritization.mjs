@@ -103,3 +103,48 @@ assert.equal(
 );
 
 console.log("OK: 17 pruebas del motor y clasificación CRM.");
+
+const duplicateSource = await readFile(
+  new URL("../src/features/prospects/lib/duplicate-detection.ts", import.meta.url),
+  "utf8",
+);
+const duplicateCompiled = ts.transpileModule(duplicateSource, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
+}).outputText;
+const duplicateUrl = "data:text/javascript;base64," + Buffer.from(duplicateCompiled).toString("base64");
+const duplicateEngine = await import(duplicateUrl);
+
+const existingContact = {
+  id: "existing-1",
+  full_name: "Ana Pérez",
+  company_name: "Agencia Norte",
+  email: "ANA@EXAMPLE.COM",
+  website: "https://www.agencianorte.cl/",
+};
+const exactEmail = duplicateEngine.detectProspectDuplicates(
+  { full_name: "Ana Perez", email: " ana@example.com " },
+  [existingContact],
+);
+assert.equal(exactEmail.length, 1, "Debe detectar correo exacto ignorando mayúsculas, espacios y tildes del nombre");
+assert.equal(exactEmail[0].kind, "confirmed");
+
+const sameName = duplicateEngine.detectProspectDuplicates(
+  { full_name: "Ana Pérez", company_name: "Otra empresa", email: "otra@example.com" },
+  [existingContact],
+);
+assert.equal(sameName.length, 1, "Debe advertir coincidencia de nombre aunque el correo sea distinto");
+assert.equal(sameName[0].kind, "possible");
+
+const differentPerson = duplicateEngine.detectProspectDuplicates(
+  { full_name: "María Pérez", company_name: "Agencia Norte", email: "maria@example.com" },
+  [existingContact],
+);
+assert.equal(differentPerson.length, 0, "No debe marcar a otra persona de la misma empresa como duplicado");
+
+const sameRecord = duplicateEngine.detectProspectDuplicates(
+  { id: "existing-1", full_name: "Ana Pérez", email: "ana@example.com" },
+  [existingContact],
+);
+assert.equal(sameRecord.length, 0, "No debe compararse un registro consigo mismo");
+
+console.log("OK: 4 pruebas de detección de duplicados.");
