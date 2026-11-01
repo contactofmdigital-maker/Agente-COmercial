@@ -45,22 +45,27 @@ export function OpportunityPipeline() {
       if (authError) throw authError;
       if (!auth.user) throw new Error("Tu sesión no está activa.");
       const [opResult, prospectResult, profileResult] = await Promise.all([
-        supabase.from("sales_opportunities").select("id,prospect_id,title,description,stage,estimated_value,currency,expected_close_date,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
+        supabase.from("sales_opportunities").select("id,prospect_id,title,description,stage,estimated_value,currency,expected_close_date,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }).limit(500),
         supabase.from("sales_prospects").select("id,full_name,company_name").eq("user_id", auth.user.id).order("created_at", { ascending: false }).limit(100),
         supabase.from("business_profiles").select("currency").eq("user_id", auth.user.id).maybeSingle(),
       ]);
       if (opResult.error) throw opResult.error;
       if (prospectResult.error) throw prospectResult.error;
+      if (profileResult.error) throw profileResult.error;
+      const realProspects = filterRealProspects((prospectResult.data ?? []) as Prospect[]);
       setOpportunities(filterRealOpportunities((opResult.data ?? []) as Opportunity[]));
-      setProspects(filterRealProspects((prospectResult.data ?? []) as Prospect[]));
+      setProspects(realProspects);
       const defaultCurrency = profileResult.data?.currency || "CLP";
       setCurrency(defaultCurrency);
-      setForm(current => ({ ...current, currency: defaultCurrency, prospect_id: current.prospect_id || prospectResult.data?.[0]?.id || "" }));
+      setForm(current => ({ ...current, currency: defaultCurrency, prospect_id: current.prospect_id && realProspects.some(item => item.id === current.prospect_id) ? current.prospect_id : realProspects[0]?.id || "" }));
     } catch (e) { setError(e instanceof Error ? e.message : "No se pudo cargar el pipeline."); }
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const loadTimer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(loadTimer);
+  }, [load]);
 
   const prospectNames = useMemo(() => new Map(prospects.map(p => [p.id, p.company_name ? p.full_name + " · " + p.company_name : p.full_name])), [prospects]);
   const totalOpportunities = opportunities.length;
@@ -94,11 +99,16 @@ export function OpportunityPipeline() {
 
   async function updateStage(id: string, stage: Stage) {
     setError(""); setNotice("");
-    const supabase = createClient();
-    const { error: updateError } = await supabase.from("sales_opportunities").update({ stage }).eq("id", id);
-    if (updateError) { setError(updateError.message); return; }
-    setOpportunities(current => current.map(item => item.id === id ? { ...item, stage } : item));
-    setNotice("Etapa actualizada.");
+    try {
+      const supabase = createClient();
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!auth.user) throw new Error("Tu sesión no está activa.");
+      const { error: updateError } = await supabase.from("sales_opportunities").update({ stage }).eq("id", id).eq("user_id", auth.user.id);
+      if (updateError) throw updateError;
+      setOpportunities(current => current.map(item => item.id === id ? { ...item, stage } : item));
+      setNotice("Etapa actualizada.");
+    } catch (e) { setError(e instanceof Error ? e.message : "No se pudo actualizar la oportunidad."); }
   }
 
   return (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Activity, CalendarClock, Check, Circle, Clock3, LoaderCircle, Mail, MessageCircle, Plus, RefreshCw, Users, Video } from "lucide-react";
+import { CalendarClock, Check, Clock3, LoaderCircle, Mail, MessageCircle, Plus, RefreshCw, Users, Video } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { filterRealActivities, filterRealOpportunities, filterRealProspects } from "@/features/data-classification/lib/record-classification";
 import { isValidActivityDueDate } from "@/features/assistant/lib/prioritization";
@@ -51,6 +51,7 @@ export function ActivityWorkspace() {
   const [filter, setFilter] = useState<"all" | ActivityStatus>("all");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [now, setNow] = useState<number | null>(null);
   const [form, setForm] = useState({
     activity_type: "task" as ActivityType, title: "", description: "",
     prospect_id: "", opportunity_id: "", due_at: "", priority: "medium" as Priority,
@@ -64,9 +65,9 @@ export function ActivityWorkspace() {
       if (authError) throw authError;
       if (!auth.user) throw new Error("Tu sesión no está activa.");
       const [activityResult, prospectResult, opportunityResult] = await Promise.all([
-        supabase.from("sales_activities").select("id,prospect_id,opportunity_id,activity_type,title,description,due_at,priority,status,created_at").eq("user_id", auth.user.id).order("due_at", { ascending: true, nullsFirst: false }),
+        supabase.from("sales_activities").select("id,prospect_id,opportunity_id,activity_type,title,description,due_at,priority,status,created_at").eq("user_id", auth.user.id).order("due_at", { ascending: true, nullsFirst: false }).limit(500),
         supabase.from("sales_prospects").select("id,full_name,company_name").eq("user_id", auth.user.id).order("created_at", { ascending: false }).limit(100),
-        supabase.from("sales_opportunities").select("id,prospect_id,title").eq("user_id", auth.user.id).order("created_at", { ascending: false }),
+        supabase.from("sales_opportunities").select("id,prospect_id,title").eq("user_id", auth.user.id).order("created_at", { ascending: false }).limit(500),
       ]);
       if (activityResult.error) throw activityResult.error;
       if (prospectResult.error) throw prospectResult.error;
@@ -77,20 +78,29 @@ export function ActivityWorkspace() {
           .filter((item) => !realOpportunities.some((real) => real.id === item.id))
           .map((item) => item.id),
       );
+      const realProspects = filterRealProspects((prospectResult.data ?? []) as Prospect[]);
       setActivities(filterRealActivities((activityResult.data ?? []) as SalesActivity[], demoOpportunityIds));
-      setProspects(filterRealProspects((prospectResult.data ?? []) as Prospect[]));
+      setProspects(realProspects);
       setOpportunities(realOpportunities);
-      setForm(current => ({ ...current, prospect_id: current.prospect_id || prospectResult.data?.[0]?.id || "" }));
+      setForm(current => ({ ...current, prospect_id: current.prospect_id && realProspects.some(item => item.id === current.prospect_id) ? current.prospect_id : realProspects[0]?.id || "", opportunity_id: current.opportunity_id && realOpportunities.some(item => item.id === current.opportunity_id) ? current.opportunity_id : "" }));
     } catch (e) { setError(e instanceof Error ? e.message : "No se pudieron cargar las actividades."); }
     finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const loadTimer = window.setTimeout(() => { void load(); }, 0);
+    return () => window.clearTimeout(loadTimer);
+  }, [load]);
+
+  useEffect(() => {
+    const clockTimer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(clockTimer);
+  }, []);
 
   const prospectNames = useMemo(() => new Map(prospects.map(p => [p.id, p.company_name ? p.full_name + " · " + p.company_name : p.full_name])), [prospects]);
   const visibleActivities = activities.filter(item => filter === "all" || item.status === filter);
   const pendingCount = activities.filter(item => item.status === "pending" || item.status === "in_progress").length;
-  const overdueCount = activities.filter(item => item.due_at && isValidActivityDueDate(item.due_at, item.created_at) && new Date(item.due_at).getTime() < Date.now() && !["completed", "cancelled"].includes(item.status)).length;
+  const overdueCount = now === null ? 0 : activities.filter(item => item.due_at && isValidActivityDueDate(item.due_at, item.created_at) && new Date(item.due_at).getTime() < now && !["completed", "cancelled"].includes(item.status)).length;
 
   async function createActivity(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault(); setSaving(true); setError(""); setNotice("");
@@ -115,11 +125,16 @@ export function ActivityWorkspace() {
 
   async function updateStatus(id: string, status: ActivityStatus) {
     setError(""); setNotice("");
-    const supabase = createClient();
-    const { error: updateError } = await supabase.from("sales_activities").update({ status, completed_at: status === "completed" ? new Date().toISOString() : null }).eq("id", id);
-    if (updateError) { setError(updateError.message); return; }
-    setActivities(current => current.map(item => item.id === id ? { ...item, status } : item));
-    setNotice("Estado actualizado.");
+    try {
+      const supabase = createClient();
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!auth.user) throw new Error("Tu sesión no está activa.");
+      const { error: updateError } = await supabase.from("sales_activities").update({ status, completed_at: status === "completed" ? new Date().toISOString() : null }).eq("id", id).eq("user_id", auth.user.id);
+      if (updateError) throw updateError;
+      setActivities(current => current.map(item => item.id === id ? { ...item, status } : item));
+      setNotice("Estado actualizado.");
+    } catch (e) { setError(e instanceof Error ? e.message : "No se pudo actualizar la actividad."); }
   }
 
   return (

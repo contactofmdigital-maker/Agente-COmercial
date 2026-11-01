@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowDown, ArrowRight, Check, Clock3, MessageCircle, ShieldCheck, Sparkles, Target, Workflow, LockKeyhole, Layers3 } from "lucide-react";
+import { ArrowDown, ArrowRight, Check, MessageCircle, ShieldCheck, Target, Workflow, LockKeyhole, Layers3 } from "lucide-react";
 import { GuidedDemo } from "./guided-demo";
 import "./inicio.css";
 
