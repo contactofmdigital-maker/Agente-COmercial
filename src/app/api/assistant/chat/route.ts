@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { filterRealProspects } from "@/features/data-classification/lib/record-classification";
 
 export const runtime = "nodejs";
 
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "No se pudo consultar el contexto comercial. Revisa los permisos de Supabase." }, { status: 500 });
     }
 
-    const prospectContext = (prospects ?? []).map((prospect, index) => ({
+    const prospectContext = filterRealProspects(prospects ?? []).map((prospect, index) => ({
       numero: index + 1,
       nombre: prospect.full_name,
       empresa: prospect.company_name,
