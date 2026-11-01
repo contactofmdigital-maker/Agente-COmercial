@@ -56,31 +56,54 @@ export default async function Home({ searchParams }: PageProps) {
   let connectionMessage = "Configura las variables de Supabase para activar los datos reales.";
   try {
     connected = true;
-    const [prospectResult, opportunityResult, activityResult] = await Promise.all([
-      supabase.from("sales_prospects").select("id").eq("user_id", user.id),
-      supabase.from("sales_opportunities").select("id,prospect_id,stage").eq("user_id", user.id),
-      supabase.from("sales_activities").select("id,prospect_id,opportunity_id,status").eq("user_id", user.id),
+    const pageSize = 500;
+    const [prospectRows, opportunityRows, activityRows] = await Promise.all([
+      (async () => {
+        const rows: { id: string }[] = [];
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await supabase.from("sales_prospects").select("id").eq("user_id", user.id).range(offset, offset + pageSize - 1);
+          if (error) throw error;
+          rows.push(...(data ?? []));
+          if (!data || data.length < pageSize) break;
+        }
+        return rows;
+      })(),
+      (async () => {
+        const rows: { id: string; prospect_id: string; stage: string }[] = [];
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await supabase.from("sales_opportunities").select("id,prospect_id,stage").eq("user_id", user.id).range(offset, offset + pageSize - 1);
+          if (error) throw error;
+          rows.push(...(data ?? []));
+          if (!data || data.length < pageSize) break;
+        }
+        return rows;
+      })(),
+      (async () => {
+        const rows: { id: string; prospect_id: string | null; opportunity_id: string | null; status: string }[] = [];
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await supabase.from("sales_activities").select("id,prospect_id,opportunity_id,status").eq("user_id", user.id).range(offset, offset + pageSize - 1);
+          if (error) throw error;
+          rows.push(...(data ?? []));
+          if (!data || data.length < pageSize) break;
+        }
+        return rows;
+      })(),
     ]);
-    const queryError = prospectResult.error || opportunityResult.error || activityResult.error;
-    if (queryError) {
-      connectionMessage = `Supabase responde, pero falta revisar el esquema o los permisos: ${queryError.message}`;
-    } else {
-      const realProspects = filterRealProspects(prospectResult.data ?? []);
-      const realOpportunities = filterRealOpportunities(opportunityResult.data ?? []);
-      const demoOpportunityIds = new Set(
-        (opportunityResult.data ?? [])
-          .filter((item) => !realOpportunities.some((real) => real.id === item.id))
-          .map((item) => item.id),
-      );
-      const realActivities = filterRealActivities(activityResult.data ?? [], demoOpportunityIds);
-      prospectCount = realProspects.length;
-      activeOpportunityCount = realOpportunities.filter((item) => !["won", "lost"].includes(item.stage)).length;
-      const closed = realOpportunities.filter((item) => ["won", "lost"].includes(item.stage));
-      const won = closed.filter((item) => item.stage === "won").length;
-      conversionRate = closed.length ? `${Math.round((won / closed.length) * 100)}%` : "—";
-      pendingActivityCount = realActivities.filter((item) => ["pending", "in_progress"].includes(item.status)).length;
-      connectionMessage = "Resumen comercial real consultado para el usuario autenticado. Los registros demo auditados no participan en los indicadores.";
-    }
+    const realProspects = filterRealProspects(prospectRows);
+    const realOpportunities = filterRealOpportunities(opportunityRows);
+    const demoOpportunityIds = new Set(
+      opportunityRows
+        .filter((item) => !realOpportunities.some((real) => real.id === item.id))
+        .map((item) => item.id),
+    );
+    const realActivities = filterRealActivities(activityRows, demoOpportunityIds);
+    prospectCount = realProspects.length;
+    activeOpportunityCount = realOpportunities.filter((item) => !["won", "lost"].includes(item.stage)).length;
+    const closed = realOpportunities.filter((item) => ["won", "lost"].includes(item.stage));
+    const won = closed.filter((item) => item.stage === "won").length;
+    conversionRate = closed.length ? `${Math.round((won / closed.length) * 100)}%` : "—";
+    pendingActivityCount = realActivities.filter((item) => ["pending", "in_progress"].includes(item.status)).length;
+    connectionMessage = "Resumen comercial real consultado para el usuario autenticado. Los registros demo auditados no participan en los indicadores.";
   } catch {
     connectionMessage = "Supabase no está configurado o no se pudo conectar. Revisa .env.local.";
   }

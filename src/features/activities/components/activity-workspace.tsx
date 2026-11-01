@@ -17,30 +17,6 @@ type SalesActivity = {
   due_at: string | null; priority: Priority; status: ActivityStatus; created_at: string;
 };
 
-async function fetchAllActivities(supabase: ReturnType<typeof createClient>, userId: string) {
-  const pageSize = 500;
-  const records: SalesActivity[] = [];
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase.from("sales_activities").select("id,prospect_id,opportunity_id,activity_type,title,description,due_at,priority,status,created_at").eq("user_id", userId).order("due_at", { ascending: true, nullsFirst: false }).range(offset, offset + pageSize - 1);
-    if (error) throw error;
-    records.push(...((data ?? []) as SalesActivity[]));
-    if (!data || data.length < pageSize) break;
-  }
-  return records;
-}
-
-async function fetchAllOpportunities(supabase: ReturnType<typeof createClient>, userId: string) {
-  const pageSize = 500;
-  const records: Opportunity[] = [];
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase.from("sales_opportunities").select("id,prospect_id,title").eq("user_id", userId).order("created_at", { ascending: false }).range(offset, offset + pageSize - 1);
-    if (error) throw error;
-    records.push(...((data ?? []) as Opportunity[]));
-    if (!data || data.length < pageSize) break;
-  }
-  return records;
-}
-
 const typeOptions: { value: ActivityType; label: string }[] = [
   { value: "task", label: "Tarea" }, { value: "call", label: "Llamada" },
   { value: "meeting", label: "Reunión" }, { value: "email", label: "Correo" },
@@ -88,20 +64,22 @@ export function ActivityWorkspace() {
       const { data: auth, error: authError } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!auth.user) throw new Error("Tu sesión no está activa.");
-      const [activityRows, prospectResult, opportunityRows] = await Promise.all([
-        fetchAllActivities(supabase, auth.user.id),
+      const [activityResult, prospectResult, opportunityResult] = await Promise.all([
+        supabase.from("sales_activities").select("id,prospect_id,opportunity_id,activity_type,title,description,due_at,priority,status,created_at").eq("user_id", auth.user.id).order("due_at", { ascending: true, nullsFirst: false }).limit(500),
         supabase.from("sales_prospects").select("id,full_name,company_name").eq("user_id", auth.user.id).order("created_at", { ascending: false }).limit(100),
-        fetchAllOpportunities(supabase, auth.user.id),
+        supabase.from("sales_opportunities").select("id,prospect_id,title").eq("user_id", auth.user.id).order("created_at", { ascending: false }).limit(500),
       ]);
+      if (activityResult.error) throw activityResult.error;
       if (prospectResult.error) throw prospectResult.error;
-      const realOpportunities = filterRealOpportunities(opportunityRows);
+      if (opportunityResult.error) throw opportunityResult.error;
+      const realOpportunities = filterRealOpportunities((opportunityResult.data ?? []) as Opportunity[]);
       const demoOpportunityIds = new Set(
-        opportunityRows
+        (opportunityResult.data ?? [])
           .filter((item) => !realOpportunities.some((real) => real.id === item.id))
           .map((item) => item.id),
       );
       const realProspects = filterRealProspects((prospectResult.data ?? []) as Prospect[]);
-      setActivities(filterRealActivities(activityRows, demoOpportunityIds));
+      setActivities(filterRealActivities((activityResult.data ?? []) as SalesActivity[], demoOpportunityIds));
       setProspects(realProspects);
       setOpportunities(realOpportunities);
       setForm(current => ({ ...current, prospect_id: current.prospect_id && realProspects.some(item => item.id === current.prospect_id) ? current.prospect_id : realProspects[0]?.id || "", opportunity_id: current.opportunity_id && realOpportunities.some(item => item.id === current.opportunity_id) ? current.opportunity_id : "" }));
@@ -131,12 +109,6 @@ export function ActivityWorkspace() {
       const { data: auth, error: authError } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!auth.user) throw new Error("Tu sesión no está activa.");
-      if (form.opportunity_id) {
-        const selectedOpportunity = opportunities.find(item => item.id === form.opportunity_id);
-        if (!selectedOpportunity || selectedOpportunity.prospect_id !== form.prospect_id) {
-          throw new Error("La oportunidad seleccionada no pertenece al prospecto elegido.");
-        }
-      }
       const { error: insertError } = await supabase.from("sales_activities").insert({
         user_id: auth.user.id, prospect_id: form.prospect_id,
         opportunity_id: form.opportunity_id || null, activity_type: form.activity_type,

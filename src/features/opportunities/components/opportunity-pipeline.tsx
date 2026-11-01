@@ -12,18 +12,6 @@ type Opportunity = {
   stage: Stage; estimated_value: number; currency: string;
   expected_close_date: string | null; created_at: string;
 };
-
-async function fetchAllOpportunities(supabase: ReturnType<typeof createClient>, userId: string) {
-  const pageSize = 500;
-  const records: Opportunity[] = [];
-  for (let offset = 0; ; offset += pageSize) {
-    const { data, error } = await supabase.from("sales_opportunities").select("id,prospect_id,title,description,stage,estimated_value,currency,expected_close_date,created_at").eq("user_id", userId).order("created_at", { ascending: false }).range(offset, offset + pageSize - 1);
-    if (error) throw error;
-    records.push(...((data ?? []) as Opportunity[]));
-    if (!data || data.length < pageSize) break;
-  }
-  return records;
-}
 const stages: { value: Stage; label: string }[] = [
   { value: "qualification", label: "Calificación" },
   { value: "diagnosis", label: "Diagnóstico" },
@@ -56,15 +44,16 @@ export function OpportunityPipeline() {
       const { data: auth, error: authError } = await supabase.auth.getUser();
       if (authError) throw authError;
       if (!auth.user) throw new Error("Tu sesión no está activa.");
-      const [opportunityRows, prospectResult, profileResult] = await Promise.all([
-        fetchAllOpportunities(supabase, auth.user.id),
+      const [opResult, prospectResult, profileResult] = await Promise.all([
+        supabase.from("sales_opportunities").select("id,prospect_id,title,description,stage,estimated_value,currency,expected_close_date,created_at").eq("user_id", auth.user.id).order("created_at", { ascending: false }).limit(500),
         supabase.from("sales_prospects").select("id,full_name,company_name").eq("user_id", auth.user.id).order("created_at", { ascending: false }).limit(100),
         supabase.from("business_profiles").select("currency").eq("user_id", auth.user.id).maybeSingle(),
       ]);
+      if (opResult.error) throw opResult.error;
       if (prospectResult.error) throw prospectResult.error;
       if (profileResult.error) throw profileResult.error;
       const realProspects = filterRealProspects((prospectResult.data ?? []) as Prospect[]);
-      setOpportunities(filterRealOpportunities(opportunityRows));
+      setOpportunities(filterRealOpportunities((opResult.data ?? []) as Opportunity[]));
       setProspects(realProspects);
       const defaultCurrency = profileResult.data?.currency || "CLP";
       setCurrency(defaultCurrency);
