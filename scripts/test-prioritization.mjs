@@ -1,0 +1,85 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import ts from "typescript";
+
+const source = await readFile(
+  new URL("../src/features/assistant/lib/prioritization.ts", import.meta.url),
+  "utf8",
+);
+const compiled = ts.transpileModule(source, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
+}).outputText;
+const moduleUrl = "data:text/javascript;base64," + Buffer.from(compiled).toString("base64");
+const engine = await import(moduleUrl);
+
+const now = Date.parse("2026-11-01T12:00:00.000Z");
+const prospect = (overrides = {}) => ({
+  id: "p1", full_name: "Ana Pérez", company_name: "Agencia Norte",
+  email: "ana@example.com", website: null, notes: "Solicitó una cotización para SEO",
+  status: "contacted", ...overrides,
+});
+const opportunity = (stage, id = "o1") => ({ id, prospect_id: "p1", stage });
+const activity = (overrides = {}) => ({
+  id: "a1", prospect_id: "p1", opportunity_id: null, activity_type: "call",
+  title: "Llamada comercial", description: null, due_at: null, priority: "normal",
+  status: "completed", created_at: "2026-10-30T10:00:00.000Z",
+  completed_at: "2026-10-31T10:00:00.000Z", ...overrides,
+});
+const profile = {
+  description: "Servicios de marketing digital",
+  products_services: "SEO y posicionamiento web",
+  ideal_customer: "Agencias de marketing y empresas",
+};
+
+const insufficient = engine.calculatePotential(prospect({ notes: "" }), [], [], null, now);
+assert.equal(insufficient.classification, "insufficient", "No debe clasificar con evidencia mínima");
+
+const intent = engine.calculatePotential(prospect(), [], [], null, now);
+assert.equal(intent.criteria.find((item) => item.name === "Intención y necesidad").points, 30);
+
+const rejection = engine.calculatePotential(prospect({ notes: "No interesado, rechazó la propuesta" }), [], [], null, now);
+assert.equal(rejection.criteria.find((item) => item.name === "Intención y necesidad").points, 0);
+
+const bestOpportunity = engine.calculatePotential(prospect({ notes: "" }), [
+  opportunity("qualification", "o1"), opportunity("negotiation", "o2"),
+], [], null, now);
+assert.equal(bestOpportunity.criteria.find((item) => item.name === "Avance de oportunidad").points, 25);
+
+const noOpportunity = engine.calculatePotential(prospect({ notes: "" }), [], [], null, now);
+assert.equal(noOpportunity.criteria.find((item) => item.name === "Avance de oportunidad").points, null);
+
+const completed = engine.calculatePotential(prospect({ notes: "" }), [], [activity()], null, now);
+assert.equal(completed.criteria.find((item) => item.name === "Interacción comercial").points, 8);
+assert.equal(completed.criteria.find((item) => item.name === "Recencia comercial").points, 10);
+
+const pendingOnly = engine.calculatePotential(prospect({ notes: "" }), [], [
+  activity({ status: "pending", completed_at: null }),
+], null, now);
+assert.equal(pendingOnly.criteria.find((item) => item.name === "Interacción comercial").points, null);
+
+const overdue = engine.calculateUrgency(prospect(), [], [
+  activity({ status: "pending", completed_at: null, due_at: "2026-10-30T10:00:00.000Z" }),
+], now);
+assert.equal(overdue.level, "high");
+
+const completedOverdue = engine.calculateUrgency(prospect(), [], [
+  activity({ status: "completed", due_at: "2026-10-30T10:00:00.000Z" }),
+], now);
+assert.equal(completedOverdue.level, "low");
+
+const invalidDate = engine.calculateUrgency(prospect(), [], [
+  activity({ status: "pending", completed_at: null, due_at: "1995-03-28T10:00:00.000Z" }),
+], now);
+assert.equal(invalidDate.level, "not_evaluable");
+
+const intentionalDuplicates = engine.prioritizeProspects(
+  [prospect({ id: "p1" }), prospect({ id: "p2" })], [], [], profile, now,
+);
+assert.equal(intentionalDuplicates.length, 2, "No debe fusionar ni ocultar prospectos duplicados");
+
+const closed = engine.prioritizeProspects(
+  [prospect({ status: "won" }), prospect({ id: "p2", status: "lost" })], [], [], profile, now,
+);
+assert.equal(closed.length, 0, "Prospectos ganados o perdidos no entran al ranking activo");
+
+console.log("OK: 12 pruebas del motor de priorización comercial.");
