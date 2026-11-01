@@ -57,6 +57,41 @@ export type ProspectPrioritization = {
   nextAction: string;
 };
 
+
+export function isValidActivityDueDate(dueAt: string | null, createdAt: string) {
+  if (!dueAt) return true;
+  const due = new Date(dueAt).getTime();
+  const created = new Date(createdAt).getTime();
+  return Number.isFinite(due) &&
+    due >= Date.UTC(2000, 0, 1) &&
+    (!Number.isFinite(created) || due >= created - 30 * 86400000);
+}
+
+export type CrmQueryIntent =
+  | "explain_prospect"
+  | "missing_information"
+  | "activities"
+  | "opportunities"
+  | "prospects"
+  | "summary"
+  | "general";
+
+export function classifyCrmQuery(prompt: string): CrmQueryIntent {
+  const value = normalize(prompt);
+  if (/\b(por que|porque|explica|explicame|desglosa)\b/.test(value) &&
+      /(puntuacion|puntaje|score|calificacion|prioridad)/.test(value)) {
+    return "explain_prospect";
+  }
+  if (/(que|cual|como).*(informacion|dato|campo).*(falta|completar)|informacion.*falta|datos.*faltan|completar.*prioriz/.test(value)) {
+    return "missing_information";
+  }
+  if (/actividad|seguimiento|vencid|atrasad|tarea|llamad|reunion|correo|hoy/.test(value)) return "activities";
+  if (/oportunidad|pipeline|negociaci|estancad|cierre|venta|propuesta/.test(value)) return "opportunities";
+  if (/prospect|cliente|contact|prioriz|captar|lead|conseguir|analiza mis prospectos/.test(value)) return "prospects";
+  if (/analiza mi negocio|resumen|situacion|estado comercial|que deberia priorizar/.test(value)) return "summary";
+  return "general";
+}
+
 const WEIGHTS = {
   intent: 30,
   opportunity: 25,
