@@ -1,12 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { LogOut, LoaderCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 export function SignOutButton() {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -20,8 +18,8 @@ export function SignOutButton() {
 
       if (signOutError) throw signOutError;
 
-      router.replace("/login");
-      router.refresh();
+      // Force a fresh route render after Supabase clears the session cookies.
+      window.location.assign("/login");
     } catch (err) {
       setError(
         err instanceof Error

@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { filterRealProspects } from "@/features/data-classification/lib/record-classification";
-import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -38,35 +37,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Tu sesión no es válida. Inicia sesión nuevamente." }, { status: 401 });
     }
 
-    const rateLimit = checkRateLimit(`assistant:${user.id}`, 10, 60_000);
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        { error: "Alcanzaste el límite temporal de 10 mensajes por minuto. Espera un momento e inténtalo nuevamente." },
-        { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
-      );
-    }
-
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return NextResponse.json({ error: "Falta configurar OPENAI_API_KEY en las variables de entorno del servidor." }, { status: 503 });
     }
 
-    const contentLength = Number(request.headers.get("content-length") || 0);
-    if (contentLength > 64 * 1024) {
-      return NextResponse.json({ error: "La solicitud supera el tamaño máximo permitido." }, { status: 413 });
-    }
-    let body: unknown;
-    try {
-      const rawBody = await request.text();
-      if (new TextEncoder().encode(rawBody).byteLength > 64 * 1024) {
-        return NextResponse.json({ error: "La solicitud supera el tamaño máximo permitido." }, { status: 413 });
-      }
-      body = JSON.parse(rawBody);
-    } catch {
-      return NextResponse.json({ error: "El cuerpo de la solicitud no contiene JSON válido." }, { status: 400 });
-    }
-
-    const parsed = requestSchema.safeParse(body);
+    const parsed = requestSchema.safeParse(await request.json());
     if (!parsed.success) {
       return NextResponse.json({ error: "El mensaje no tiene un formato válido." }, { status: 400 });
     }
