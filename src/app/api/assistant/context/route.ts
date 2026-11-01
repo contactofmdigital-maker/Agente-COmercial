@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isValidActivityDueDate } from "@/features/assistant/lib/prioritization";
+import { filterRealActivities, filterRealOpportunities, filterRealProspects } from "@/features/data-classification/lib/record-classification";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -82,9 +83,14 @@ export async function GET() {
     }
 
     const profile = profileResult.data;
-    const prospects = prospectsResult.data ?? [];
-    const opportunities = opportunitiesResult.data ?? [];
-    const activities = activitiesResult.data ?? [];
+    const prospects = filterRealProspects(prospectsResult.data ?? []);
+    const opportunities = filterRealOpportunities(opportunitiesResult.data ?? []);
+    const demoOpportunityIds = new Set(
+      (opportunitiesResult.data ?? [])
+        .filter((item) => !opportunities.some((real) => real.id === item.id))
+        .map((item) => item.id),
+    );
+    const activities = filterRealActivities(activitiesResult.data ?? [], demoOpportunityIds);
 
     const activeOpportunities = opportunities.filter(
       (item) => !["won", "lost"].includes(item.stage),
