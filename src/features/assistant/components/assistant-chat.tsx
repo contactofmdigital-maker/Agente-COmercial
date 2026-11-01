@@ -155,16 +155,16 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
   const label = segmentOptions.find((item) => item.value === segment)?.label ?? "Negocio";
   const businessName = profile?.business_name ? " · " + profile.business_name : "";
   const header =
-    "MODO CRM · CONTEXTO COMERCIAL UNIFICADO · Sin consumo de OpenAI.\\n" +
-    "Perfil: " + label + businessName + ". " + segmentGuidance[segment] + "\\n" +
-    (profile?.sales_goal ? "Objetivo comercial: " + profile.sales_goal + "\\n" : "") +
-    "\\nRESUMEN DE TU NEGOCIO\\n" +
+    "MODO CRM · CONTEXTO COMERCIAL UNIFICADO · Sin consumo de OpenAI.\n" +
+    "Perfil: " + label + businessName + ". " + segmentGuidance[segment] + "\n" +
+    (profile?.sales_goal ? "Objetivo comercial: " + profile.sales_goal + "\n" : "") +
+    "\nRESUMEN DE TU NEGOCIO\n" +
     "Prospectos: " + context.summary.prospects_loaded +
     " · Oportunidades: " + context.summary.opportunities_loaded +
     " · Activas: " + context.summary.active_opportunities +
     " · Ganadas: " + context.summary.won_opportunities +
     " · Actividades pendientes: " + context.summary.pending_activities +
-    " · Vencidas: " + context.summary.overdue_activities + "\\n\\n";
+    " · Vencidas: " + context.summary.overdue_activities + "\n\n";
 
   if (!prospects.length && !opportunities.length && !activities.length) {
     return header + "Todavía no hay registros comerciales en tu espacio. Registra prospectos, oportunidades o actividades para comenzar.";
@@ -204,7 +204,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
   let response = header;
 
   if (asksOverdue || overdue.length > 0) {
-    response += "SEGUIMIENTOS VENCIDOS\\n";
+    response += "SEGUIMIENTOS VENCIDOS\n";
     response += overdue.length
       ? overdue.slice(0, 10).map((item, index) => {
           const prospect = prospectById.get(item.prospect_id);
@@ -213,13 +213,13 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
             " · " + (activityLabels[item.activity_type] ?? item.activity_type) +
             " · Vencía: " + dateLabel(item.due_at) +
             " · Prioridad: " + item.priority;
-        }).join("\\n")
+        }).join("\n")
       : "No hay actividades pendientes vencidas según las fechas registradas.";
-    response += "\\n\\n";
+    response += "\n\n";
   }
 
   if (asksOpportunities || (!asksProspects && !asksOverdue)) {
-    response += "OPORTUNIDADES ACTIVAS\\n";
+    response += "OPORTUNIDADES ACTIVAS\n";
     response += activeOpps.length
       ? activeOpps.slice(0, 10).map((item, index) => {
           const prospect = prospectById.get(item.prospect_id);
@@ -232,21 +232,21 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
             " · Creada hace " + ageDays + " días" +
             " · Seguimientos pendientes asociados: " + relatedActivities.length +
             (item.expected_close_date ? " · Cierre estimado: " + item.expected_close_date : "");
-        }).join("\\n")
+        }).join("\n")
       : "No hay oportunidades activas registradas.";
-    response += "\\n\\n";
+    response += "\n\n";
     if (/estancad|sin mov|parad/i.test(normalized)) {
-      response += "POSIBLES OPORTUNIDADES QUE REQUIEREN REVISIÓN\\n";
+      response += "POSIBLES OPORTUNIDADES QUE REQUIEREN REVISIÓN\n";
       const older = activeOpps.filter((item) => (now - new Date(item.created_at).getTime()) / 86400000 >= 14);
       response += older.length
-        ? older.map((item) => "- " + item.title + ": lleva al menos 14 días desde su creación y sigue abierta. No tenemos historial de cambios de etapa para confirmar inactividad.").join("\\n")
+        ? older.map((item) => "- " + item.title + ": lleva al menos 14 días desde su creación y sigue abierta. No tenemos historial de cambios de etapa para confirmar inactividad.").join("\n")
         : "No se identifican oportunidades abiertas con 14 días o más desde su creación.";
-      response += "\\n\\n";
+      response += "\n\n";
     }
   }
 
   if (asksProspects || (!asksOpportunities && !asksOverdue)) {
-    response += "PROSPECTOS PRIORIZADOS\\n";
+    response += "PROSPECTOS PRIORIZADOS\n";
     response += ranked.length
       ? ranked.slice(0, 10).map((item, index) => {
           const p = item.prospect;
@@ -258,14 +258,14 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
             " · Prioridad orientativa: " + item.score + "/100" +
             (related.length ? " · Oportunidades abiertas: " + related.length : "") +
             (nextActivity ? " · Próxima actividad: " + nextActivity.title : "") +
-            "\\n   Motivos: " + (item.reasons.join("; ") || "Información limitada") +
-            "\\n   Acción sugerida: " + getSegmentAction(segment, p);
-        }).join("\\n\\n")
+            "\n   Motivos: " + (item.reasons.join("; ") || "Información limitada") +
+            "\n   Acción sugerida: " + getSegmentAction(segment, p);
+        }).join("\n\n")
       : "No hay prospectos registrados.";
-    response += "\\n\\n";
+    response += "\n\n";
   }
 
-  response += "CRITERIOS Y LÍMITES\\n";
+  response += "CRITERIOS Y LÍMITES\n";
   response += "La prioridad de prospectos usa reglas locales transparentes; no es una predicción de cierre. Las oportunidades se muestran con su etapa y antigüedad desde creación; no se dispone de historial de movimientos para afirmar que están estancadas. Las actividades vencidas se calculan usando su fecha registrada. No se ha enviado ningún mensaje ni modificado ningún registro.";
   return response;
 }
