@@ -178,18 +178,31 @@ export function ProspectWorkspace() {
 
       const matches = detectProspectDuplicates(candidate, existing ?? []);
       if (matches.length) {
-        const grouped = new Map<string, { label: string; count: number }>();
+        const uniqueMatches = new Map<string, (typeof matches)[number]>();
         for (const match of matches) {
-          const identity = `${(match.prospect.full_name ?? "").trim().toLocaleLowerCase()}|${(match.prospect.email ?? "").trim().toLocaleLowerCase()}|${match.kind}`;
-          const current = grouped.get(identity);
-          if (current) current.count += 1;
-          else grouped.set(identity, { label: `${match.prospect.full_name} — ${match.kind === "confirmed" ? "correo coincidente" : "posible coincidencia de nombre"}`, count: 1 });
+          const key = match.prospect.id ?? [
+            match.prospect.full_name,
+            match.prospect.email,
+            match.prospect.company_name,
+            match.kind,
+          ].join("|");
+          if (!uniqueMatches.has(key)) uniqueMatches.set(key, match);
         }
-        const items = [...grouped.values()].map((item) => item.count > 1 ? `${item.label} (${item.count} registros)` : item.label);
+        const records = [...uniqueMatches.values()];
+        const items = records.map((match, index) => {
+          const prospect = match.prospect;
+          const details = [
+            prospect.company_name ? `Empresa: ${prospect.company_name}` : null,
+            prospect.email ? `Correo: ${prospect.email}` : null,
+            prospect.website ? `Web: ${prospect.website}` : null,
+          ].filter(Boolean).join(" · ");
+          const type = match.kind === "confirmed" ? "Duplicado confirmado · correo" : "Posible duplicado · nombre";
+          return `${index + 1}. ${prospect.full_name || "Sin nombre"} — ${type}${details ? ` | ${details}` : ""}`;
+        });
         setPendingDuplicateAction("save");
         setDuplicateDialog({
           title: "Posible prospecto duplicado",
-          description: `Encontramos ${matches.length} coincidencia(s) en la base. Revisa el detalle antes de continuar.`,
+          description: `Se encontraron ${records.length} registro(s) existente(s) distinto(s). Revisa cada ficha antes de continuar.`,
           items,
           confirmLabel: "Guardar igualmente",
         });
@@ -348,18 +361,31 @@ export function ProspectWorkspace() {
         detectProspectDuplicates(row, existing ?? []).map((match) => ({ row, match }))
       );
       if (duplicateMatches.length) {
-        const grouped = new Map<string, { label: string; count: number }>();
-        for (const { row, match } of duplicateMatches) {
-          const identity = `${(row.email ?? "").trim().toLocaleLowerCase()}|${(match.prospect.email ?? "").trim().toLocaleLowerCase()}|${match.kind}`;
-          const current = grouped.get(identity);
-          if (current) current.count += 1;
-          else grouped.set(identity, { label: `${row.full_name} ↔ ${match.prospect.full_name} (${match.kind === "confirmed" ? "correo coincidente" : "posible coincidencia de nombre"})`, count: 1 });
+        const uniqueMatches = new Map<string, (typeof duplicateMatches)[number]>();
+        for (const entry of duplicateMatches) {
+          const key = `${(entry.row.email ?? "").trim().toLowerCase()}|${entry.match.prospect.id ?? [
+            entry.match.prospect.full_name,
+            entry.match.prospect.email,
+            entry.match.prospect.company_name,
+          ].join("|")}|${entry.match.kind}`;
+          if (!uniqueMatches.has(key)) uniqueMatches.set(key, entry);
         }
-        const items = [...grouped.values()].map((item) => item.count > 1 ? `${item.label} (${item.count} coincidencias)` : item.label);
+        const records = [...uniqueMatches.values()];
+        const items = records.map(({ row, match }, index) => {
+          const prospect = match.prospect;
+          const details = [
+            prospect.company_name ? `Empresa: ${prospect.company_name}` : null,
+            prospect.email ? `Correo: ${prospect.email}` : null,
+            prospect.website ? `Web: ${prospect.website}` : null,
+          ].filter(Boolean).join(" · ");
+          const type = match.kind === "confirmed" ? "correo coincidente" : "posible coincidencia de nombre";
+          return `${index + 1}. CSV: ${row.full_name} ↔ Existente: ${prospect.full_name || "Sin nombre"} (${type})${details ? ` | ${details}` : ""}`;
+        });
+        const distinctExisting = new Set(records.map(({ match }) => match.prospect.id).filter(Boolean));
         setPendingDuplicateAction("import");
         setDuplicateDialog({
           title: "Coincidencias en el archivo CSV",
-          description: `El archivo contiene ${duplicateMatches.length} coincidencia(s) con prospectos existentes. Los registros actuales no se modificarán.`,
+          description: `Se detectaron ${records.length} coincidencia(s) que involucran ${distinctExisting.size} registro(s) existente(s) distinto(s). Los registros actuales no se modificarán.`,
           items,
           confirmLabel: "Importar igualmente",
         });
