@@ -183,7 +183,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     now,
   );
   const normalizedIdentity = (value: string | null | undefined) =>
-    (value ?? "").normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").trim().toLowerCase().replace(/\\s+/g, " ");
+    (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
   const identityKey = (prospect: Prospect) => {
     const email = normalizedIdentity(prospect.email);
     return email || normalizedIdentity(prospect.full_name) + "|" + normalizedIdentity(prospect.company_name);
@@ -192,7 +192,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
   const seenKeys = new Set<string>();
   for (const prospect of prospects) {
     const key = identityKey(prospect);
-    if (key.replace(/\\|/g, "").trim() && seenKeys.has(key)) duplicateKeys.add(key);
+    if (key.replace(/\|/g, "").trim() && seenKeys.has(key)) duplicateKeys.add(key);
     seenKeys.add(key);
   }
   const possibleDuplicateCount = duplicateKeys.size;
@@ -280,7 +280,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
   }
 
   if (showProspects) {
-    response += "PROSPECTOS PRIORIZADOS\\n";
+    response += "PROSPECTOS PRIORIZADOS\n";
     response += prioritized.length
       ? prioritized.slice(0, 10).map((item, index) => {
           const p = item.prospect;
@@ -301,21 +301,21 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
           return (index + 1) + ". " + p.full_name +
             (company ? " · " + company : "") +
             " · " + (statusLabels[p.status] ?? p.status) +
-            "\\n   Potencial comercial: " + potentialLabel +
-            "\\n   Urgencia de gestión: " + urgencyLabel +
+            "\n   Potencial comercial: " + potentialLabel +
+            "\n   Urgencia de gestión: " + urgencyLabel +
             (related.length ? " · Oportunidades activas: " + related.length : "") +
-            (nextActivity ? "\\n   Actividad relacionada: " + nextActivity.title : "") +
-            "\\n   Evidencia: " + (item.potential.reasons.join("; ") || "No hay evidencia comercial suficiente.") +
-            (item.potential.missingEvidence.length ? "\\n   Falta información: " + item.potential.missingEvidence.join(", ") : "") +
-            "\\n   Urgencia: " + item.urgency.reasons.join("; ") +
-            "\\n   Siguiente acción: " + action;
-        }).join("\\n\\n")
+            (nextActivity ? "\n   Actividad relacionada: " + nextActivity.title : "") +
+            "\n   Evidencia: " + (item.potential.reasons.join("; ") || "No hay evidencia comercial suficiente.") +
+            (item.potential.missingEvidence.length ? "\n   Falta información: " + item.potential.missingEvidence.join(", ") : "") +
+            "\n   Urgencia: " + item.urgency.reasons.join("; ") +
+            "\n   Siguiente acción: " + action;
+        }).join("\n\n")
       : "No hay prospectos activos para priorizar.";
     if (possibleDuplicateCount > 0) {
-      response += "\\n\\nAVISO DE POSIBLES DUPLICADOS\\nSe detectaron " + possibleDuplicateCount +
+      response += "\n\nAVISO DE POSIBLES DUPLICADOS\nSe detectaron " + possibleDuplicateCount +
         " identidad(es) repetida(s). Los registros se mantienen y se evalúan individualmente; no se fusionan ni se eliminan.";
     }
-    response += "\\n\\n";
+    response += "\n\n";
   }
 
   if (showProspects) {
