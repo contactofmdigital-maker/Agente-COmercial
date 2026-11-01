@@ -148,3 +148,37 @@ const sameRecord = duplicateEngine.detectProspectDuplicates(
 assert.equal(sameRecord.length, 0, "No debe compararse un registro consigo mismo");
 
 console.log("OK: 4 pruebas de detección de duplicados.");
+
+const classificationSource = await readFile(
+  new URL("../src/features/data-classification/lib/record-classification.ts", import.meta.url),
+  "utf8",
+);
+const classificationCompiled = ts.transpileModule(classificationSource, {
+  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
+}).outputText;
+const classificationUrl = "data:text/javascript;base64," + Buffer.from(classificationCompiled).toString("base64");
+const classification = await import(classificationUrl);
+
+const demoId = "b1b0bafd-c2de-41a0-9872-c06711e2d2a7";
+const realId = "real-prospect-1";
+assert.equal(classification.isDemoProspectId(demoId), true, "Debe reconocer un prospecto demo auditado por ID");
+assert.equal(classification.isDemoProspectId(realId), false, "No debe clasificar un prospecto real por un ID no registrado");
+const realProspects = classification.filterRealProspects([
+  { id: demoId, full_name: "Contacto Demo" },
+  { id: realId, full_name: "Contacto Demo" },
+]);
+assert.equal(realProspects.length, 1, "Debe conservar registros reales aunque compartan el nombre de una demo");
+assert.equal(realProspects[0].id, realId);
+const realOpportunities = classification.filterRealOpportunities([
+  { id: "demo-opp", prospect_id: demoId },
+  { id: "real-opp", prospect_id: realId },
+]);
+assert.deepEqual(realOpportunities.map((item) => item.id), ["real-opp"]);
+const realActivities = classification.filterRealActivities([
+  { id: "demo-activity", prospect_id: demoId, opportunity_id: null },
+  { id: "linked-demo-activity", prospect_id: null, opportunity_id: "demo-opp" },
+  { id: "real-activity", prospect_id: realId, opportunity_id: "real-opp" },
+], new Set(["demo-opp"]));
+assert.deepEqual(realActivities.map((item) => item.id), ["real-activity"]);
+
+console.log("OK: 6 pruebas de clasificación de registros demo.");
