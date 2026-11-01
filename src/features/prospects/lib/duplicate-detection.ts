@@ -1,6 +1,6 @@
 export type DuplicateCandidate = {
   id?: string;
-  full_name: string | null;
+  full_name?: string | null;
   company_name?: string | null;
   email?: string | null;
   website?: string | null;
