@@ -49,7 +49,7 @@ export async function POST(request: Request) {
 
     const { data: prospects, error: prospectsError } = await supabase
       .from("sales_prospects")
-      .select("full_name, company_name, email, website, country, notes, status, created_at")
+      .select("id, full_name, company_name, email, website, country, notes, status, created_at")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(12);
