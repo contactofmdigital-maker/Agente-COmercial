@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { detectProspectDuplicates } from "@/features/prospects/lib/duplicate-detection";
 
 type Prospect = {
   id: string;
@@ -158,14 +159,35 @@ export function ProspectWorkspace() {
         );
       }
 
+      const candidate = {
+        full_name: form.full_name.trim(),
+        company_name: form.company_name.trim() || null,
+        email: form.email.trim() || null,
+        website: form.website.trim() || null,
+      };
+      const { data: existing, error: duplicateQueryError } = await supabase
+        .from("sales_prospects")
+        .select("id,full_name,company_name,email,website")
+        .eq("user_id", auth.user.id)
+        .limit(500);
+      if (duplicateQueryError) throw duplicateQueryError;
+
+      const matches = detectProspectDuplicates(candidate, existing ?? []);
+      if (matches.length) {
+        const detail = matches.slice(0, 5).map((match) =>
+          `• ${match.prospect.full_name} — ${match.kind === "confirmed" ? "correo coincidente" : "posible coincidencia de nombre"}`
+        ).join("\\n");
+        const confirmed = window.confirm(
+          `Encontramos ${matches.length} posible(s) duplicado(s):\\n\\n${detail}\\n\\n¿Deseas guardar el prospecto igualmente? No se modificará ningún registro existente.`
+        );
+        if (!confirmed) return;
+      }
+
       const { error: insertError } = await supabase
         .from("sales_prospects")
         .insert({
           user_id: auth.user.id,
-          full_name: form.full_name.trim(),
-          company_name: form.company_name.trim() || null,
-          email: form.email.trim() || null,
-          website: form.website.trim() || null,
+          ...candidate,
           country: form.country.trim() || null,
           notes: form.notes.trim() || null,
         });
@@ -300,6 +322,29 @@ export function ProspectWorkspace() {
         throw new Error(
           "No hay filas válidas. Cada fila debe incluir nombre y correo.",
         );
+      }
+
+      const { data: existing, error: duplicateQueryError } = await supabase
+        .from("sales_prospects")
+        .select("id,full_name,company_name,email,website")
+        .eq("user_id", auth.user.id)
+        .limit(500);
+      if (duplicateQueryError) throw duplicateQueryError;
+
+      const duplicateMatches = rows.flatMap((row) =>
+        detectProspectDuplicates(row, existing ?? []).map((match) => ({
+          row,
+          match,
+        }))
+      );
+      if (duplicateMatches.length) {
+        const detail = duplicateMatches.slice(0, 8).map(({ row, match }) =>
+          `• ${row.full_name} ↔ ${match.prospect.full_name} (${match.kind === "confirmed" ? "correo coincidente" : "posible coincidencia de nombre"})`
+        ).join("\\n");
+        const confirmed = window.confirm(
+          `El CSV contiene ${duplicateMatches.length} coincidencia(s) con prospectos existentes:\\n\\n${detail}\\n\\n¿Deseas importar igualmente? Los registros existentes no se modificarán.`
+        );
+        if (!confirmed) return;
       }
 
       const payload = rows.map((row) => ({
