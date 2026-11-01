@@ -18,6 +18,55 @@ type Prospect = {
   status: string;
   created_at: string;
 };
+type Opportunity = {
+  id: string;
+  prospect_id: string;
+  title: string;
+  description: string | null;
+  stage: string;
+  estimated_value: number;
+  currency: string;
+  expected_close_date: string | null;
+  created_at: string;
+};
+type Activity = {
+  id: string;
+  prospect_id: string;
+  opportunity_id: string | null;
+  activity_type: string;
+  title: string;
+  description: string | null;
+  due_at: string | null;
+  priority: string;
+  status: string;
+  created_at: string;
+};
+type CommercialContext = {
+  profile: {
+    business_name: string;
+    segment: BusinessSegment;
+    country: string;
+    currency: string;
+    description: string;
+    products_services: string;
+    ideal_customer: string;
+    sales_goal: string;
+  } | null;
+  summary: {
+    prospects_loaded: number;
+    opportunities_loaded: number;
+    active_opportunities: number;
+    won_opportunities: number;
+    activities_loaded: number;
+    pending_activities: number;
+    overdue_activities: number;
+  };
+  data: {
+    prospects: Prospect[];
+    opportunities: Opportunity[];
+    activities: Activity[];
+  };
+};
 
 const segmentOptions: { value: BusinessSegment; label: string }[] = [
   { value: "agency", label: "Agencia" },
@@ -100,37 +149,124 @@ function getSegmentAction(segment: BusinessSegment, prospect: Prospect) {
   return "Validar el problema principal y comprobar si la oferta resuelve una necesidad prioritaria.";
 }
 
-function buildCrmAnswer(prompt: string, prospects: Prospect[], segment: BusinessSegment) {
+function buildCrmAnswer(prompt: string, context: CommercialContext, segment: BusinessSegment) {
+  const { prospects, opportunities, activities } = context.data;
+  const profile = context.profile;
   const label = segmentOptions.find((item) => item.value === segment)?.label ?? "Negocio";
-  const header = "MODO CRM · Datos reales de tu CRM; puntuación heurística, no predicción de IA.\nPerfil: " + label + ". " + segmentGuidance[segment] + "\n\n";
-  if (!prospects.length) {
-    return header + "Todavía no hay prospectos disponibles en tu CRM. Registra contactos o importa un CSV desde el módulo Prospectos y vuelve a intentarlo. No se han creado datos ficticios.";
+  const businessName = profile?.business_name ? " · " + profile.business_name : "";
+  const header =
+    "MODO CRM · CONTEXTO COMERCIAL UNIFICADO · Sin consumo de OpenAI.\\n" +
+    "Perfil: " + label + businessName + ". " + segmentGuidance[segment] + "\\n" +
+    (profile?.sales_goal ? "Objetivo comercial: " + profile.sales_goal + "\\n" : "") +
+    "\\nRESUMEN DE TU NEGOCIO\\n" +
+    "Prospectos: " + context.summary.prospects_loaded +
+    " · Oportunidades: " + context.summary.opportunities_loaded +
+    " · Activas: " + context.summary.active_opportunities +
+    " · Ganadas: " + context.summary.won_opportunities +
+    " · Actividades pendientes: " + context.summary.pending_activities +
+    " · Vencidas: " + context.summary.overdue_activities + "\\n\\n";
+
+  if (!prospects.length && !opportunities.length && !activities.length) {
+    return header + "Todavía no hay registros comerciales en tu espacio. Registra prospectos, oportunidades o actividades para comenzar.";
   }
 
+  const normalized = prompt.toLowerCase();
+  const asksOverdue = /vencid|atrasad|pendiente|hoy|seguimiento/i.test(normalized);
+  const asksOpportunities = /oportunidad|pipeline|negociaci|estancad|cierre|venta/i.test(normalized);
+  const asksProspects = /prospect|cliente|contact|prioriz|captar|lead/i.test(normalized);
+  const now = Date.now();
+  const overdue = activities.filter((item) =>
+    ["pending", "in_progress"].includes(item.status) &&
+    item.due_at !== null &&
+    new Date(item.due_at).getTime() < now
+  );
+  const pending = activities.filter((item) => ["pending", "in_progress"].includes(item.status));
+  const activeOpps = opportunities.filter((item) => !["won", "lost"].includes(item.stage));
   const ranked = prospects
     .map((prospect) => ({ prospect, ...scoreProspect(prospect) }))
     .sort((a, b) => b.score - a.score);
+  const prospectById = new Map(prospects.map((item) => [item.id, item]));
+  const statusLabels: Record<string, string> = {
+    new: "Nuevo", contacted: "Contactado", qualified: "Calificado",
+    proposal: "Propuesta", negotiation: "Negociación", won: "Ganado", lost: "Perdido",
+  };
+  const stageLabels: Record<string, string> = {
+    qualification: "Calificación", diagnosis: "Diagnóstico", proposal: "Propuesta",
+    negotiation: "Negociación", won: "Ganada", lost: "Perdida",
+  };
+  const activityLabels: Record<string, string> = {
+    call: "Llamada", email: "Correo", meeting: "Reunión",
+    whatsapp: "WhatsApp", task: "Tarea", other: "Otra",
+  };
+  const dateLabel = (value: string | null) =>
+    value ? new Date(value).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }) : "Sin fecha";
 
-  const asksForMessage = /mensaje|correo|contact|prospecci|whatsapp/i.test(prompt);
-  const asksForFollowup = /seguimiento|follow|no responde/i.test(prompt);
+  let response = header;
 
-  const lines = ranked.slice(0, 10).map((item, index) => {
-    const p = item.prospect;
-    const action = getSegmentAction(segment, p);
-    const signals = item.reasons.length ? item.reasons.join("; ") : "Información comercial limitada";
-    const statusLabels: Record<string, string> = { new: "Nuevo", contacted: "Contactado", qualified: "Calificado", proposal: "Propuesta", won: "Ganado", lost: "Perdido" };
-    return (index + 1) + ". " + p.full_name + (p.company_name ? " — " + p.company_name : "") +
-      "\n   Puntuación: " + item.score + "/100 · Estado: " + (statusLabels[p.status] ?? p.status) +
-      "\n   Señales: " + signals +
-      "\n   Próxima acción: " + action;
-  });
-
-  let response = header + "RESULTADO DE PRIORIZACIÓN\nSe analizaron " + prospects.length + " prospectos reales (máximo 100 cargados). Ordenados mediante reglas transparentes:\n\n" + lines.join("\n\n");
-  if (asksForMessage || asksForFollowup) {
-    const first = ranked[0].prospect;
-    response += "\n\nBORRADOR PARA EL CONTACTO PRIORITARIO\nHola, " + first.full_name + ". Quería retomar el contacto para conocer mejor tus prioridades y evaluar si podemos ayudarte con una solución adecuada para " + (first.company_name || "tu negocio") + ". ¿Te parece si coordinamos una breve conversación?\n\nRevisa y personaliza este texto antes de enviarlo.";
+  if (asksOverdue || overdue.length > 0) {
+    response += "SEGUIMIENTOS VENCIDOS\\n";
+    response += overdue.length
+      ? overdue.slice(0, 10).map((item, index) => {
+          const prospect = prospectById.get(item.prospect_id);
+          return (index + 1) + ". " + item.title +
+            (prospect ? " · " + prospect.full_name : "") +
+            " · " + (activityLabels[item.activity_type] ?? item.activity_type) +
+            " · Vencía: " + dateLabel(item.due_at) +
+            " · Prioridad: " + item.priority;
+        }).join("\\n")
+      : "No hay actividades pendientes vencidas según las fechas registradas.";
+    response += "\\n\\n";
   }
-  response += "\n\nNota: el scoring es una ayuda operativa basada solo en estado, campos disponibles, palabras clave de notas y antigüedad del registro. No mide presupuesto, intención real ni probabilidad estadística de cierre.";
+
+  if (asksOpportunities || (!asksProspects && !asksOverdue)) {
+    response += "OPORTUNIDADES ACTIVAS\\n";
+    response += activeOpps.length
+      ? activeOpps.slice(0, 10).map((item, index) => {
+          const prospect = prospectById.get(item.prospect_id);
+          const ageDays = Math.max(0, Math.floor((now - new Date(item.created_at).getTime()) / 86400000));
+          const relatedActivities = activities.filter((activity) => activity.opportunity_id === item.id && ["pending", "in_progress"].includes(activity.status));
+          return (index + 1) + ". " + item.title +
+            (prospect ? " · " + prospect.full_name : "") +
+            " · Etapa: " + (stageLabels[item.stage] ?? item.stage) +
+            " · Valor: " + Number(item.estimated_value || 0).toLocaleString("es-CL") + " " + item.currency +
+            " · Creada hace " + ageDays + " días" +
+            " · Seguimientos pendientes asociados: " + relatedActivities.length +
+            (item.expected_close_date ? " · Cierre estimado: " + item.expected_close_date : "");
+        }).join("\\n")
+      : "No hay oportunidades activas registradas.";
+    response += "\\n\\n";
+    if (/estancad|sin mov|parad/i.test(normalized)) {
+      response += "POSIBLES OPORTUNIDADES QUE REQUIEREN REVISIÓN\\n";
+      const older = activeOpps.filter((item) => (now - new Date(item.created_at).getTime()) / 86400000 >= 14);
+      response += older.length
+        ? older.map((item) => "- " + item.title + ": lleva al menos 14 días desde su creación y sigue abierta. No tenemos historial de cambios de etapa para confirmar inactividad.").join("\\n")
+        : "No se identifican oportunidades abiertas con 14 días o más desde su creación.";
+      response += "\\n\\n";
+    }
+  }
+
+  if (asksProspects || (!asksOpportunities && !asksOverdue)) {
+    response += "PROSPECTOS PRIORIZADOS\\n";
+    response += ranked.length
+      ? ranked.slice(0, 10).map((item, index) => {
+          const p = item.prospect;
+          const related = opportunities.filter((opportunity) => opportunity.prospect_id === p.id && !["won", "lost"].includes(opportunity.stage));
+          const nextActivity = pending.find((activity) => activity.prospect_id === p.id);
+          return (index + 1) + ". " + p.full_name +
+            (p.company_name ? " · " + p.company_name : "") +
+            " · " + (statusLabels[p.status] ?? p.status) +
+            " · Prioridad orientativa: " + item.score + "/100" +
+            (related.length ? " · Oportunidades abiertas: " + related.length : "") +
+            (nextActivity ? " · Próxima actividad: " + nextActivity.title : "") +
+            "\\n   Motivos: " + (item.reasons.join("; ") || "Información limitada") +
+            "\\n   Acción sugerida: " + getSegmentAction(segment, p);
+        }).join("\\n\\n")
+      : "No hay prospectos registrados.";
+    response += "\\n\\n";
+  }
+
+  response += "CRITERIOS Y LÍMITES\\n";
+  response += "La prioridad de prospectos usa reglas locales transparentes; no es una predicción de cierre. Las oportunidades se muestran con su etapa y antigüedad desde creación; no se dispone de historial de movimientos para afirmar que están estancadas. Las actividades vencidas se calculan usando su fecha registrada. No se ha enviado ningún mensaje ni modificado ningún registro.";
   return response;
 }
 
@@ -211,18 +347,22 @@ export function AssistantChat() {
         return;
       }
       if (mode === "crm") {
-        const supabase = createClient();
-        const { data: auth, error: authError } = await supabase.auth.getUser();
-        if (authError) throw authError;
-        if (!auth.user) throw new Error("Tu sesión no está activa. Inicia sesión nuevamente.");
-        const { data, error: queryError } = await supabase
-          .from("sales_prospects")
-          .select("id,full_name,company_name,email,website,country,notes,status,created_at")
-          .eq("user_id", auth.user.id)
-          .order("created_at", { ascending: false })
-          .limit(100);
-        if (queryError) throw queryError;
-        const answer = buildCrmAnswer(content, (data ?? []) as Prospect[], segment);
+        const response = await fetch("/api/assistant/context", {
+          method: "GET",
+          cache: "no-store",
+          headers: { Accept: "application/json" },
+        });
+        const context = await response.json();
+        if (!response.ok) {
+          throw new Error(context.error || "No se pudo consultar el contexto comercial.");
+        }
+        const activeSegment = context.profile?.segment;
+        const validSegment =
+          activeSegment === "agency" || activeSegment === "local" ||
+          activeSegment === "company" || activeSegment === "startup"
+            ? activeSegment
+            : segment;
+        const answer = buildCrmAnswer(content, context as CommercialContext, validSegment);
         setMessages((current) => [...current, { role: "assistant", content: answer }]);
         return;
       }
@@ -252,7 +392,7 @@ export function AssistantChat() {
       content: nextMode === "demo"
         ? "Modo Demo activado. Respuestas ilustrativas, sin datos reales ni consumo de OpenAI."
         : nextMode === "crm"
-          ? "Modo CRM activado. Consultaré tus prospectos reales de Supabase y aplicaré reglas transparentes de priorización. No consume tokens."
+          ? "Modo CRM activado. Consultaré el contexto unificado de tu negocio, prospectos, oportunidades y actividades. Análisis local sin consumo de OpenAI."
           : "Modo OpenAI activado. Las respuestas utilizarán la API y el contexto de tus prospectos del CRM. Este modo puede consumir cuota de tu cuenta.",
     }]);
     setError("");
@@ -266,7 +406,7 @@ export function AssistantChat() {
         <button type="button" className={mode === "openai" ? "active" : ""} onClick={() => changeMode("openai")} disabled={busy}><Zap size={14} /> OpenAI</button>
       </div>
       <div className={"assistant-mode-note " + mode}>
-        {mode === "demo" ? "Simulación local · Sin llamadas a OpenAI." : mode === "crm" ? "CRM real · Reglas comerciales locales · Sin tokens." : "OpenAI · Contexto del CRM · Puede consumir cuota de API."}
+        {mode === "demo" ? "Simulación local · Sin llamadas a OpenAI." : mode === "crm" ? "Contexto unificado · Reglas comerciales locales · Sin tokens." : "OpenAI · Contexto del CRM · Puede consumir cuota de API."}
       </div>
       <div className="assistant-segment-picker">
         <label htmlFor="assistant-business-segment"><Building2 size={13} /> Perfil de negocio</label>
@@ -286,7 +426,7 @@ export function AssistantChat() {
             <div className="assistant-message-content"><span>{message.role === "assistant" ? "UPSCALE IA" : "TÚ"}</span><p>{message.content}</p></div>
           </div>
         ))}
-        {busy && <div className="assistant-message assistant"><div className="assistant-message-avatar"><Bot size={15} /></div><div className="assistant-message-content"><span>UPSCALE IA</span><p className="assistant-thinking"><LoaderCircle size={15} /> {mode === "demo" ? "Preparando simulación..." : mode === "crm" ? "Consultando tus prospectos..." : "Analizando contexto comercial..."}</p></div></div>}
+        {busy && <div className="assistant-message assistant"><div className="assistant-message-avatar"><Bot size={15} /></div><div className="assistant-message-content"><span>UPSCALE IA</span><p className="assistant-thinking"><LoaderCircle size={15} /> {mode === "demo" ? "Preparando simulación..." : mode === "crm" ? "Analizando tu contexto comercial..." : "Analizando contexto comercial..."}</p></div></div>}
       </div>
       {messages.length === 1 && <div className="assistant-suggestions">{suggestions.map((suggestion) => <button type="button" key={suggestion} onClick={() => void sendMessage(undefined, suggestion)} disabled={busy}><Sparkles size={13} /> {suggestion}</button>)}</div>}
       {error && <div className="assistant-error" role="alert">{error}</div>}
