@@ -460,7 +460,13 @@ export function ProspectWorkspace() {
                       setShowForm(false);
                       setSuccess("Prospecto guardado. Se conservaron intactos los registros coincidentes.");
                     } else {
-                      const rows = validCsvRows;
+                      const seenEmails = new Set<string>();
+                      const rows = validCsvRows.filter((row) => {
+                        const key = (row.email ?? "").trim().toLowerCase();
+                        if (key && seenEmails.has(key)) return false;
+                        if (key) seenEmails.add(key);
+                        return true;
+                      });
                       const payload = rows.map((row) => ({
                         user_id: auth.user!.id,
                         full_name: row.full_name!.trim(),
