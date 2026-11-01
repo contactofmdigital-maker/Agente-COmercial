@@ -2,19 +2,29 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { isValidActivityDueDate } from "@/features/assistant/lib/prioritization";
 import { filterRealActivities, filterRealOpportunities, filterRealProspects } from "@/features/data-classification/lib/record-classification";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const CONTEXT_LIMIT = 100;
+const CONTEXT_RATE_LIMIT = 60;
+
+function privateJson(body: unknown, status = 200, headers?: HeadersInit) {
+  const responseHeaders = new Headers(headers);
+  responseHeaders.set("Cache-Control", "private, no-store, max-age=0");
+  responseHeaders.set("Vary", "Cookie");
+  responseHeaders.set("X-Content-Type-Options", "nosniff");
+  return NextResponse.json(body, { status, headers: responseHeaders });
+}
 
 export async function GET() {
   try {
     const supabase = await createClient();
     if (!supabase) {
-      return NextResponse.json(
+      return privateJson(
         { error: "La conexión con Supabase no está configurada." },
-        { status: 503 },
+        503,
       );
     }
 
@@ -22,9 +32,18 @@ export async function GET() {
     const user = authData.user;
 
     if (authError || !user) {
-      return NextResponse.json(
+      return privateJson(
         { error: "Tu sesión no es válida. Inicia sesión nuevamente." },
-        { status: 401 },
+        401,
+      );
+    }
+
+    const rateLimit = checkRateLimit(`assistant-context:${user.id}`, CONTEXT_RATE_LIMIT, 60_000);
+    if (!rateLimit.allowed) {
+      return privateJson(
+        { error: "Se alcanzó el límite temporal de consultas al contexto comercial. Inténtalo nuevamente en un momento." },
+        429,
+        { "Retry-After": String(rateLimit.retryAfterSeconds) },
       );
     }
 
@@ -73,12 +92,12 @@ export async function GET() {
 
     if (queryError) {
       console.error("Commercial context query error:", queryError.message);
-      return NextResponse.json(
+      return privateJson(
         {
           error:
             "No se pudo consultar todo el contexto comercial. Verifica las migraciones y permisos de Supabase.",
         },
-        { status: 500 },
+        500,
       );
     }
 
@@ -112,7 +131,7 @@ export async function GET() {
       (item) => item.stage === "won",
     );
 
-    return NextResponse.json({
+    return privateJson({
       generated_at: new Date().toISOString(),
       autonomy: "controlled",
       profile: profile ?? null,
@@ -141,9 +160,9 @@ export async function GET() {
       "Commercial context route error:",
       error instanceof Error ? error.message : "unknown",
     );
-    return NextResponse.json(
+    return privateJson(
       { error: "Ocurrió un problema al construir el contexto comercial." },
-      { status: 500 },
+      500,
     );
   }
 }
