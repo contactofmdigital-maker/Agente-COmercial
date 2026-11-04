@@ -199,7 +199,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
   const safeCompanyName = (value: string | null) => {
     if (!value) return "";
     const compact = value.trim();
-    const looksLikeRut = /^(?:\\d{1,2}\\.\\d{3}\\.\\d{3}|\\d{7,8})-[0-9kK]$/.test(compact);
+    const looksLikeRut = /^(?:\d{1,2}\.\d{3}\.\d{3}|\d{7,8})-[0-9kK]$/.test(compact);
     return looksLikeRut ? "" : compact;
   };
   const statusLabels: Record<string, string> = {
