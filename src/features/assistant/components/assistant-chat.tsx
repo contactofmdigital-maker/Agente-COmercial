@@ -318,6 +318,10 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
       response += "REQUIEREN DEFINIR PRÓXIMO PASO:\n" +
         noNextStep.map((item) => "- " + item.title + ": no tiene una actividad pendiente asociada.").join("\n") + "\n";
     }
+    if (unknownStageOpps.length) {
+      response += "ETAPAS POR REVISAR:\n" +
+        unknownStageOpps.map((item) => "- " + item.title + ": etapa no reconocida (" + item.stage + "). No se incluye como oportunidad activa hasta corregirla.").join("\n") + "\n";
+    }
     if (/estancad|sin mov|parad/i.test(normalized)) {
       response += "LÍMITE DEL ANÁLISIS: no existe historial de cambios de etapa, por lo que no puedo confirmar inactividad o estancamiento. La antigüedad por sí sola no lo demuestra.\n";
     }
