@@ -226,11 +226,11 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
       return (name.length >= 5 && query.includes(name)) || (company.length >= 5 && query.includes(company));
     });
     if (matches.length !== 1) {
-      return header + "BORRADOR DE MENSAJE PERSONALIZADO\\n" +
+      return header + "BORRADOR DE MENSAJE PERSONALIZADO\n" +
         (matches.length > 1
           ? "Encontré más de un prospecto que coincide. Indica el nombre completo o la empresa exacta para evitar redactar para la persona equivocada."
           : "Para personalizar el mensaje necesito que indiques el nombre completo o la empresa tal como aparece en el CRM. No usaré datos de otro registro ni inventaré contexto.") +
-        "\\n\\nNo se ha enviado ningún mensaje ni modificado ningún registro.";
+        "\n\nNo se ha enviado ningún mensaje ni modificado ningún registro.";
     }
     const prospect = matches[0];
     const linkedOpps = opportunities.filter((item) => item.prospect_id === prospect.id && activeStages.has(item.stage));
@@ -246,15 +246,15 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     const greeting = "Hola " + prospect.full_name.split(" ")[0] + ",";
     let body = "";
     if (status === "proposal" || linkedOpps.some((item) => item.stage === "proposal" || item.stage === "negotiation")) {
-      body = greeting + "\\n\\nQuería retomar la propuesta que estamos revisando" +
+      body = greeting + "\n\nQuería retomar la propuesta que estamos revisando" +
         (company ? " para " + company : "") +
         ". ¿Pudiste revisarla? Me gustaría conocer tus dudas y confirmar cuál sería el siguiente paso para avanzar.";
     } else if (isFollowUp || status === "contacted") {
-      body = greeting + "\\n\\nRetomo el contacto para saber si sigue siendo oportuno conversar sobre " +
+      body = greeting + "\n\nRetomo el contacto para saber si sigue siendo oportuno conversar sobre " +
         (service || "la solución que podemos aportar") +
         ". ¿Es una prioridad que estés evaluando actualmente?";
     } else {
-      body = greeting + "\\n\\nTe contacto porque estamos trabajando en " +
+      body = greeting + "\n\nTe contacto porque estamos trabajando en " +
         (service || "soluciones para apoyar procesos comerciales") +
         (company ? " y quería abrir una conversación con " + company : "") +
         ". ¿Te interesaría conversar brevemente para conocer si existe alguna oportunidad de colaboración?";
@@ -271,15 +271,15 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     if (!company) missing.push("empresa");
     if (!notes) missing.push("necesidad o contexto específico");
     if (!service) missing.push("producto o servicio ofrecido en el perfil comercial");
-    return header + "BORRADOR DE MENSAJE PERSONALIZADO\\n" +
-      "Prospecto: " + prospect.full_name + (company ? " · " + company : "") + "\\n" +
+    return header + "BORRADOR DE MENSAJE PERSONALIZADO\n" +
+      "Prospecto: " + prospect.full_name + (company ? " · " + company : "") + "\n" +
       "Objetivo: " + (status === "proposal" || linkedOpps.some((item) => item.stage === "proposal" || item.stage === "negotiation")
         ? "obtener respuesta y acordar el siguiente paso de la propuesta"
         : isFollowUp || status === "contacted" ? "retomar la conversación y validar interés actual" : "iniciar conversación y validar interés") +
-      "\\n\\nMENSAJE\\n" + body +
-      "\\n\\nDATOS UTILIZADOS DEL CRM\\n- " + evidence.join("\\n- ") +
-      (missing.length ? "\\n\\nPARA MEJORAR LA PERSONALIZACIÓN FALTA\\n- " + missing.join("\\n- ") : "") +
-      "\\n\\nEl texto es un borrador editable. No se han enviado mensajes ni modificado registros. Revisa que el contexto siga vigente antes de usarlo.";
+      "\n\nMENSAJE\n" + body +
+      "\n\nDATOS UTILIZADOS DEL CRM\n- " + evidence.join("\n- ") +
+      (missing.length ? "\n\nPARA MEJORAR LA PERSONALIZACIÓN FALTA\n- " + missing.join("\n- ") : "") +
+      "\n\nEl texto es un borrador editable. No se han enviado mensajes ni modificado registros. Revisa que el contexto siga vigente antes de usarlo.";
   }
 
   if (intent === "explain_prospect") {
