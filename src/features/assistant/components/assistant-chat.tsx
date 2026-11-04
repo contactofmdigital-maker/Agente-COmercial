@@ -217,6 +217,71 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
   const dateLabel = (value: string | null) =>
     value ? new Date(value).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }) : "Sin fecha";
 
+  const asksForDraft = /\b(mensaje|redacta|redactar|contactar|prospeccion|prospectar|seguimiento personalizado)\b/.test(normalized);
+  if (asksForDraft) {
+    const query = normalizedIdentity(prompt);
+    const matches = prospects.filter((prospect) => {
+      const name = normalizedIdentity(prospect.full_name);
+      const company = normalizedIdentity(prospect.company_name);
+      return (name.length >= 5 && query.includes(name)) || (company.length >= 5 && query.includes(company));
+    });
+    if (matches.length !== 1) {
+      return header + "BORRADOR DE MENSAJE PERSONALIZADO\\n" +
+        (matches.length > 1
+          ? "Encontré más de un prospecto que coincide. Indica el nombre completo o la empresa exacta para evitar redactar para la persona equivocada."
+          : "Para personalizar el mensaje necesito que indiques el nombre completo o la empresa tal como aparece en el CRM. No usaré datos de otro registro ni inventaré contexto.") +
+        "\\n\\nNo se ha enviado ningún mensaje ni modificado ningún registro.";
+    }
+    const prospect = matches[0];
+    const linkedOpps = opportunities.filter((item) => item.prospect_id === prospect.id && activeStages.has(item.stage));
+    const linkedActivities = activities.filter((item) =>
+      (item.prospect_id === prospect.id || (item.opportunity_id && linkedOpps.some((opportunity) => opportunity.id === item.opportunity_id))) &&
+      ["pending", "in_progress"].includes(item.status)
+    );
+    const notes = prospect.notes?.trim() ?? "";
+    const service = profile?.products_services?.trim() ?? "";
+    const company = safeCompanyName(prospect.company_name);
+    const status = prospect.status.toLowerCase();
+    const isFollowUp = /seguimiento|retomar|no responde|anterior|ya le escribi|ya le escribí/.test(query);
+    const greeting = "Hola " + prospect.full_name.split(" ")[0] + ",";
+    let body = "";
+    if (status === "proposal" || linkedOpps.some((item) => item.stage === "proposal" || item.stage === "negotiation")) {
+      body = greeting + "\\n\\nQuería retomar la propuesta que estamos revisando" +
+        (company ? " para " + company : "") +
+        ". ¿Pudiste revisarla? Me gustaría conocer tus dudas y confirmar cuál sería el siguiente paso para avanzar.";
+    } else if (isFollowUp || status === "contacted") {
+      body = greeting + "\\n\\nRetomo el contacto para saber si sigue siendo oportuno conversar sobre " +
+        (service || "la solución que podemos aportar") +
+        ". ¿Es una prioridad que estés evaluando actualmente?";
+    } else {
+      body = greeting + "\\n\\nTe contacto porque estamos trabajando en " +
+        (service || "soluciones para apoyar procesos comerciales") +
+        (company ? " y quería abrir una conversación con " + company : "") +
+        ". ¿Te interesaría conversar brevemente para conocer si existe alguna oportunidad de colaboración?";
+    }
+    const evidence = [
+      "Nombre registrado: " + prospect.full_name,
+      company ? "Empresa registrada: " + company : "Empresa: no registrada",
+      "Estado CRM: " + (statusLabels[status] ?? prospect.status),
+      notes ? "Notas registradas: " + notes : "Notas comerciales: no registradas",
+      linkedOpps.length ? "Oportunidades activas: " + linkedOpps.map((item) => item.title + " (" + (stageLabels[item.stage] ?? item.stage) + ")").join(", ") : "Oportunidades activas: ninguna registrada",
+      linkedActivities.length ? "Actividades pendientes: " + linkedActivities.map((item) => item.title).join(", ") : "Actividades pendientes: ninguna registrada",
+    ];
+    const missing = [];
+    if (!company) missing.push("empresa");
+    if (!notes) missing.push("necesidad o contexto específico");
+    if (!service) missing.push("producto o servicio ofrecido en el perfil comercial");
+    return header + "BORRADOR DE MENSAJE PERSONALIZADO\\n" +
+      "Prospecto: " + prospect.full_name + (company ? " · " + company : "") + "\\n" +
+      "Objetivo: " + (status === "proposal" || linkedOpps.some((item) => item.stage === "proposal" || item.stage === "negotiation")
+        ? "obtener respuesta y acordar el siguiente paso de la propuesta"
+        : isFollowUp || status === "contacted" ? "retomar la conversación y validar interés actual" : "iniciar conversación y validar interés") +
+      "\\n\\nMENSAJE\\n" + body +
+      "\\n\\nDATOS UTILIZADOS DEL CRM\\n- " + evidence.join("\\n- ") +
+      (missing.length ? "\\n\\nPARA MEJORAR LA PERSONALIZACIÓN FALTA\\n- " + missing.join("\\n- ") : "") +
+      "\\n\\nEl texto es un borrador editable. No se han enviado mensajes ni modificado registros. Revisa que el contexto siga vigente antes de usarlo.";
+  }
+
   if (intent === "explain_prospect") {
     const query = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const selected = prioritized.find(({ prospect }) => {
