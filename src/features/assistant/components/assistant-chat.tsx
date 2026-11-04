@@ -166,7 +166,10 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     !invalidDateIds.has(item.id) &&
     new Date(item.due_at).getTime() < now
   );
-  const activeOpps = opportunities.filter((item) => !["won", "lost"].includes(item.stage));
+  const activeStages = new Set(["qualification", "diagnosis", "proposal", "negotiation"]);
+  const closedStages = new Set(["won", "lost"]);
+  const activeOpps = opportunities.filter((item) => activeStages.has(item.stage));
+  const unknownStageOpps = opportunities.filter((item) => !activeStages.has(item.stage) && !closedStages.has(item.stage));
   const prioritized = prioritizeProspects(
     prospects,
     opportunities,
@@ -327,7 +330,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
       ? prioritized.slice(0, 10).map((item, index) => {
           const p = item.prospect;
           const company = safeCompanyName(p.company_name);
-          const related = opportunities.filter((opportunity) => opportunity.prospect_id === p.id && !["won", "lost"].includes(opportunity.stage));
+          const related = opportunities.filter((opportunity) => opportunity.prospect_id === p.id && activeStages.has(opportunity.stage));
           const nextActivity = pending.find((activity) =>
             (activity.prospect_id === p.id || (activity.opportunity_id && related.some((opportunity) => opportunity.id === activity.opportunity_id))) &&
             !invalidDateIds.has(activity.id)
