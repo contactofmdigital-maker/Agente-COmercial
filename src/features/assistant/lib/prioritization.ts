@@ -185,7 +185,7 @@ function evaluateOpportunity(
   opportunities: PrioritizationOpportunity[],
 ) {
   const linked = opportunities
-    .filter((item) => item.prospect_id === prospect.id && item.stage in ACTIVE_STAGES)
+    .filter((item) => item.prospect_id === prospect.id && Object.prototype.hasOwnProperty.call(ACTIVE_STAGES, item.stage))
     .map((item) => ACTIVE_STAGES[item.stage]);
   if (!linked.length) return null;
   const points = Math.max(...linked);
@@ -246,7 +246,7 @@ export function calculatePotential(
     (item.opportunity_id !== null && relatedOpportunityIds.has(item.opportunity_id))
   );
 
-  const hasActiveOpportunity = opportunities.some((item) => item.prospect_id === prospect.id && item.stage in ACTIVE_STAGES);
+  const hasActiveOpportunity = opportunities.some((item) => item.prospect_id === prospect.id && Object.prototype.hasOwnProperty.call(ACTIVE_STAGES, item.stage));
   const evaluated = [
     { name: "Intención y necesidad", weight: WEIGHTS.intent, result: evaluateIntent(prospect, hasActiveOpportunity) },
     { name: "Avance de oportunidad", weight: WEIGHTS.opportunity, result: evaluateOpportunity(prospect, opportunities) },
