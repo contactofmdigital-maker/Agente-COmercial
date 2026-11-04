@@ -102,6 +102,24 @@ assert.equal(
   "Una fecha válida posterior a la creación debe aceptarse",
 );
 
+
+const prototypeStage = engine.calculatePotential(prospect({ notes: "" }), [
+  opportunity("toString"),
+], [], null, now);
+assert.equal(
+  prototypeStage.criteria.find((item) => item.name === "Avance de oportunidad").points,
+  null,
+  "Una etapa heredada del prototipo no debe tratarse como oportunidad activa",
+);
+const unknownStage = engine.calculatePotential(prospect({ notes: "" }), [
+  opportunity("awaiting_approval"),
+], [], null, now);
+assert.equal(
+  unknownStage.criteria.find((item) => item.name === "Avance de oportunidad").points,
+  null,
+  "Una etapa desconocida no debe sumar puntos de avance",
+);
+
 console.log("OK: 17 pruebas del motor y clasificación CRM.");
 
 const duplicateSource = await readFile(
