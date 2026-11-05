@@ -54,6 +54,10 @@ type CommercialContext = {
     ideal_customer: string;
     sales_goal: string;
   } | null;
+  limits?: {
+    per_module: number;
+    note: string;
+  };
   summary: {
     prospects_loaded: number;
     opportunities_loaded: number;
@@ -144,7 +148,8 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
     " · Etapas por revisar: " + (context.summary.unknown_stage_opportunities ?? 0) +
     " · Actividades pendientes: " + context.summary.pending_activities +
     " · Actividades vencidas válidas: " + context.summary.overdue_activities +
-    " · Fechas por revisar: " + (context.summary.invalid_date_activities ?? 0) + "\n\n";
+    " · Fechas por revisar: " + (context.summary.invalid_date_activities ?? 0) + "\n" +
+    (context.limits?.note ? "ALCANCE DEL CONTEXTO: " + context.limits.note + "\n\n" : "ALCANCE DEL CONTEXTO: se consideran hasta 100 registros por módulo.\n\n");
 
   if (!prospects.length && !opportunities.length && !activities.length) {
     return header + "Todavía no hay registros comerciales en tu espacio. Registra prospectos, oportunidades o actividades para comenzar.";
