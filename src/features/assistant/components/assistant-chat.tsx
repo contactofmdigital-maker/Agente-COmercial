@@ -131,7 +131,7 @@ function getSegmentAction(segment: BusinessSegment, prospect: Pick<Prospect, "st
   return "Validar el problema principal y comprobar si la oferta resuelve una necesidad prioritaria.";
 }
 
-export function buildCrmAnswer(prompt: string, context: CommercialContext, segment: BusinessSegment) {
+function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segment: BusinessSegment) {
   const { prospects, opportunities, activities } = context.data;
   const profile = context.profile;
   const label = segmentOptions.find((item) => item.value === segment)?.label ?? "Negocio";
@@ -328,10 +328,14 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
   if (intent === "potential_urgency_comparison") {
     const potentialTop = prioritizedByPotential.slice(0, 5);
     const attentionTop = prioritizedByUrgency.filter((item) => ["high", "medium", "not_evaluable"].includes(item.urgency.level)).slice(0, 5);
-    const formatItem = (item: typeof prioritizedByPotential[number], index: number) =>
-      (index + 1) + ". " + item.prospect.full_name + (item.prospect.company_name ? " · " + item.prospect.company_name : "") +
-      " · Potencial: " + (item.potential.score === null ? "sin clasificación" : item.potential.score + "/100") +
-      " · Cobertura: " + item.potential.coverage + "%" + " · Urgencia: " + item.urgency.level.toUpperCase() + " · " + item.urgency.reasons.join("; ");
+    const formatItem = (item: typeof prioritizedByPotential[number], index: number) => {
+      const company = safeCompanyName(item.prospect.company_name);
+      const score = item.potential.score === null ? "sin puntuación" : item.potential.score + "/100";
+      const confidence = item.potential.classification === "sufficient" ? "suficiente" : item.potential.classification === "provisional" ? "provisional" : "insuficiente";
+      return (index + 1) + ". " + item.prospect.full_name + (company ? " · " + company : "") +
+        " · Potencial: " + score + " · Cobertura: " + item.potential.coverage + "% · Evidencia: " + confidence +
+        " · Urgencia: " + item.urgency.level.toUpperCase() + " · " + item.urgency.reasons.join("; ");
+    };
     return header + "COMPARACIÓN DE POTENCIAL COMERCIAL Y ATENCIÓN INMEDIATA\n\n" +
       "MAYOR POTENCIAL COMERCIAL (ordenado por potencial, sin usar vencimientos como criterio de orden):\n" +
       (potentialTop.length ? potentialTop.map(formatItem).join("\n") : "No hay prospectos activos para evaluar.") +
@@ -564,6 +568,19 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
     response += "\n";
   }
 
+  if (intent === "prospect_urgency") {
+    const unassignedPending = pending.filter((item) => !resolveActivityProspect(item));
+    if (unassignedPending.length) {
+      response += "\n\nACTIVIDADES PENDIENTES SIN ASOCIACIÓN VÁLIDA\n" +
+        unassignedPending.map((item, index) =>
+          (index + 1) + ". " + item.title + " · " + activityDateState(item) +
+          " · Vence: " + dateLabel(item.due_at) +
+          " · " + activityRecommendation(item)
+        ).join("\n") +
+        "\nEstas actividades cuentan en el resumen general, pero no se atribuyen a un prospecto hasta corregir su vínculo. Revisa el prospecto y la oportunidad asociados en el módulo Actividades.";
+    }
+  }
+
   if (showProspects) {
     response += intent === "prospect_urgency"
       ? "PROSPECTOS ORDENADOS POR URGENCIA DE CONTACTO\n"
@@ -574,14 +591,15 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
           const company = safeCompanyName(p.company_name);
           const related = opportunities.filter((opportunity) => opportunity.prospect_id === p.id && activeStages.has(normalizeCrmValue(opportunity.stage)));
           const nextActivity = pending.find((activity) => resolveActivityProspect(activity)?.id === p.id && !invalidDateIds.has(activity.id));
-          const potentialLabel = item.potential.classification === "insufficient" || item.potential.score === null
-            ? "Sin clasificación · evidencia insuficiente · cobertura " + item.potential.coverage + "%"
-            : item.potential.score + "/100 · cobertura " + item.potential.coverage + "% · " +
-              (item.potential.classification === "sufficient" ? "suficiente" : "provisional");
+          const potentialLabel = (item.potential.score === null ? "Sin puntuación" : item.potential.score + "/100") +
+            " · cobertura " + item.potential.coverage + "% · evidencia " +
+            (item.potential.classification === "sufficient" ? "suficiente" : item.potential.classification === "provisional" ? "provisional" : "insuficiente");
           const urgencyLabel = item.urgency.level === "high" ? "ALTA" :
             item.urgency.level === "medium" ? "MEDIA" :
             item.urgency.level === "low" ? "BAJA" : "NO EVALUABLE";
-          const action = item.urgency.level === "high" ? item.nextAction : getSegmentAction(segment, p);
+          const action = intent === "prospect_urgency"
+            ? (item.urgency.level !== "low" ? item.urgency.nextAction : getSegmentAction(segment, p))
+            : (item.urgency.level === "high" || item.urgency.level === "not_evaluable" ? item.urgency.nextAction : getSegmentAction(segment, p));
           return (index + 1) + ". " + p.full_name +
             (company ? " · " + company : "") +
             " · " + (statusLabels[normalizeCrmValue(p.status)] ?? p.status) +
@@ -609,6 +627,16 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
     response += "No se han modificado registros ni enviado mensajes.";
   }
   return response;
+}
+
+/** Redacta datos personales aunque hayan sido guardados por error en campos de nombre o empresa. */
+export function buildCrmAnswer(prompt: string, context: CommercialContext, segment: BusinessSegment) {
+  const response = buildCrmAnswerInternal(prompt, context, segment);
+  return response
+    .replace(/\\b\\d{1,2}(?:\\.\\d{3}){2}-[0-9kK]\\b/g, "[RUT oculto]")
+    .replace(/\\b\\d{7,8}-[0-9kK]\\b/g, "[RUT oculto]")
+    .replace(/\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b/gi, "[correo oculto]")
+    .replace(/\\+?56\\s?9\\d{8}\\b/g, "[teléfono oculto]");
 }
 
 export function AssistantChat() {
