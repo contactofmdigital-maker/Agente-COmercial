@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Bot, Send, Sparkles, User, RotateCcw, LoaderCircle, FlaskConical, Zap, Database, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects } from "@/features/assistant/lib/prioritization";
+import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, prioritizeProspectsByUrgency } from "@/features/assistant/lib/prioritization";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type AssistantMode = "demo" | "crm" | "openai";
@@ -126,7 +126,7 @@ function getSegmentAction(segment: BusinessSegment, prospect: Pick<Prospect, "st
   return "Validar el problema principal y comprobar si la oferta resuelve una necesidad prioritaria.";
 }
 
-function buildCrmAnswer(prompt: string, context: CommercialContext, segment: BusinessSegment) {
+export function buildCrmAnswer(prompt: string, context: CommercialContext, segment: BusinessSegment) {
   const { prospects, opportunities, activities } = context.data;
   const profile = context.profile;
   const label = segmentOptions.find((item) => item.value === segment)?.label ?? "Negocio";
@@ -153,10 +153,11 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
   const broadAnalysis = intent === "summary" || intent === "general";
   const showActivities = intent === "activities" || broadAnalysis;
   const showOpportunities = intent === "opportunities" || broadAnalysis;
-  const showProspects = intent === "prospects" || broadAnalysis;
+  const showProspects = intent === "prospects" || intent === "prospect_urgency" || broadAnalysis;
   const now = Date.now();
 
-  const pending = activities.filter((item) => ["pending", "in_progress"].includes(item.status));
+  const isPendingStatus = (status: string) => ["pending", "in_progress"].includes((status ?? "").trim().toLowerCase());
+  const pending = activities.filter((item) => isPendingStatus(item.status));
   const invalidDateActivities = pending.filter((item) =>
     item.due_at !== null && !isValidActivityDueDate(item.due_at, item.created_at)
   );
@@ -166,21 +167,50 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     !invalidDateIds.has(item.id) &&
     new Date(item.due_at).getTime() < now
   );
+  const normalizeCrmValue = (value: string | null | undefined) => (value ?? "").trim().toLowerCase();
   const activeStages = new Set(["qualification", "diagnosis", "proposal", "negotiation"]);
   const closedStages = new Set(["won", "lost"]);
-  const activeOpps = opportunities.filter((item) => activeStages.has(item.stage));
-  const unknownStageOpps = opportunities.filter((item) => !activeStages.has(item.stage) && !closedStages.has(item.stage));
-  const prioritized = prioritizeProspects(
-    prospects,
-    opportunities,
-    activities,
-    profile ? {
-      description: profile.description,
-      products_services: profile.products_services,
-      ideal_customer: profile.ideal_customer,
-    } : null,
-    now,
-  );
+  const activeOpps = opportunities.filter((item) => activeStages.has(normalizeCrmValue(item.stage)));
+  const unknownStageOpps = opportunities.filter((item) => !activeStages.has(normalizeCrmValue(item.stage)) && !closedStages.has(normalizeCrmValue(item.stage)));
+  const opportunityById = new Map(opportunities.map((item) => [item.id, item]));
+  const resolveActivityProspect = (activity: Activity) => {
+    const direct = activity.prospect_id ? prospectById.get(activity.prospect_id) ?? null : null;
+    const linkedOpportunity = activity.opportunity_id ? opportunityById.get(activity.opportunity_id) : undefined;
+    if (linkedOpportunity && direct && direct.id !== linkedOpportunity.prospect_id) return null;
+    return linkedOpportunity ? prospectById.get(linkedOpportunity.prospect_id) ?? direct : direct;
+  };
+  const activityAssociationLabel = (activity: Activity) => {
+    const linkedOpportunity = activity.opportunity_id ? opportunityById.get(activity.opportunity_id) : undefined;
+    const direct = activity.prospect_id ? prospectById.get(activity.prospect_id) ?? null : null;
+    if (linkedOpportunity && direct && direct.id !== linkedOpportunity.prospect_id) return " · Asociación inconsistente: prospecto y oportunidad no coinciden";
+    const related = resolveActivityProspect(activity);
+    return related ? " · " + related.full_name : " · Sin prospecto asociado";
+  };
+  const activityRecommendation = (activity: Activity) => {
+    const kind = normalizeCrmValue(activity.activity_type);
+    const related = resolveActivityProspect(activity);
+    if (!related) return "Identificar y vincular correctamente el prospecto antes de ejecutar el seguimiento.";
+    if (kind === "call") return "Realizar la llamada pendiente, registrar el resultado y acordar una próxima acción con fecha.";
+    if (kind === "meeting") return "Confirmar la reunión, preparar los antecedentes y registrar acuerdos y próximos pasos.";
+    if (kind === "email") return "Revisar el contexto y enviar o responder el correo; registrar la respuesta y la próxima acción.";
+    if (kind === "follow_up") return "Retomar el contacto, registrar si respondió y dejar programado el siguiente paso.";
+    return "Revisar el compromiso, contactar por el canal disponible y registrar el resultado y la próxima acción.";
+  };
+  const activityDateState = (activity: Activity) => {
+    if (invalidDateIds.has(activity.id)) return "fecha inválida";
+    if (!activity.due_at) return "sin fecha";
+    const timestamp = new Date(activity.due_at).getTime();
+    if (!Number.isFinite(timestamp)) return "fecha inválida";
+    return timestamp < now ? "vencida" : "programada";
+  };
+  const prioritizationProfile = profile ? {
+    description: profile.description,
+    products_services: profile.products_services,
+    ideal_customer: profile.ideal_customer,
+  } : null;
+  const prioritizedByPotential = prioritizeProspects(prospects, opportunities, activities, prioritizationProfile, now);
+  const prioritizedByUrgency = prioritizeProspectsByUrgency(prospects, opportunities, activities, prioritizationProfile, now);
+  const prioritized = intent === "prospect_urgency" ? prioritizedByUrgency : prioritizedByPotential;
   const normalizedIdentity = (value: string | null | undefined) =>
     (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
   const identityKey = (prospect: Prospect) => {
@@ -214,8 +244,11 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     task: "Tarea", call: "Llamada", meeting: "Reunión",
     email: "Correo", follow_up: "Seguimiento",
   };
-  const dateLabel = (value: string | null) =>
-    value ? new Date(value).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }) : "Sin fecha";
+  const dateLabel = (value: string | null) => {
+    if (!value) return "Sin fecha";
+    const date = new Date(value);
+    return Number.isFinite(date.getTime()) ? date.toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }) : "Fecha inválida";
+  };
 
   const asksForDraft = isExplicitDraftRequest(prompt);
   if (asksForDraft) {
@@ -228,19 +261,20 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
         "\n\nNo se ha enviado ningún mensaje ni modificado ningún registro.";
     }
     const prospect = matches[0];
-    const linkedOpps = opportunities.filter((item) => item.prospect_id === prospect.id && activeStages.has(item.stage));
+    const linkedOpps = opportunities.filter((item) => item.prospect_id === prospect.id && activeStages.has(normalizeCrmValue(item.stage)));
     const linkedActivities = activities.filter((item) =>
-      (item.prospect_id === prospect.id || (item.opportunity_id && linkedOpps.some((opportunity) => opportunity.id === item.opportunity_id))) &&
-      ["pending", "in_progress"].includes(item.status)
+      resolveActivityProspect(item)?.id === prospect.id && isPendingStatus(item.status)
     );
     const notes = prospect.notes?.trim() ?? "";
     const service = profile?.products_services?.trim() ?? "";
     const company = safeCompanyName(prospect.company_name);
-    const status = prospect.status.toLowerCase();
+    const status = normalizeCrmValue(prospect.status);
     const isFollowUp = /seguimiento|retomar|no responde|anterior|ya le escribi|ya le escribí/.test(normalized);
-    const greeting = "Hola " + prospect.full_name.split(" ")[0] + ",";
+    const asksForMeeting = /reunion|reunión|agendar|agenda|coordinar|juntarnos|conversar/.test(normalized);
+    const firstName = prospect.full_name.trim().split(/\s+/)[0] ?? "";
+    const greeting = /^(test|demo|contacto|empresa|usuario|prueba)$/i.test(firstName) ? "Hola," : "Hola " + firstName + ",";
     let body = "";
-    if (status === "proposal" || linkedOpps.some((item) => item.stage === "proposal" || item.stage === "negotiation")) {
+    if (status === "proposal" || linkedOpps.some((item) => ["proposal", "negotiation"].includes(normalizeCrmValue(item.stage)))) {
       body = greeting + "\n\nQuería retomar la propuesta que estamos revisando" +
         (company ? " para " + company : "") +
         ". ¿Pudiste revisarla? Me gustaría conocer tus dudas y confirmar cuál sería el siguiente paso para avanzar.";
@@ -253,6 +287,9 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
         (service || "soluciones para apoyar procesos comerciales") +
         (company ? " y quería abrir una conversación con " + company : "") +
         ". ¿Te interesaría conversar brevemente para conocer si existe alguna oportunidad de colaboración?";
+    }
+    if (asksForMeeting && !/reunion|reunión/.test(body)) {
+      body += "\n\n¿Te parece que coordinemos una reunión breve esta semana para revisar el tema y acordar los próximos pasos? ¿Qué día y horario te acomoda?";
     }
     const evidence = [
       "Nombre registrado: " + prospect.full_name,
@@ -268,7 +305,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     if (!service) missing.push("producto o servicio ofrecido en el perfil comercial");
     return header + "BORRADOR DE MENSAJE PERSONALIZADO\n" +
       "Prospecto: " + prospect.full_name + (company ? " · " + company : "") + "\n" +
-      "Objetivo: " + (status === "proposal" || linkedOpps.some((item) => item.stage === "proposal" || item.stage === "negotiation")
+      "Objetivo: " + (status === "proposal" || linkedOpps.some((item) => ["proposal", "negotiation"].includes(normalizeCrmValue(item.stage)))
         ? "obtener respuesta y acordar el siguiente paso de la propuesta"
         : isFollowUp || status === "contacted" ? "retomar la conversación y validar interés actual" : "iniciar conversación y validar interés") +
       "\n\nMENSAJE\n" + body +
@@ -277,13 +314,77 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
       "\n\nEl texto es un borrador editable. No se han enviado mensajes ni modificado registros. Revisa que el contexto siga vigente antes de usarlo.";
   }
 
-  if (intent === "explain_prospect") {
-    const query = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    const selected = prioritized.find(({ prospect }) => {
-      const name = prospect.full_name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      const company = (prospect.company_name ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-      return (name.length >= 5 && query.includes(name)) || (company.length >= 5 && query.includes(company));
+  if (intent === "potential_urgency_comparison") {
+    const potentialTop = prioritizedByPotential.slice(0, 5);
+    const attentionTop = prioritizedByUrgency.filter((item) => ["high", "medium", "not_evaluable"].includes(item.urgency.level)).slice(0, 5);
+    const formatItem = (item: typeof prioritizedByPotential[number], index: number) =>
+      (index + 1) + ". " + item.prospect.full_name + (item.prospect.company_name ? " · " + item.prospect.company_name : "") +
+      " · Potencial: " + (item.potential.score === null ? "sin clasificación" : item.potential.score + "/100") +
+      " · Cobertura: " + item.potential.coverage + "%" + " · Urgencia: " + item.urgency.level.toUpperCase() + " · " + item.urgency.reasons.join("; ");
+    return header + "COMPARACIÓN DE POTENCIAL COMERCIAL Y ATENCIÓN INMEDIATA\n\n" +
+      "MAYOR POTENCIAL COMERCIAL (ordenado por potencial, sin usar vencimientos como criterio de orden):\n" +
+      (potentialTop.length ? potentialTop.map(formatItem).join("\n") : "No hay prospectos activos para evaluar.") +
+      "\n\nREQUIEREN ATENCIÓN OPERATIVA (ordenados por urgencia):\n" +
+      (attentionTop.length ? attentionTop.map(formatItem).join("\n") : "No hay actividades asociadas que indiquen una atención inmediata o próxima.") +
+      "\n\nDIFERENCIA: el potencial estima el atractivo comercial según la evidencia registrada; la urgencia indica cuándo conviene actuar por vencimientos, compromisos próximos o fechas por revisar. Un prospecto puede tener alto potencial y baja urgencia, o bajo potencial y alta urgencia.\n\nNo se han modificado registros ni enviado mensajes.";
+  }
+
+  if (intent === "prospect_detail") {
+    const matches = matchCrmProspects(prompt, prospects, opportunities, activities);
+    if (matches.length !== 1) {
+      return header + "ESTADO COMERCIAL DEL PROSPECTO\n" +
+        (matches.length > 1 ? "La consulta coincide con más de un registro. Indica el nombre completo o la empresa exacta para evitar mezclar oportunidades."
+          : "No encontré un prospecto con esa identidad en el contexto cargado. Comprueba el nombre o la empresa tal como aparecen en el CRM.") +
+        "\n\nNo se muestran datos de otros registros ni datos personales de contacto.";
+    }
+    const selected = matches[0];
+    const result = prioritizedByPotential.find((item) => item.prospect.id === selected.id);
+    const linkedOpps = opportunities.filter((item) => item.prospect_id === selected.id);
+    const linkedActivities = pending.filter((item) => resolveActivityProspect(item)?.id === selected.id);
+    const activityLines = linkedActivities.map((item) =>
+      "- " + item.title + " · " + activityDateState(item) + " · Vence: " + dateLabel(item.due_at) + " · " + activityRecommendation(item)
+    );
+    const statusLabel = statusLabels[normalizeCrmValue(selected.status)] ?? selected.status;
+    const opportunityLines = linkedOpps.map((item) =>
+      "- " + item.title + " · Etapa: " + (stageLabels[normalizeCrmValue(item.stage)] ?? item.stage) +
+      " · Valor: " + Number(item.estimated_value || 0).toLocaleString("es-CL") + " " + item.currency +
+      (item.expected_close_date ? " · Cierre estimado: " + item.expected_close_date : "")
+    );
+    return header + "ESTADO COMERCIAL DEL PROSPECTO\n" +
+      selected.full_name + (safeCompanyName(selected.company_name) ? " · " + safeCompanyName(selected.company_name) : "") +
+      "\nEstado CRM: " + statusLabel +
+      "\nPotencial: " + (!result || result.potential.score === null ? "sin clasificación" : result.potential.score + "/100") +
+      " · Cobertura: " + (result?.potential.coverage ?? 0) + "%" + " · Urgencia: " + (result?.urgency.level ?? "no evaluable").toUpperCase() +
+      "\n\nOPORTUNIDADES VINCULADAS A ESTE PROSPECTO\n" + (opportunityLines.length ? opportunityLines.join("\n") : "No registra oportunidades vinculadas en el contexto cargado.") +
+      "\n\nACTIVIDADES PENDIENTES VINCULADAS\n" + (activityLines.length ? activityLines.join("\n") : "No registra actividades pendientes vinculadas.") +
+      (result ? "\n\nSIGUIENTE ACCIÓN RECOMENDADA\n" + (result.urgency.level === "high" || result.urgency.level === "not_evaluable" ? result.urgency.nextAction : result.nextAction) : "") +
+      "\n\nLa consulta no incluye RUT, teléfono ni correo. No se han modificado registros ni enviado mensajes.";
+  }
+
+  if (intent === "explain_all") {
+    const explanations = prioritizedByPotential.map((item, index) => {
+      const potential = item.potential;
+      const breakdown = potential.criteria.map((criterion) =>
+        "  - " + criterion.name + ": " + (criterion.points === null ? "No evaluado" : criterion.points + "/" + criterion.weight + " puntos") + ". " + criterion.reason
+      ).join("\n");
+      return (index + 1) + ". " + item.prospect.full_name + (item.prospect.company_name ? " · " + item.prospect.company_name : "") +
+        "\n  Potencial: " + (potential.score === null ? "sin clasificación" : potential.score + "/100") +
+        " · Cobertura: " + potential.coverage + "% · Confiabilidad: " +
+        (potential.classification === "sufficient" ? "mayor (cobertura suficiente)" : potential.classification === "provisional" ? "limitada (cobertura parcial)" : "baja (evidencia insuficiente)") +
+        "\n  Criterios evaluados:\n" + (breakdown || "  - Sin criterios evaluables.") +
+        "\n  Información faltante: " + (potential.missingEvidence.length ? potential.missingEvidence.join(", ") : "ninguna detectada") +
+        "\n  Urgencia independiente: " + item.urgency.level.toUpperCase() + " · " + item.urgency.reasons.join("; ");
     });
+    return header + "EXPLICACIÓN DEL POTENCIAL DE CADA PROSPECTO ACTIVO\n\n" +
+      (explanations.length ? explanations.join("\n\n") : "No hay prospectos activos para explicar.") +
+      "\n\nMETODOLOGÍA: la puntuación es heurística y se calcula solo con criterios respaldados por datos. La cobertura indica qué parte del modelo pudo evaluarse; un puntaje con cobertura baja no debe interpretarse como potencial confirmado.\n\nNo se han modificado registros ni enviado mensajes.";
+  }
+
+  if (intent === "explain_prospect") {
+    const matches = matchCrmProspects(prompt, prospects, opportunities, activities);
+    const selected = matches.length === 1
+      ? prioritizedByPotential.find(({ prospect }) => prospect.id === matches[0].id)
+      : undefined;
     if (!selected) {
       return header + "EXPLICACIÓN DE PUNTUACIÓN\nNo puedo identificar con seguridad a qué prospecto te refieres. Indícame su nombre completo o empresa y te mostraré el desglose de criterios, puntos, evidencia, cobertura y datos faltantes.\n\nNo se han modificado registros ni enviado mensajes.";
     }
@@ -328,29 +429,33 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
   if (showActivities) {
     response += "ACTIVIDADES Y SEGUIMIENTOS\n";
     response += overdue.length
-      ? "VENCIDOS:\n" + overdue.slice(0, 10).map((item, index) => {
-          const prospect = item.prospect_id ? prospectById.get(item.prospect_id) : null;
-          return (index + 1) + ". " + item.title +
-            (prospect ? " · " + prospect.full_name : "") +
-            " · " + (activityLabels[item.activity_type] ?? item.activity_type) +
-            " · Vencía: " + dateLabel(item.due_at) +
-            " · Prioridad: " + item.priority;
-        }).join("\n")
-      : "No hay actividades vencidas con fechas válidas.";
+      ? "VENCIDAS:\n" + overdue.slice(0, 10).map((item, index) =>
+          (index + 1) + ". " + item.title + activityAssociationLabel(item) +
+          " · " + (activityLabels[normalizeCrmValue(item.activity_type)] ?? item.activity_type) +
+          " · Vencía: " + dateLabel(item.due_at) + " · Prioridad: " + item.priority +
+          "\n   Siguiente acción: " + activityRecommendation(item)
+        ).join("\n")
+      : "VENCIDAS: No hay actividades vencidas con fechas válidas.";
+    response += "\n";
+    response += invalidDateActivities.length
+      ? "FECHAS INVÁLIDAS (requieren revisión):\n" + invalidDateActivities.map((item) =>
+          "- " + item.title + activityAssociationLabel(item) + " · Fecha registrada: " + dateLabel(item.due_at) +
+          " · Revisar y corregir la fecha en el módulo Actividades."
+        ).join("\n")
+      : "FECHAS INVÁLIDAS: No se detectan fechas inválidas.";
+    response += "\n";
+    const undatedPending = pending.filter((item) => !item.due_at);
+    response += undatedPending.length
+      ? "PENDIENTES SIN FECHA:\n" + undatedPending.map((item) =>
+          "- " + item.title + activityAssociationLabel(item) + " · Prioridad: " + item.priority +
+          " · Definir fecha y responsable antes de dejarla programada."
+        ).join("\n")
+      : "PENDIENTES SIN FECHA: No hay actividades pendientes sin fecha.";
     response += "\n";
     const upcoming = pending.filter((item) => item.due_at && !invalidDateIds.has(item.id) && new Date(item.due_at).getTime() >= now);
     response += upcoming.length
-      ? "PRÓXIMAS:\n" + upcoming.slice(0, 10).map((item) => {
-          const prospect = item.prospect_id ? prospectById.get(item.prospect_id) : null;
-          return "- " + item.title + (prospect ? " · " + prospect.full_name : "") + " · " + dateLabel(item.due_at);
-        }).join("\n")
-      : "No hay actividades futuras pendientes con fecha válida.";
-    response += "\n";
-    if (invalidDateActivities.length) {
-      response += "DATOS POR REVISAR:\n" + invalidDateActivities.map((item) =>
-        "- " + item.title + ": la fecha registrada (" + dateLabel(item.due_at) + ") es anterior a su creación o no es válida. Revisa esta actividad en el módulo Actividades."
-      ).join("\n");
-    }
+      ? "PRÓXIMAS:\n" + upcoming.slice(0, 10).map((item) => "- " + item.title + activityAssociationLabel(item) + " · " + dateLabel(item.due_at)).join("\n")
+      : "PRÓXIMAS: No hay actividades futuras pendientes con fecha válida.";
     response += "\n\n";
   }
 
@@ -360,7 +465,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
       ? activeOpps.slice(0, 10).map((item, index) => {
           const prospect = prospectById.get(item.prospect_id);
           const ageDays = Math.max(0, Math.floor((now - new Date(item.created_at).getTime()) / 86400000));
-          const relatedActivities = activities.filter((activity) => activity.opportunity_id === item.id && ["pending", "in_progress"].includes(activity.status));
+          const relatedActivities = pending.filter((activity) => resolveActivityProspect(activity)?.id === item.prospect_id);
           return (index + 1) + ". " + item.title +
             (prospect ? " · " + prospect.full_name : "") +
             " · Etapa: " + (stageLabels[item.stage] ?? item.stage) +
@@ -374,8 +479,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     const opportunityRecommendations = activeOpps.map((opportunity) => {
       const prospect = prospectById.get(opportunity.prospect_id);
       const linkedPending = pending.filter((activity) =>
-        activity.opportunity_id === opportunity.id ||
-        (prospect && activity.prospect_id === prospect.id)
+        resolveActivityProspect(activity)?.id === opportunity.prospect_id
       );
       const linkedOverdue = linkedPending.filter((activity) =>
         activity.due_at !== null &&
@@ -392,7 +496,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
       const closeDateSoon = closeDays !== null && closeDays >= 0 && closeDays <= 7;
       const priority = linkedOverdue.length || closeDatePassed || closeDateSoon
         ? "ALTA"
-        : linkedPending.length || ["proposal", "negotiation"].includes(opportunity.stage)
+        : linkedPending.length || ["proposal", "negotiation"].includes(normalizeCrmValue(opportunity.stage))
           ? "MEDIA"
           : "BAJA";
       const priorityReason = linkedOverdue.length
@@ -401,16 +505,16 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
           ? "La fecha estimada de cierre ya pasó; hay que confirmar el estado real."
           : closeDateSoon
             ? "La fecha estimada de cierre está dentro de los próximos 7 días."
-            : linkedPending.length || ["proposal", "negotiation"].includes(opportunity.stage)
+            : linkedPending.length || ["proposal", "negotiation"].includes(normalizeCrmValue(opportunity.stage))
               ? "Está en una etapa avanzada o tiene una actividad pendiente."
               : "No hay señales registradas de urgencia inmediata.";
       const nextAction = linkedOverdue.length
         ? "Atender primero el seguimiento vencido (" + linkedOverdue.map((activity) => activity.title).join(", ") + ") y registrar el resultado."
-        : opportunity.stage === "negotiation"
+        : normalizeCrmValue(opportunity.stage) === "negotiation"
           ? "Contactar al decisor, resolver dudas pendientes y acordar una fecha concreta de decisión."
-          : opportunity.stage === "proposal"
+          : normalizeCrmValue(opportunity.stage) === "proposal"
             ? "Confirmar recepción y comprensión de la propuesta; resolver objeciones y acordar el próximo contacto."
-            : opportunity.stage === "diagnosis"
+            : normalizeCrmValue(opportunity.stage) === "diagnosis"
               ? "Completar el diagnóstico y validar alcance, necesidad, presupuesto y decisores."
               : "Confirmar necesidad, urgencia y criterios para avanzar a diagnóstico.";
       return { opportunity, prospect, linkedPending, linkedOverdue, priority, priorityReason, nextAction, closeDays };
@@ -433,7 +537,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
           ).join("\n\n")
         : "No hay oportunidades activas para priorizar.") + "\n";
     const noNextStep = activeOpps.filter((item) =>
-      !activities.some((activity) => activity.opportunity_id === item.id && ["pending", "in_progress"].includes(activity.status))
+      !pending.some((activity) => resolveActivityProspect(activity)?.id === item.prospect_id)
     );
     if (noNextStep.length) {
       response += "REQUIEREN DEFINIR PRÓXIMO PASO:\n" +
@@ -450,16 +554,15 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
   }
 
   if (showProspects) {
-    response += "PROSPECTOS PRIORIZADOS\n";
+    response += intent === "prospect_urgency"
+      ? "PROSPECTOS ORDENADOS POR URGENCIA DE CONTACTO\n"
+      : "PROSPECTOS PRIORIZADOS POR POTENCIAL COMERCIAL\n";
     response += prioritized.length
       ? prioritized.slice(0, 10).map((item, index) => {
           const p = item.prospect;
           const company = safeCompanyName(p.company_name);
-          const related = opportunities.filter((opportunity) => opportunity.prospect_id === p.id && activeStages.has(opportunity.stage));
-          const nextActivity = pending.find((activity) =>
-            (activity.prospect_id === p.id || (activity.opportunity_id && related.some((opportunity) => opportunity.id === activity.opportunity_id))) &&
-            !invalidDateIds.has(activity.id)
-          );
+          const related = opportunities.filter((opportunity) => opportunity.prospect_id === p.id && activeStages.has(normalizeCrmValue(opportunity.stage)));
+          const nextActivity = pending.find((activity) => resolveActivityProspect(activity)?.id === p.id && !invalidDateIds.has(activity.id));
           const potentialLabel = item.potential.classification === "insufficient" || item.potential.score === null
             ? "Sin clasificación · evidencia insuficiente · cobertura " + item.potential.coverage + "%"
             : item.potential.score + "/100 · cobertura " + item.potential.coverage + "% · " +
@@ -470,7 +573,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
           const action = item.urgency.level === "high" ? item.nextAction : getSegmentAction(segment, p);
           return (index + 1) + ". " + p.full_name +
             (company ? " · " + company : "") +
-            " · " + (statusLabels[p.status] ?? p.status) +
+            " · " + (statusLabels[normalizeCrmValue(p.status)] ?? p.status) +
             "\n   Potencial comercial: " + potentialLabel +
             "\n   Urgencia de gestión: " + urgencyLabel +
             (related.length ? " · Oportunidades activas: " + related.length : "") +
