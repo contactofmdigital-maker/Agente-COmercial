@@ -174,7 +174,81 @@ assert.equal(
   "Una etapa desconocida no debe sumar puntos de avance",
 );
 
-console.log("OK: 30 pruebas del motor y clasificación CRM.");
+console.log("OK: pruebas previas del motor y clasificación CRM.");
+
+const qPotential = "¿Cuáles son mis prospectos con mayor potencial comercial, independientemente de si tienen seguimientos vencidos?";
+const qUrgency = "¿Qué prospectos debería contactar primero hoy y por qué? Ordena los resultados según su urgencia.";
+const qCompare = "¿Qué diferencia existe entre los prospectos con mayor potencial y los que necesitan atención inmediata?";
+const qOverdue = "Muéstrame todas las actividades vencidas, indicando prospecto relacionado, fecha de vencimiento y siguiente acción recomendada.";
+const qDateBuckets = "Separa los seguimientos con fechas inválidas, fechas vencidas y actividades pendientes sin fecha. ¿Cuáles requieren revisión?";
+const qExplainAll = "Explícame cómo calculaste el potencial de cada prospecto, qué criterios evaluaste, qué información falta y qué tan confiable es la puntuación.";
+const qDraft = "Redacta un mensaje de seguimiento profesional para el prospecto asociado a TEST OPORTUNIDAD b. El objetivo es reactivar la conversación y conseguir una reunión.";
+const qDetail = "Explícame el estado comercial del prospecto Francisco Javier Marin Sepulveda y sus oportunidades, sin mostrar RUT, teléfono ni datos personales sensibles.";
+assert.equal(engine.classifyCrmQuery(qPotential), "prospects");
+assert.equal(engine.classifyCrmQuery(qUrgency), "prospect_urgency");
+assert.equal(engine.classifyCrmQuery(qCompare), "potential_urgency_comparison");
+assert.equal(engine.classifyCrmQuery(qOverdue), "activities");
+assert.equal(engine.classifyCrmQuery(qDateBuckets), "activities");
+assert.equal(engine.classifyCrmQuery(qExplainAll), "explain_all");
+assert.equal(engine.isExplicitDraftRequest(qDraft), true);
+assert.equal(engine.classifyCrmQuery(qDetail), "prospect_detail");
+const francisco={id:"p-francisco",full_name:"Francisco Javier Marin Sepulveda",company_name:"FM Digital"};
+const testSecurity={id:"p-test",full_name:"test seguridad b",company_name:"Empresa prueba b"};
+const testOpportunity={id:"o-test",prospect_id:"p-test",title:"TEST OPORTUNIDAD b",description:null};
+assert.deepEqual(engine.matchCrmProspects(qDetail,[testSecurity,francisco],[testOpportunity]).map((item)=>item.id),["p-francisco"]);
+const pHighPotential=prospect({id:"p-potential",full_name:"Alto Potencial",notes:"Solicitó cotización y presupuesto"});
+const pUrgent=prospect({id:"p-urgent",full_name:"Urgente",notes:"Contacto inicial"});
+const urgencyOrder=engine.prioritizeProspectsByUrgency(
+ [pHighPotential,pUrgent],
+ [{id:"o-urgent",prospect_id:"p-urgent",stage:"qualification"}],
+ [activity({prospect_id:null,opportunity_id:"o-urgent",status:"pending",completed_at:null,due_at:"2026-10-31T10:00:00.000Z"})],
+ profile,now
+);
+assert.equal(urgencyOrder[0].prospect.id,"p-urgent");
+
+const assistantSource=await readFile(new URL("../src/features/assistant/components/assistant-chat.tsx",import.meta.url),"utf8");
+const helperStart=assistantSource.indexOf("const segmentOptions");
+const helperEnd=assistantSource.indexOf("export function AssistantChat()");
+assert.ok(helperStart>=0&&helperEnd>helperStart);
+const helperSource=assistantSource.slice(helperStart,helperEnd).replace("function buildCrmAnswer(","export function buildCrmAnswer(");
+const helperImports=\`import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, prioritizeProspectsByUrgency } from "\${moduleUrl}";\\n\`;
+const helperCompiled=ts.transpileModule(helperImports+helperSource,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2020}}).outputText;
+const crmAnswer=await import("data:text/javascript;base64,"+Buffer.from(helperCompiled).toString("base64"));
+const crmProspects=[
+ {id:"p-test",full_name:"test seguridad b",company_name:"Empresa prueba b",email:null,website:null,country:"Chile",notes:"registro de aislamiento",status:"new",created_at:"2026-11-01T12:00:00.000Z"},
+ {id:"p-francisco",full_name:"Francisco Javier Marin Sepulveda",company_name:"FM Digital",email:null,website:null,country:"Chile",notes:"contacto comercial inicial",status:"new",created_at:"2026-11-01T12:00:00.000Z"},
+];
+const crmOpportunities=[{id:"o-test",prospect_id:"p-test",title:"TEST OPORTUNIDAD b",description:null,stage:"negotiation",estimated_value:15000000,currency:"CLP",expected_close_date:"2026-12-30",created_at:"2026-11-03T12:00:00.000Z"}];
+const crmActivities=[
+ {id:"a-overdue",prospect_id:null,opportunity_id:"o-test",activity_type:"follow_up",title:"test - b",description:null,due_at:"2026-11-04T12:00:00-03:00",priority:"medium",status:"pending",created_at:"2026-11-03T12:00:00-03:00",completed_at:null},
+ {id:"a-invalid",prospect_id:"p-test",opportunity_id:null,activity_type:"task",title:"fecha antigua",description:null,due_at:"1995-03-28T10:00:00.000Z",priority:"low",status:"in_progress",created_at:"2026-11-03T12:00:00.000Z",completed_at:null},
+ {id:"a-undated",prospect_id:"p-test",opportunity_id:null,activity_type:"call",title:"llamada sin fecha",description:null,due_at:null,priority:"high",status:"pending",created_at:"2026-11-03T12:00:00.000Z",completed_at:null},
+];
+const crmContext={
+ profile:{business_name:"UpScale IA",segment:"agency",country:"Chile",currency:"CLP",description:"Servicios de marketing digital",products_services:"SEO y marketing digital",ideal_customer:"Agencias de marketing",sales_goal:"Captar agencias"},
+ summary:{prospects_loaded:2,opportunities_loaded:1,active_opportunities:1,won_opportunities:0,activities_loaded:3,pending_activities:3,overdue_activities:1,invalid_date_activities:1},
+ data:{prospects:crmProspects,opportunities:crmOpportunities,activities:crmActivities},
+};
+const answerPotential=crmAnswer.buildCrmAnswer(qPotential,crmContext,"agency");
+assert.ok(answerPotential.includes("PROSPECTOS PRIORIZADOS POR POTENCIAL COMERCIAL"));
+assert.ok(!answerPotential.includes("ACTIVIDADES Y SEGUIMIENTOS"));
+const answerUrgency=crmAnswer.buildCrmAnswer(qUrgency,crmContext,"agency");
+assert.ok(answerUrgency.indexOf("test seguridad b")<answerUrgency.indexOf("Francisco Javier"));
+const answerCompare=crmAnswer.buildCrmAnswer(qCompare,crmContext,"agency");
+assert.ok(answerCompare.includes("MAYOR POTENCIAL COMERCIAL")&&answerCompare.includes("REQUIEREN ATENCIÓN OPERATIVA"));
+const answerOverdue=crmAnswer.buildCrmAnswer(qOverdue,crmContext,"agency");
+assert.ok(answerOverdue.includes("VENCIDAS:")&&answerOverdue.includes("test seguridad b")&&answerOverdue.includes("Siguiente acción:"));
+const answerBuckets=crmAnswer.buildCrmAnswer(qDateBuckets,crmContext,"agency");
+assert.ok(answerBuckets.includes("FECHAS INVÁLIDAS")&&answerBuckets.includes("PENDIENTES SIN FECHA")&&answerBuckets.includes("VENCIDAS:"));
+const answerExplain=crmAnswer.buildCrmAnswer(qExplainAll,crmContext,"agency");
+assert.ok(answerExplain.includes("test seguridad b")&&answerExplain.includes("Francisco Javier Marin Sepulveda")&&answerExplain.includes("Confiabilidad:"));
+const answerDraft=crmAnswer.buildCrmAnswer(qDraft,crmContext,"agency");
+assert.ok(answerDraft.includes("TEST OPORTUNIDAD b")&&answerDraft.includes("reunión breve"));
+const answerDetail=crmAnswer.buildCrmAnswer(qDetail,crmContext,"agency");
+assert.ok(answerDetail.includes("Francisco Javier Marin Sepulveda")&&!answerDetail.includes("TEST OPORTUNIDAD b"));
+assert.ok(!/\b(RUT|tel[eé]fono|\+?56\s*9)\b/i.test(answerDetail));
+console.log("OK: validación funcional integral de las 8 consultas CRM.");
+
 
 const duplicateSource = await readFile(
   new URL("../src/features/prospects/lib/duplicate-detection.ts", import.meta.url),
