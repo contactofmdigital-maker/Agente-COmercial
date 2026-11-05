@@ -236,8 +236,11 @@ assert.ok(answerPotential.includes("ALCANCE DEL CONTEXTO: Se cargan hasta 100 re
 assert.ok(!answerPotential.includes("ACTIVIDADES Y SEGUIMIENTOS"));
 const answerUrgency=crmAnswer.buildCrmAnswer(qUrgency,crmContext,"agency");
 assert.ok(answerUrgency.indexOf("test seguridad b")<answerUrgency.indexOf("Francisco Javier"));
+assert.ok(answerUrgency.includes("Urgencia de gestión: ALTA"), "El seguimiento vencido vinculado por oportunidad debe elevar la urgencia del prospecto.");
+assert.ok(answerUrgency.includes("Actividad relacionada: test - b"), "Debe identificar la actividad asociada a través de su oportunidad.");
 const answerCompare=crmAnswer.buildCrmAnswer(qCompare,crmContext,"agency");
 assert.ok(answerCompare.includes("MAYOR POTENCIAL COMERCIAL")&&answerCompare.includes("REQUIEREN ATENCIÓN OPERATIVA"));
+assert.ok(answerPotential.includes("43/100") === answerCompare.includes("43/100"), "El puntaje debe mostrarse de forma consistente entre ranking y comparación.");
 const answerOverdue=crmAnswer.buildCrmAnswer(qOverdue,crmContext,"agency");
 assert.ok(answerOverdue.includes("VENCIDAS:")&&answerOverdue.includes("test seguridad b")&&answerOverdue.includes("Siguiente acción:"));
 const answerBuckets=crmAnswer.buildCrmAnswer(qDateBuckets,crmContext,"agency");
@@ -251,6 +254,34 @@ assert.ok(answerDetail.includes("Francisco Javier Marin Sepulveda")&&!answerDeta
 assert.ok(!answerDetail.includes("francisco.private@example.com"));
 assert.ok(!answerDetail.includes("+56987654321"));
 assert.ok(!answerDetail.includes("12.345.678-9"));
+
+const privacyContext = {
+  ...crmContext,
+  data: {
+    ...crmContext.data,
+    prospects: crmProspects.map((item) => item.id === "p-francisco"
+      ? { ...item, full_name: "Francisco Javier Marin Sepulveda 22.418.274-0", company_name: "22.418.274-0" }
+      : item),
+  },
+};
+const privacyAnswer = crmAnswer.buildCrmAnswer(qCompare, privacyContext, "agency");
+assert.ok(!privacyAnswer.includes("22.418.274-0"), "La comparación no debe exponer RUT aunque esté guardado en nombre o empresa.");
+assert.ok(!privacyAnswer.includes("francisco.private@example.com"), "La comparación no debe exponer correos.");
+assert.ok(!privacyAnswer.includes("+56987654321"), "La comparación no debe exponer teléfonos.");
+
+const orphanContext = {
+  ...crmContext,
+  data: {
+    ...crmContext.data,
+    activities: crmActivities.map((item) => item.id === "a-overdue"
+      ? { ...item, prospect_id: null, opportunity_id: "missing-opportunity" }
+      : item),
+  },
+};
+const orphanAnswer = crmAnswer.buildCrmAnswer(qUrgency, orphanContext, "agency");
+assert.ok(orphanAnswer.includes("ACTIVIDADES PENDIENTES SIN ASOCIACIÓN VÁLIDA"), "Los seguimientos contados en el resumen pero no vinculables deben quedar visibles para corregirlos.");
+assert.ok(orphanAnswer.includes("no se atribuyen a un prospecto"), "No debe inventar una asociación cuando falta el vínculo.");
+
 const multiOpportunityContext = {
   ...crmContext,
   data: {
