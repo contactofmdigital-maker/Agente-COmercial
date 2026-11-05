@@ -85,8 +85,11 @@ export function classifyCrmQuery(prompt: string): CrmQueryIntent {
   if (/(que|cual|como).*(informacion|dato|campo).*(falta|completar)|informacion.*falta|datos.*faltan|completar.*prioriz/.test(value)) {
     return "missing_information";
   }
-  if (/actividad|seguimiento|vencid|atrasad|tarea|llamad|reunion|correo|hoy/.test(value)) return "activities";
-  if (/oportunidad|pipeline|negociaci|estancad|cierre|venta|propuesta/.test(value)) return "opportunities";
+  const asksForOpportunity = /oportunidad|pipeline|negociaci|estancad|cierre|venta|propuesta/.test(value);
+  const asksForExplicitActivities = /actividades?|seguimientos? vencid|tareas?|llamadas?|reuniones?|correos?/.test(value);
+  if (asksForExplicitActivities && !asksForOpportunity) return "activities";
+  if (asksForOpportunity) return "opportunities";
+  if (/actividad|seguimiento|vencid|atrasad|tarea|llamad|reunion|correo/.test(value)) return "activities";
   if (/prospect|cliente|contact|prioriz|captar|lead|conseguir|analiza mis prospectos/.test(value)) return "prospects";
   if (/analiza mi negocio|resumen|situacion|estado comercial|que deberia priorizar/.test(value)) return "summary";
   return "general";
