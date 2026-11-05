@@ -111,12 +111,9 @@ export async function GET() {
     );
     const activities = filterRealActivities(activitiesResult.data ?? [], demoOpportunityIds);
 
-    const activeOpportunities = opportunities.filter(
-      (item) => !["won", "lost"].includes(item.stage),
-    );
-    const pendingActivities = activities.filter((item) =>
-      ["pending", "in_progress"].includes(item.status),
-    );
+    const normalizeCrmValue = (value: string | null | undefined) => (value ?? "").trim().toLowerCase();
+    const activeOpportunities = opportunities.filter((item) => !["won", "lost"].includes(normalizeCrmValue(item.stage)));
+    const pendingActivities = activities.filter((item) => ["pending", "in_progress"].includes(normalizeCrmValue(item.status)));
     const invalidDateActivities = pendingActivities.filter(
       (item) => item.due_at !== null && !isValidActivityDueDate(item.due_at, item.created_at),
     );
@@ -127,9 +124,7 @@ export async function GET() {
         !invalidDateIds.has(item.id) &&
         new Date(item.due_at).getTime() < Date.now(),
     );
-    const wonOpportunities = opportunities.filter(
-      (item) => item.stage === "won",
-    );
+    const wonOpportunities = opportunities.filter((item) => normalizeCrmValue(item.stage) === "won");
 
     return privateJson({
       generated_at: new Date().toISOString(),
