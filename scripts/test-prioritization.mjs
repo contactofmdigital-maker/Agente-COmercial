@@ -95,6 +95,21 @@ assert.equal(
   "opportunities",
   "Debe clasificar el análisis de oportunidades antes que un ranking general de prospectos",
 );
+assert.equal(
+  engine.classifyCrmQuery("¿Qué debería hacer hoy para avanzar con TEST OPORTUNIDAD b y cómo registrar el resultado?"),
+  "opportunities",
+  "Una pregunta de acción sobre una oportunidad no debe desviarse a actividades por incluir 'hoy'",
+);
+assert.equal(
+  engine.classifyCrmQuery("¿Qué actividades vencidas tengo hoy?"),
+  "activities",
+  "Una consulta explícita de actividades vencidas debe seguir clasificándose como actividades",
+);
+assert.equal(
+  engine.classifyCrmQuery("¿Qué seguimiento tengo pendiente hoy?"),
+  "activities",
+  "Una consulta de seguimiento sin referencia a oportunidades debe clasificarse como actividades",
+);
 
 const prospectForIdentity = {
   id: "p-security", full_name: "Contacto de prueba", company_name: "test seguridad b",
@@ -154,7 +169,7 @@ assert.equal(
   "Una etapa desconocida no debe sumar puntos de avance",
 );
 
-console.log("OK: 22 pruebas del motor y clasificación CRM.");
+console.log("OK: 25 pruebas del motor y clasificación CRM.");
 
 const duplicateSource = await readFile(
   new URL("../src/features/prospects/lib/duplicate-detection.ts", import.meta.url),
