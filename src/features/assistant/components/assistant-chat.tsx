@@ -179,6 +179,10 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
     if (linkedOpportunity && direct && direct.id !== linkedOpportunity.prospect_id) return null;
     return linkedOpportunity ? prospectById.get(linkedOpportunity.prospect_id) ?? direct : direct;
   };
+  const isActivityRelatedToOpportunity = (activity: Activity, opportunity: Opportunity) =>
+    activity.opportunity_id
+      ? activity.opportunity_id === opportunity.id
+      : activity.prospect_id === opportunity.prospect_id;
   const activityAssociationLabel = (activity: Activity) => {
     const linkedOpportunity = activity.opportunity_id ? opportunityById.get(activity.opportunity_id) : undefined;
     const direct = activity.prospect_id ? prospectById.get(activity.prospect_id) ?? null : null;
@@ -465,10 +469,10 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
       ? activeOpps.slice(0, 10).map((item, index) => {
           const prospect = prospectById.get(item.prospect_id);
           const ageDays = Math.max(0, Math.floor((now - new Date(item.created_at).getTime()) / 86400000));
-          const relatedActivities = pending.filter((activity) => resolveActivityProspect(activity)?.id === item.prospect_id);
+          const relatedActivities = pending.filter((activity) => isActivityRelatedToOpportunity(activity, item));
           return (index + 1) + ". " + item.title +
             (prospect ? " · " + prospect.full_name : "") +
-            " · Etapa: " + (stageLabels[item.stage] ?? item.stage) +
+            " · Etapa: " + (stageLabels[normalizeCrmValue(item.stage)] ?? item.stage) +
             " · Valor: " + Number(item.estimated_value || 0).toLocaleString("es-CL") + " " + item.currency +
             " · Creada hace " + ageDays + " días" +
             " · Seguimientos pendientes asociados: " + relatedActivities.length +
@@ -479,7 +483,7 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
     const opportunityRecommendations = activeOpps.map((opportunity) => {
       const prospect = prospectById.get(opportunity.prospect_id);
       const linkedPending = pending.filter((activity) =>
-        resolveActivityProspect(activity)?.id === opportunity.prospect_id
+        isActivityRelatedToOpportunity(activity, opportunity)
       );
       const linkedOverdue = linkedPending.filter((activity) =>
         activity.due_at !== null &&
@@ -537,7 +541,7 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
           ).join("\n\n")
         : "No hay oportunidades activas para priorizar.") + "\n";
     const noNextStep = activeOpps.filter((item) =>
-      !pending.some((activity) => resolveActivityProspect(activity)?.id === item.prospect_id)
+      !pending.some((activity) => isActivityRelatedToOpportunity(activity, item))
     );
     if (noNextStep.length) {
       response += "REQUIEREN DEFINIR PRÓXIMO PASO:\n" +
