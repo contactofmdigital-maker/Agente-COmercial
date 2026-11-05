@@ -117,6 +117,57 @@ const normalize = (value: string | null | undefined) =>
     .replace(/\s+/g, " ")
     .trim();
 
+
+const identityStopWords = new Set(["de", "del", "la", "las", "el", "los", "y", "en", "para", "por", "con"]);
+
+function identityTokens(value: string) {
+  return normalize(value).split(" ").filter((token) => token.length >= 2 && !identityStopWords.has(token));
+}
+
+function matchesIdentity(query: string, candidate: string | null | undefined) {
+  const normalizedCandidate = normalize(candidate);
+  if (!normalizedCandidate) return false;
+  const normalizedQuery = normalize(query);
+  if (normalizedQuery.includes(normalizedCandidate)) return true;
+  const queryTokens = new Set(identityTokens(normalizedQuery));
+  const candidateTokens = identityTokens(normalizedCandidate);
+  return candidateTokens.length > 0 && candidateTokens.every((token) => queryTokens.has(token));
+}
+
+/**
+ * Resolve a CRM mention to a prospect using its name, company, linked opportunity,
+ * or linked activity. Ambiguous matches are preserved for explicit disambiguation.
+ */
+export function matchCrmProspects<T extends { id: string; full_name: string; company_name: string | null }>(
+  query: string,
+  prospects: T[],
+  opportunities: Array<{ id: string; prospect_id: string; title: string; description?: string | null }>,
+  activities: Array<{ prospect_id: string | null; opportunity_id: string | null; title: string; description?: string | null }> = [],
+): T[] {
+  const matchingIds = new Set<string>();
+  for (const prospect of prospects) {
+    if (matchesIdentity(query, prospect.full_name) || matchesIdentity(query, prospect.company_name)) {
+      matchingIds.add(prospect.id);
+      continue;
+    }
+    const linkedOpportunities = opportunities.filter((item) => item.prospect_id === prospect.id);
+    if (linkedOpportunities.some((item) =>
+      matchesIdentity(query, item.title) || matchesIdentity(query, item.description)
+    )) {
+      matchingIds.add(prospect.id);
+      continue;
+    }
+    const linkedOpportunityIds = new Set(linkedOpportunities.map((item) => item.id));
+    if (activities.some((item) =>
+      (item.prospect_id === prospect.id || (item.opportunity_id !== null && linkedOpportunityIds.has(item.opportunity_id))) &&
+      (matchesIdentity(query, item.title) || matchesIdentity(query, item.description))
+    )) {
+      matchingIds.add(prospect.id);
+    }
+  }
+  return prospects.filter((prospect) => matchingIds.has(prospect.id));
+}
+
 const validDate = (value: string | null | undefined, createdAt?: string) => {
   if (!value) return null;
   const timestamp = new Date(value).getTime();
