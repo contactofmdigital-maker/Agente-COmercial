@@ -110,6 +110,11 @@ assert.equal(
   "activities",
   "Una consulta de seguimiento sin referencia a oportunidades debe clasificarse como actividades",
 );
+assert.equal(engine.isExplicitDraftRequest("Redacta un mensaje de seguimiento para TEST OPORTUNIDAD b."), true);
+assert.equal(engine.isExplicitDraftRequest("Prepara un correo para test seguridad b."), true);
+assert.equal(engine.isExplicitDraftRequest("¿Qué seguimiento tengo pendiente hoy?"), false);
+assert.equal(engine.isExplicitDraftRequest("¿Qué actividades vencidas tengo hoy?"), false);
+assert.equal(engine.isExplicitDraftRequest("¿Qué debería hacer hoy para avanzar con TEST OPORTUNIDAD b?"), false);
 
 const prospectForIdentity = {
   id: "p-security", full_name: "Contacto de prueba", company_name: "test seguridad b",
@@ -169,7 +174,7 @@ assert.equal(
   "Una etapa desconocida no debe sumar puntos de avance",
 );
 
-console.log("OK: 25 pruebas del motor y clasificación CRM.");
+console.log("OK: 30 pruebas del motor y clasificación CRM.");
 
 const duplicateSource = await readFile(
   new URL("../src/features/prospects/lib/duplicate-detection.ts", import.meta.url),
