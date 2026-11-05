@@ -91,6 +91,35 @@ assert.equal(missingIntent, "missing_information", "Debe detectar una solicitud 
 const rankingIntent = engine.classifyCrmQuery("¿Qué prospectos debería priorizar?");
 assert.equal(rankingIntent, "prospects", "Debe mantener la consulta de ranking");
 
+const prospectForIdentity = {
+  id: "p-security", full_name: "Contacto de prueba", company_name: "test seguridad b",
+};
+const linkedOpportunityForIdentity = {
+  id: "o-security", prospect_id: "p-security", title: "TEST OPORTUNIDAD b", description: null,
+};
+const fuzzyCompanyMatch = engine.matchCrmProspects(
+  "Necesito hacer seguimiento de la propuesta comercial de test de seguridad b",
+  [prospectForIdentity],
+  [linkedOpportunityForIdentity],
+);
+assert.equal(fuzzyCompanyMatch.length, 1, "Debe reconocer el nombre aunque la consulta incluya palabras intermedias como 'de'");
+assert.equal(fuzzyCompanyMatch[0].id, "p-security");
+const opportunityNameMatch = engine.matchCrmProspects(
+  "Prepara un mensaje para TEST OPORTUNIDAD b",
+  [prospectForIdentity],
+  [linkedOpportunityForIdentity],
+);
+assert.equal(opportunityNameMatch.length, 1, "Debe resolver el prospecto a partir del nombre de su oportunidad vinculada");
+const ambiguousMatches = engine.matchCrmProspects(
+  "Contacta a Test Seguridad",
+  [
+    prospectForIdentity,
+    { id: "p-security-2", full_name: "Otro contacto", company_name: "Test Seguridad" },
+  ],
+  [linkedOpportunityForIdentity],
+);
+assert.equal(ambiguousMatches.length, 2, "Debe devolver todas las coincidencias para solicitar desambiguación");
+
 assert.equal(
   engine.isValidActivityDueDate("1995-03-28T22:50:00.000Z", "2026-10-30T10:00:00.000Z"),
   false,
