@@ -633,10 +633,10 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
 export function buildCrmAnswer(prompt: string, context: CommercialContext, segment: BusinessSegment) {
   const response = buildCrmAnswerInternal(prompt, context, segment);
   return response
-    .replace(/\\b\\d{1,2}(?:\\.\\d{3}){2}-[0-9kK]\\b/g, "[RUT oculto]")
-    .replace(/\\b\\d{7,8}-[0-9kK]\\b/g, "[RUT oculto]")
-    .replace(/\\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\b/gi, "[correo oculto]")
-    .replace(/\\+?56\\s?9\\d{8}\\b/g, "[teléfono oculto]");
+    .replace(/\b\d{1,2}(?:\.\d{3}){2}-[0-9kK]\b/g, "[RUT oculto]")
+    .replace(/\b\d{7,8}-[0-9kK]\b/g, "[RUT oculto]")
+    .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[correo oculto]")
+    .replace(/\+?56\s?9\d{8}\b/g, "[teléfono oculto]");
 }
 
 export function AssistantChat() {
