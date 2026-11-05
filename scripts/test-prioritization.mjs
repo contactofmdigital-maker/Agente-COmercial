@@ -216,7 +216,7 @@ const helperCompiled=ts.transpileModule(helperImports+helperSource,{compilerOpti
 const crmAnswer=await import("data:text/javascript;base64,"+Buffer.from(helperCompiled).toString("base64"));
 const crmProspects=[
  {id:"p-test",full_name:"test seguridad b",company_name:"Empresa prueba b",email:null,website:null,country:"Chile",notes:"registro de aislamiento",status:"new",created_at:"2026-11-01T12:00:00.000Z"},
- {id:"p-francisco",full_name:"Francisco Javier Marin Sepulveda",company_name:"FM Digital",email:null,website:null,country:"Chile",notes:"contacto comercial inicial",status:"new",created_at:"2026-11-01T12:00:00.000Z"},
+ {id:"p-francisco",full_name:"Francisco Javier Marin Sepulveda",company_name:"FM Digital",email:"francisco.private@example.com",website:null,country:"Chile",notes:"contacto comercial inicial",status:"new",created_at:"2026-11-01T12:00:00.000Z",phone:"+56987654321",rut:"12.345.678-9"},
 ];
 const crmOpportunities=[{id:"o-test",prospect_id:"p-test",title:"TEST OPORTUNIDAD b",description:null,stage:"negotiation",estimated_value:15000000,currency:"CLP",expected_close_date:"2026-12-30",created_at:"2026-11-03T12:00:00.000Z"}];
 const crmActivities=[
@@ -248,7 +248,9 @@ const answerDraft=crmAnswer.buildCrmAnswer(qDraft,crmContext,"agency");
 assert.ok(answerDraft.includes("TEST OPORTUNIDAD b")&&answerDraft.includes("reunión breve"));
 const answerDetail=crmAnswer.buildCrmAnswer(qDetail,crmContext,"agency");
 assert.ok(answerDetail.includes("Francisco Javier Marin Sepulveda")&&!answerDetail.includes("TEST OPORTUNIDAD b"));
-assert.ok(!/\b(RUT|tel[eé]fono|\+?56\s*9)\b/i.test(answerDetail));
+assert.ok(!answerDetail.includes("francisco.private@example.com"));
+assert.ok(!answerDetail.includes("+56987654321"));
+assert.ok(!answerDetail.includes("12.345.678-9"));
 const multiOpportunityContext = {
   ...crmContext,
   data: {
