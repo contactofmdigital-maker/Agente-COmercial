@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Bot, Send, Sparkles, User, RotateCcw, LoaderCircle, FlaskConical, Zap, Database, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { classifyCrmQuery, isValidActivityDueDate, prioritizeProspects } from "@/features/assistant/lib/prioritization";
+import { classifyCrmQuery, isValidActivityDueDate, matchCrmProspects, prioritizeProspects } from "@/features/assistant/lib/prioritization";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type AssistantMode = "demo" | "crm" | "openai";
@@ -217,14 +217,9 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
   const dateLabel = (value: string | null) =>
     value ? new Date(value).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }) : "Sin fecha";
 
-  const asksForDraft = /\b(mensaje|redacta|redactar|contactar|prospeccion|prospectar|seguimiento personalizado)\b/.test(normalized);
+  const asksForDraft = /\b(mensaje|redacta|redactar|contactar|prospeccion|prospectar|seguimiento|retomar|no responde)\b/.test(normalized);
   if (asksForDraft) {
-    const query = normalizedIdentity(prompt);
-    const matches = prospects.filter((prospect) => {
-      const name = normalizedIdentity(prospect.full_name);
-      const company = normalizedIdentity(prospect.company_name);
-      return (name.length >= 5 && query.includes(name)) || (company.length >= 5 && query.includes(company));
-    });
+    const matches = matchCrmProspects(prompt, prospects, opportunities, activities);
     if (matches.length !== 1) {
       return header + "BORRADOR DE MENSAJE PERSONALIZADO\n" +
         (matches.length > 1
@@ -376,6 +371,56 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
         }).join("\n")
       : "No hay oportunidades activas registradas.";
     response += "\n";
+    const opportunityRecommendations = activeOpps.map((opportunity) => {
+      const prospect = prospectById.get(opportunity.prospect_id);
+      const linkedPending = pending.filter((activity) =>
+        activity.opportunity_id === opportunity.id ||
+        (prospect && activity.prospect_id === prospect.id)
+      );
+      const linkedOverdue = linkedPending.filter((activity) =>
+        activity.due_at !== null &&
+        !invalidDateIds.has(activity.id) &&
+        new Date(activity.due_at).getTime() < now
+      );
+      const closeAt = opportunity.expected_close_date
+        ? new Date(opportunity.expected_close_date + "T23:59:59").getTime()
+        : null;
+      const closeDays = closeAt !== null && Number.isFinite(closeAt)
+        ? Math.ceil((closeAt - now) / 86400000)
+        : null;
+      const priority = linkedOverdue.length || (closeDays !== null && closeDays <= 7)
+        ? "ALTA"
+        : linkedPending.length || ["proposal", "negotiation"].includes(opportunity.stage)
+          ? "MEDIA"
+          : "BAJA";
+      const nextAction = linkedOverdue.length
+        ? "Atender primero el seguimiento vencido (" + linkedOverdue.map((activity) => activity.title).join(", ") + ") y registrar el resultado."
+        : opportunity.stage === "negotiation"
+          ? "Contactar al decisor, resolver dudas pendientes y acordar una fecha concreta de decisión."
+          : opportunity.stage === "proposal"
+            ? "Confirmar recepción y comprensión de la propuesta; resolver objeciones y acordar el próximo contacto."
+            : opportunity.stage === "diagnosis"
+              ? "Completar el diagnóstico y validar alcance, necesidad, presupuesto y decisores."
+              : "Confirmar necesidad, urgencia y criterios para avanzar a diagnóstico.";
+      return { opportunity, prospect, linkedPending, priority, nextAction, closeDays };
+    }).sort((a, b) => {
+      const order = { ALTA: 0, MEDIA: 1, BAJA: 2 };
+      return order[a.priority as keyof typeof order] - order[b.priority as keyof typeof order];
+    });
+    response += "RECOMENDACIÓN DE PRIORIDAD Y SIGUIENTE ACCIÓN\\n" +
+      (opportunityRecommendations.length
+        ? opportunityRecommendations.map((item, index) =>
+            (index + 1) + ". PRIORIDAD " + item.priority + " · " + item.opportunity.title +
+            (item.prospect ? " · " + item.prospect.full_name : "") +
+            (item.linkedPending.length ? "\\n   Seguimiento pendiente: " + item.linkedPending.map((activity) => activity.title).join(", ") : "\\n   Seguimiento pendiente: ninguno registrado") +
+            (item.closeDays !== null ? "\\n   Días hasta el cierre estimado: " + item.closeDays : "") +
+            "\\n   Motivo: " + (item.priority === "ALTA"
+              ? "Existe un compromiso vencido o el cierre estimado está a 7 días o menos."
+              : item.priority === "MEDIA" ? "La oportunidad está en una etapa avanzada o tiene seguimiento pendiente."
+              : "No hay señales registradas de urgencia inmediata.") +
+            "\\n   Siguiente acción recomendada: " + item.nextAction
+          ).join("\\n\\n")
+        : "No hay oportunidades activas para priorizar.") + "\\n";
     const noNextStep = activeOpps.filter((item) =>
       !activities.some((activity) => activity.opportunity_id === item.id && ["pending", "in_progress"].includes(activity.status))
     );
