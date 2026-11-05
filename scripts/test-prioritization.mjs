@@ -226,7 +226,7 @@ const crmActivities=[
 ];
 const crmContext={
  profile:{business_name:"UpScale IA",segment:"agency",country:"Chile",currency:"CLP",description:"Servicios de marketing digital",products_services:"SEO y marketing digital",ideal_customer:"Agencias de marketing",sales_goal:"Captar agencias"},
- summary:{prospects_loaded:2,opportunities_loaded:1,active_opportunities:1,won_opportunities:0,activities_loaded:3,pending_activities:3,overdue_activities:1,invalid_date_activities:1},
+ summary:{prospects_loaded:2,opportunities_loaded:1,active_opportunities:1,won_opportunities:0,unknown_stage_opportunities:0,activities_loaded:3,pending_activities:3,overdue_activities:1,invalid_date_activities:1},
  data:{prospects:crmProspects,opportunities:crmOpportunities,activities:crmActivities},
 };
 const answerPotential=crmAnswer.buildCrmAnswer(qPotential,crmContext,"agency");
