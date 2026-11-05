@@ -112,7 +112,13 @@ export async function GET() {
     const activities = filterRealActivities(activitiesResult.data ?? [], demoOpportunityIds);
 
     const normalizeCrmValue = (value: string | null | undefined) => (value ?? "").trim().toLowerCase();
-    const activeOpportunities = opportunities.filter((item) => !["won", "lost"].includes(normalizeCrmValue(item.stage)));
+    const activeOpportunityStages = new Set(["qualification", "diagnosis", "proposal", "negotiation"]);
+    const closedOpportunityStages = new Set(["won", "lost"]);
+    const activeOpportunities = opportunities.filter((item) => activeOpportunityStages.has(normalizeCrmValue(item.stage)));
+    const unknownStageOpportunities = opportunities.filter((item) =>
+      !activeOpportunityStages.has(normalizeCrmValue(item.stage)) &&
+      !closedOpportunityStages.has(normalizeCrmValue(item.stage))
+    );
     const pendingActivities = activities.filter((item) => ["pending", "in_progress"].includes(normalizeCrmValue(item.status)));
     const invalidDateActivities = pendingActivities.filter(
       (item) => item.due_at !== null && !isValidActivityDueDate(item.due_at, item.created_at),
@@ -135,6 +141,7 @@ export async function GET() {
         opportunities_loaded: opportunities.length,
         active_opportunities: activeOpportunities.length,
         won_opportunities: wonOpportunities.length,
+        unknown_stage_opportunities: unknownStageOpportunities.length,
         activities_loaded: activities.length,
         pending_activities: pendingActivities.length,
         overdue_activities: overdueActivities.length,
@@ -147,7 +154,7 @@ export async function GET() {
       },
       limits: {
         per_module: CONTEXT_LIMIT,
-        note: "El contexto incluye hasta 100 registros recientes por módulo.",
+        note: "Se cargan hasta 100 registros por módulo. Prospectos y oportunidades se ordenan por creación descendente; actividades por vencimiento ascendente. Los conteos reflejan los registros cargados, no el total completo de la base si se supera ese límite.",
       },
     });
   } catch (error) {
