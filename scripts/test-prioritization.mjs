@@ -281,6 +281,8 @@ const orphanContext = {
 const orphanAnswer = crmAnswer.buildCrmAnswer(qUrgency, orphanContext, "agency");
 assert.ok(orphanAnswer.includes("ACTIVIDADES PENDIENTES SIN ASOCIACIÓN VÁLIDA"), "Los seguimientos contados en el resumen pero no vinculables deben quedar visibles para corregirlos.");
 assert.ok(orphanAnswer.includes("no se atribuyen a un prospecto"), "No debe inventar una asociación cuando falta el vínculo.");
+const orphanComparison = crmAnswer.buildCrmAnswer(qCompare, orphanContext, "agency");
+assert.ok(orphanComparison.includes("ACTIVIDADES QUE REQUIEREN CORRECCIÓN DE VÍNCULO"), "La comparación también debe explicar los vencimientos huérfanos.");
 
 const multiOpportunityContext = {
   ...crmContext,
