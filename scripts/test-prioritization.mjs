@@ -247,7 +247,22 @@ assert.ok(answerDraft.includes("TEST OPORTUNIDAD b")&&answerDraft.includes("reun
 const answerDetail=crmAnswer.buildCrmAnswer(qDetail,crmContext,"agency");
 assert.ok(answerDetail.includes("Francisco Javier Marin Sepulveda")&&!answerDetail.includes("TEST OPORTUNIDAD b"));
 assert.ok(!/\b(RUT|tel[eé]fono|\+?56\s*9)\b/i.test(answerDetail));
-console.log("OK: validación funcional integral de las 8 consultas CRM.");
+const multiOpportunityContext = {
+  ...crmContext,
+  data: {
+    ...crmContext.data,
+    opportunities: [
+      ...crmOpportunities,
+      { id:"o-test-2", prospect_id:"p-test", title:"TEST OPORTUNIDAD C", description:null, stage:"qualification", estimated_value:5000000, currency:"CLP", expected_close_date:null, created_at:"2026-11-03T12:00:00.000Z" },
+    ],
+  },
+};
+const opportunityAnswer = crmAnswer.buildCrmAnswer("Analiza mis oportunidades comerciales.", multiOpportunityContext, "agency");
+const secondOpportunityIndex = opportunityAnswer.indexOf("TEST OPORTUNIDAD C");
+assert.ok(secondOpportunityIndex >= 0);
+const secondOpportunityBlock = opportunityAnswer.slice(secondOpportunityIndex, opportunityAnswer.indexOf("\n", secondOpportunityIndex));
+assert.ok(secondOpportunityBlock.includes("Seguimientos pendientes asociados: 0"), "Una actividad de la primera oportunidad no debe contarse en la segunda.");
+console.log("OK: validación funcional integral de las 8 consultas CRM y aislamiento entre oportunidades.");
 
 
 const duplicateSource = await readFile(
