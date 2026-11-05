@@ -180,9 +180,7 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
     return linkedOpportunity ? prospectById.get(linkedOpportunity.prospect_id) ?? direct : direct;
   };
   const isActivityRelatedToOpportunity = (activity: Activity, opportunity: Opportunity) =>
-    activity.opportunity_id
-      ? activity.opportunity_id === opportunity.id
-      : activity.prospect_id === opportunity.prospect_id;
+    activity.opportunity_id === opportunity.id;
   const activityAssociationLabel = (activity: Activity) => {
     const linkedOpportunity = activity.opportunity_id ? opportunityById.get(activity.opportunity_id) : undefined;
     const direct = activity.prospect_id ? prospectById.get(activity.prospect_id) ?? null : null;
@@ -309,9 +307,11 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
     if (!service) missing.push("producto o servicio ofrecido en el perfil comercial");
     return header + "BORRADOR DE MENSAJE PERSONALIZADO\n" +
       "Prospecto: " + prospect.full_name + (company ? " · " + company : "") + "\n" +
-      "Objetivo: " + (status === "proposal" || linkedOpps.some((item) => ["proposal", "negotiation"].includes(normalizeCrmValue(item.stage)))
-        ? "obtener respuesta y acordar el siguiente paso de la propuesta"
-        : isFollowUp || status === "contacted" ? "retomar la conversación y validar interés actual" : "iniciar conversación y validar interés") +
+      "Objetivo: " + (asksForMeeting
+        ? "reactivar la conversación y conseguir una reunión"
+        : status === "proposal" || linkedOpps.some((item) => ["proposal", "negotiation"].includes(normalizeCrmValue(item.stage)))
+          ? "obtener respuesta y acordar el siguiente paso de la propuesta"
+          : isFollowUp || status === "contacted" ? "retomar la conversación y validar interés actual" : "iniciar conversación y validar interés") +
       "\n\nMENSAJE\n" + body +
       "\n\nDATOS UTILIZADOS DEL CRM\n- " + evidence.join("\n- ") +
       (missing.length ? "\n\nPARA MEJORAR LA PERSONALIZACIÓN FALTA\n- " + missing.join("\n- ") : "") +
@@ -433,7 +433,7 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
   if (showActivities) {
     response += "ACTIVIDADES Y SEGUIMIENTOS\n";
     response += overdue.length
-      ? "VENCIDAS:\n" + overdue.slice(0, 10).map((item, index) =>
+      ? "VENCIDAS:\n" + overdue.map((item, index) =>
           (index + 1) + ". " + item.title + activityAssociationLabel(item) +
           " · " + (activityLabels[normalizeCrmValue(item.activity_type)] ?? item.activity_type) +
           " · Vencía: " + dateLabel(item.due_at) + " · Prioridad: " + item.priority +
