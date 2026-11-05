@@ -413,7 +413,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
             : opportunity.stage === "diagnosis"
               ? "Completar el diagnóstico y validar alcance, necesidad, presupuesto y decisores."
               : "Confirmar necesidad, urgencia y criterios para avanzar a diagnóstico.";
-      return { opportunity, prospect, linkedPending, priority, nextAction, closeDays };
+      return { opportunity, prospect, linkedPending, linkedOverdue, priority, priorityReason, nextAction, closeDays };
     }).sort((a, b) => {
       const order = { ALTA: 0, MEDIA: 1, BAJA: 2 };
       return order[a.priority as keyof typeof order] - order[b.priority as keyof typeof order];
@@ -423,15 +423,15 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
         ? opportunityRecommendations.map((item, index) =>
             (index + 1) + ". PRIORIDAD " + item.priority + " · " + item.opportunity.title +
             (item.prospect ? " · " + item.prospect.full_name : "") +
-            (item.linkedPending.length ? "\n   Seguimiento pendiente: " + item.linkedPending.map((activity) => activity.title).join(", ") : "\\n   Seguimiento pendiente: ninguno registrado") +
+            (item.linkedPending.length ? "\n   Seguimiento pendiente: " + item.linkedPending.map((activity) => activity.title).join(", ") : "\n   Seguimiento pendiente: ninguno registrado") +
             (item.closeDays !== null ? "\n   Días hasta el cierre estimado: " + item.closeDays : "") +
-            "\\n   Motivo: " + item.priorityReason +
+            "\n   Motivo: " + item.priorityReason +
             "\n   Siguiente acción recomendada: " + item.nextAction +
             (item.linkedOverdue.length
-              ? "\\n   Cómo registrar el resultado: después del contacto, marca la actividad como completada y registra fecha y canal, respuesta, objeciones, compromiso acordado y próxima acción con fecha. Si no responde, registra el intento y programa el siguiente seguimiento."
+              ? "\n   Cómo registrar el resultado: después del contacto, marca la actividad como completada y registra fecha y canal, respuesta, objeciones, compromiso acordado y próxima acción con fecha. Si no responde, registra el intento y programa el siguiente seguimiento."
               : "")
-          ).join("\\n\\n")
-        : "No hay oportunidades activas para priorizar.") + "\\n";
+          ).join("\n\n")
+        : "No hay oportunidades activas para priorizar.") + "\n";
     const noNextStep = activeOpps.filter((item) =>
       !activities.some((activity) => activity.opportunity_id === item.id && ["pending", "in_progress"].includes(activity.status))
     );
