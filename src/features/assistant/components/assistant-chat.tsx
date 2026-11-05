@@ -388,11 +388,22 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
       const closeDays = closeAt !== null && Number.isFinite(closeAt)
         ? Math.ceil((closeAt - now) / 86400000)
         : null;
-      const priority = linkedOverdue.length || (closeDays !== null && closeDays <= 7)
+      const closeDatePassed = closeDays !== null && closeDays < 0;
+      const closeDateSoon = closeDays !== null && closeDays >= 0 && closeDays <= 7;
+      const priority = linkedOverdue.length || closeDatePassed || closeDateSoon
         ? "ALTA"
         : linkedPending.length || ["proposal", "negotiation"].includes(opportunity.stage)
           ? "MEDIA"
           : "BAJA";
+      const priorityReason = linkedOverdue.length
+        ? "Tiene un seguimiento vencido que requiere atención."
+        : closeDatePassed
+          ? "La fecha estimada de cierre ya pasó; hay que confirmar el estado real."
+          : closeDateSoon
+            ? "La fecha estimada de cierre está dentro de los próximos 7 días."
+            : linkedPending.length || ["proposal", "negotiation"].includes(opportunity.stage)
+              ? "Está en una etapa avanzada o tiene una actividad pendiente."
+              : "No hay señales registradas de urgencia inmediata.";
       const nextAction = linkedOverdue.length
         ? "Atender primero el seguimiento vencido (" + linkedOverdue.map((activity) => activity.title).join(", ") + ") y registrar el resultado."
         : opportunity.stage === "negotiation"
@@ -407,18 +418,18 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
       const order = { ALTA: 0, MEDIA: 1, BAJA: 2 };
       return order[a.priority as keyof typeof order] - order[b.priority as keyof typeof order];
     });
-    response += "RECOMENDACIÓN DE PRIORIDAD Y SIGUIENTE ACCIÓN\\n" +
+    response += "RECOMENDACIÓN DE PRIORIDAD Y SIGUIENTE ACCIÓN\n" +
       (opportunityRecommendations.length
         ? opportunityRecommendations.map((item, index) =>
             (index + 1) + ". PRIORIDAD " + item.priority + " · " + item.opportunity.title +
             (item.prospect ? " · " + item.prospect.full_name : "") +
-            (item.linkedPending.length ? "\\n   Seguimiento pendiente: " + item.linkedPending.map((activity) => activity.title).join(", ") : "\\n   Seguimiento pendiente: ninguno registrado") +
-            (item.closeDays !== null ? "\\n   Días hasta el cierre estimado: " + item.closeDays : "") +
-            "\\n   Motivo: " + (item.priority === "ALTA"
-              ? "Existe un compromiso vencido o el cierre estimado está a 7 días o menos."
-              : item.priority === "MEDIA" ? "La oportunidad está en una etapa avanzada o tiene seguimiento pendiente."
-              : "No hay señales registradas de urgencia inmediata.") +
-            "\\n   Siguiente acción recomendada: " + item.nextAction
+            (item.linkedPending.length ? "\n   Seguimiento pendiente: " + item.linkedPending.map((activity) => activity.title).join(", ") : "\\n   Seguimiento pendiente: ninguno registrado") +
+            (item.closeDays !== null ? "\n   Días hasta el cierre estimado: " + item.closeDays : "") +
+            "\\n   Motivo: " + item.priorityReason +
+            "\n   Siguiente acción recomendada: " + item.nextAction +
+            (item.linkedOverdue.length
+              ? "\\n   Cómo registrar el resultado: después del contacto, marca la actividad como completada y registra fecha y canal, respuesta, objeciones, compromiso acordado y próxima acción con fecha. Si no responde, registra el intento y programa el siguiente seguimiento."
+              : "")
           ).join("\\n\\n")
         : "No hay oportunidades activas para priorizar.") + "\\n";
     const noNextStep = activeOpps.filter((item) =>
