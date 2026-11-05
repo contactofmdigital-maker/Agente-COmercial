@@ -59,38 +59,37 @@ export type ProspectPrioritization = {
 
 
 export function isValidActivityDueDate(dueAt: string | null, createdAt: string) {
+  // Una actividad sin fecha puede ser válida; significa que aún no fue programada.
   if (!dueAt) return true;
-  const due = new Date(dueAt).getTime();
-  const created = new Date(createdAt).getTime();
-  return Number.isFinite(due) &&
-    due >= Date.UTC(2000, 0, 1) &&
-    (!Number.isFinite(created) || due >= created - 30 * 86400000);
+  return validDate(dueAt, createdAt) !== null;
 }
 
 export type CrmQueryIntent =
-  | "explain_prospect"
-  | "missing_information"
-  | "activities"
-  | "opportunities"
-  | "prospects"
-  | "summary"
-  | "general";
+  | "explain_prospect" | "explain_all" | "missing_information"
+  | "prospect_detail" | "potential_urgency_comparison" | "prospect_urgency"
+  | "activities" | "opportunities" | "prospects" | "summary" | "general";
 
 export function classifyCrmQuery(prompt: string): CrmQueryIntent {
   const value = normalize(prompt);
-  if (/\b(por que|porque|explica|explicame|desglosa)\b/.test(value) &&
-      /(puntuacion|puntaje|score|calificacion|prioridad)/.test(value)) {
-    return "explain_prospect";
+  const asksToExplain = /\b(por que|porque|explica|explicame|desglosa)\b/.test(value);
+  const asksForScore = /(potencial|puntuacion|puntaje|score|calificacion|prioridad)/.test(value);
+  if (asksToExplain && asksForScore) {
+    return /\b(cada|todos|todas|todos los|todas las)\b/.test(value) ? "explain_all" : "explain_prospect";
   }
-  if (/(que|cual|como).*(informacion|dato|campo).*(falta|completar)|informacion.*falta|datos.*faltan|completar.*prioriz/.test(value)) {
-    return "missing_information";
-  }
+  if (/(que|cual|como).*(informacion|dato|campo).*(falta|completar)|informacion.*falta|datos.*faltan|completar.*prioriz/.test(value)) return "missing_information";
+  if (/(diferencia|comparar|compara|comparacion|contrasta)/.test(value) && /(potencial|urgencia|atencion inmediata)/.test(value)) return "potential_urgency_comparison";
+  if (/\b(estado comercial|situacion comercial|estado|situacion|historial)\b/.test(value) &&
+      /\b(prospecto|cliente|contacto)\b/.test(value) &&
+      /(oportunidad|pipeline|negociaci|venta|propuesta)/.test(value)) return "prospect_detail";
+  if (/(mayor potencial|mas potencial|potencial comercial|potencial de los prospectos|potencial de cada prospecto)/.test(value)) return "prospects";
+  if (/(contactar primero|orden.*urgencia|segun.*urgencia|urgencia de gestion|atencion inmediata|necesitan atencion)/.test(value) &&
+      /(prospect|cliente|contact|lead|comercial)/.test(value)) return "prospect_urgency";
+  const asksForExplicitActivities = /actividades?|seguimientos? vencid|seguimientos? con fechas|tareas?|llamadas?|reuniones?|correos?/.test(value);
   const asksForOpportunity = /oportunidad|pipeline|negociaci|estancad|cierre|venta|propuesta/.test(value);
-  const asksForExplicitActivities = /actividades?|seguimientos? vencid|tareas?|llamadas?|reuniones?|correos?/.test(value);
-  if (asksForExplicitActivities && !asksForOpportunity) return "activities";
+  if (asksForExplicitActivities) return "activities";
+  if (/actividad|seguimiento|vencid|atrasad|tarea|llamad|reunion|correo/.test(value) && !asksForOpportunity) return "activities";
   if (asksForOpportunity) return "opportunities";
-  if (/actividad|seguimiento|vencid|atrasad|tarea|llamad|reunion|correo/.test(value)) return "activities";
-  if (/prospect|cliente|contact|prioriz|captar|lead|conseguir|analiza mis prospectos/.test(value)) return "prospects";
+  if (/prospect|cliente|contact|prioriz|captar|lead|conseguir|potencial/.test(value)) return "prospects";
   if (/analiza mi negocio|resumen|situacion|estado comercial|que deberia priorizar/.test(value)) return "summary";
   return "general";
 }
@@ -100,8 +99,8 @@ export function classifyCrmQuery(prompt: string): CrmQueryIntent {
  */
 export function isExplicitDraftRequest(prompt: string): boolean {
   const value = normalize(prompt);
-  const hasDraftVerb = /\\b(redacta|redactar|escribe|escribir|crea|crear|genera|generar|prepara|preparar)\\b/.test(value);
-  const hasDraftArtifact = /\\b(mensaje|correo|email|whatsapp|borrador|texto|respuesta)\\b/.test(value);
+  const hasDraftVerb = /\b(redacta|redactar|escribe|escribir|crea|crear|genera|generar|prepara|preparar)\b/.test(value);
+  const hasDraftArtifact = /\b(mensaje|correo|email|whatsapp|borrador|texto|respuesta)\b/.test(value);
   return hasDraftVerb && hasDraftArtifact;
 }
 
@@ -151,22 +150,35 @@ function matchesIdentity(query: string, candidate: string | null | undefined) {
  * Resolve a CRM mention to a prospect using its name, company, linked opportunity,
  * or linked activity. Ambiguous matches are preserved for explicit disambiguation.
  */
+function isActivityRelatedToProspect(
+  activity: PrioritizationActivity,
+  prospectId: string,
+  opportunities: PrioritizationOpportunity[],
+) {
+  const linkedOpportunity = activity.opportunity_id
+    ? opportunities.find((item) => item.id === activity.opportunity_id)
+    : undefined;
+  if (linkedOpportunity) {
+    return linkedOpportunity.prospect_id === prospectId &&
+      (!activity.prospect_id || activity.prospect_id === linkedOpportunity.prospect_id);
+  }
+  return activity.prospect_id === prospectId;
+}
+
 export function matchCrmProspects<T extends { id: string; full_name: string; company_name: string | null }>(
   query: string,
   prospects: T[],
   opportunities: Array<{ id: string; prospect_id: string; title: string; description?: string | null }>,
   activities: Array<{ prospect_id: string | null; opportunity_id: string | null; title: string; description?: string | null }> = [],
 ): T[] {
+  const directMatches = prospects.filter((prospect) =>
+    matchesIdentity(query, prospect.full_name) || matchesIdentity(query, prospect.company_name)
+  );
+  if (directMatches.length) return directMatches;
   const matchingIds = new Set<string>();
   for (const prospect of prospects) {
-    if (matchesIdentity(query, prospect.full_name) || matchesIdentity(query, prospect.company_name)) {
-      matchingIds.add(prospect.id);
-      continue;
-    }
     const linkedOpportunities = opportunities.filter((item) => item.prospect_id === prospect.id);
-    if (linkedOpportunities.some((item) =>
-      matchesIdentity(query, item.title) || matchesIdentity(query, item.description)
-    )) {
+    if (linkedOpportunities.some((item) => matchesIdentity(query, item.title) || matchesIdentity(query, item.description))) {
       matchingIds.add(prospect.id);
       continue;
     }
@@ -174,9 +186,7 @@ export function matchCrmProspects<T extends { id: string; full_name: string; com
     if (activities.some((item) =>
       (item.prospect_id === prospect.id || (item.opportunity_id !== null && linkedOpportunityIds.has(item.opportunity_id))) &&
       (matchesIdentity(query, item.title) || matchesIdentity(query, item.description))
-    )) {
-      matchingIds.add(prospect.id);
-    }
+    )) matchingIds.add(prospect.id);
   }
   return prospects.filter((prospect) => matchingIds.has(prospect.id));
 }
@@ -194,8 +204,8 @@ const validDate = (value: string | null | undefined, createdAt?: string) => {
 
 const commercialActivities = (activities: PrioritizationActivity[]) =>
   activities.filter((item) =>
-    ["call", "meeting", "email", "follow_up"].includes(item.activity_type) &&
-    item.status === "completed" &&
+    ["call", "meeting", "email", "follow_up"].includes(normalize(item.activity_type)) &&
+    normalize(item.status) === "completed" &&
     validDate(item.completed_at, item.created_at) !== null
   );
 
@@ -249,8 +259,11 @@ function evaluateOpportunity(
   opportunities: PrioritizationOpportunity[],
 ) {
   const linked = opportunities
-    .filter((item) => item.prospect_id === prospect.id && Object.prototype.hasOwnProperty.call(ACTIVE_STAGES, item.stage))
-    .map((item) => ACTIVE_STAGES[item.stage]);
+    .filter((item) =>
+      item.prospect_id === prospect.id &&
+      Object.prototype.hasOwnProperty.call(ACTIVE_STAGES, normalize(item.stage))
+    )
+    .map((item) => ACTIVE_STAGES[normalize(item.stage) as keyof typeof ACTIVE_STAGES]);
   if (!linked.length) return null;
   const points = Math.max(...linked);
   return { points, reason: "Etapa de la mejor oportunidad activa vinculada." };
@@ -302,15 +315,11 @@ export function calculatePotential(
     };
   }
 
-  const relatedOpportunityIds = new Set(
-    opportunities.filter((item) => item.prospect_id === prospect.id).map((item) => item.id),
-  );
-  const relatedActivities = activities.filter((item) =>
-    item.prospect_id === prospect.id ||
-    (item.opportunity_id !== null && relatedOpportunityIds.has(item.opportunity_id))
-  );
+  const relatedActivities = activities.filter((item) => isActivityRelatedToProspect(item, prospect.id, opportunities));
 
-  const hasActiveOpportunity = opportunities.some((item) => item.prospect_id === prospect.id && Object.prototype.hasOwnProperty.call(ACTIVE_STAGES, item.stage));
+  const hasActiveOpportunity = opportunities.some((item) =>
+    item.prospect_id === prospect.id && Object.prototype.hasOwnProperty.call(ACTIVE_STAGES, normalize(item.stage))
+  );
   const evaluated = [
     { name: "Intención y necesidad", weight: WEIGHTS.intent, result: evaluateIntent(prospect, hasActiveOpportunity) },
     { name: "Avance de oportunidad", weight: WEIGHTS.opportunity, result: evaluateOpportunity(prospect, opportunities) },
@@ -324,6 +333,9 @@ export function calculatePotential(
   const possibleWeight = evaluable.reduce((sum, item) => sum + item.weight, 0);
   const earned = evaluable.reduce((sum, item) => sum + (item.result?.points ?? 0), 0);
   const coverage = Math.round(possibleWeight);
+  // El score representa el rendimiento sobre los criterios que sí tienen evidencia.
+  // coverage indica cuánto del modelo total (100 puntos de peso) pudo evaluarse.
+  // Por eso un score alto con cobertura baja NO debe interpretarse como potencial confirmado.
   const score = possibleWeight > 0 ? Math.round((earned / possibleWeight) * 100) : null;
   const classification =
     coverage < 40 ? "insufficient" : coverage < 70 ? "provisional" : "sufficient";
@@ -350,14 +362,10 @@ export function calculateUrgency(
   activities: PrioritizationActivity[],
   now = Date.now(),
 ): UrgencyEvaluation {
-  const opportunityIds = new Set(
-    opportunities.filter((item) => item.prospect_id === prospect.id).map((item) => item.id),
+  const related = activities.filter((item) => isActivityRelatedToProspect(item, prospect.id, opportunities));
+  const pending = related.filter((item) =>
+    ["pending", "in_progress"].includes(normalize(item.status))
   );
-  const related = activities.filter((item) =>
-    item.prospect_id === prospect.id ||
-    (item.opportunity_id !== null && opportunityIds.has(item.opportunity_id))
-  );
-  const pending = related.filter((item) => ["pending", "in_progress"].includes(item.status));
   if (!pending.length) {
     return { level: "low", reasons: ["No hay actividades pendientes asociadas."], nextAction: "Mantener seguimiento según el ciclo comercial." };
   }
@@ -375,28 +383,37 @@ export function calculateUrgency(
   if (overdue.length) {
     return {
       level: "high",
-      reasons: overdue.map((item) => "Actividad vencida: " + item.title),
-      nextAction: "Atender primero la actividad vencida y registrar el resultado.",
+      reasons: [
+        ...overdue.map((item) => "Actividad vencida: " + item.title),
+        ...invalid.map((item) => "Fecha inválida que requiere revisión: " + item.title),
+      ],
+      nextAction: "Atender primero la actividad vencida y corregir las fechas que requieren revisión.",
     };
   }
 
   const highPrioritySoon = validPending.filter((item) => {
     const due = validDate(item.due_at, item.created_at);
-    return item.priority === "high" && due !== null && due >= now && due - now <= 48 * 3600000;
+    return normalize(item.priority) === "high" && due !== null && due >= now && due - now <= 48 * 3600000;
   });
   if (highPrioritySoon.length) {
     return {
       level: "high",
-      reasons: highPrioritySoon.map((item) => "Compromiso de prioridad alta próximo: " + item.title),
-      nextAction: "Preparar y cumplir el compromiso próximo.",
+      reasons: [
+        ...highPrioritySoon.map((item) => "Compromiso de prioridad alta próximo: " + item.title),
+        ...invalid.map((item) => "Fecha inválida que requiere revisión: " + item.title),
+      ],
+      nextAction: "Preparar el compromiso próximo y corregir las fechas que requieren revisión.",
     };
   }
 
   if (validPending.length) {
     return {
       level: "medium",
-      reasons: validPending.map((item) => item.due_at ? "Actividad programada: " + item.title : "Acción pendiente sin fecha: " + item.title),
-      nextAction: "Revisar la actividad y definir cuándo se realizará.",
+      reasons: [
+        ...validPending.map((item) => item.due_at ? "Actividad programada: " + item.title : "Acción pendiente sin fecha: " + item.title),
+        ...invalid.map((item) => "Fecha inválida que requiere revisión: " + item.title),
+      ],
+      nextAction: "Revisar las actividades pendientes y corregir cualquier fecha inválida.",
     };
   }
 
@@ -423,11 +440,11 @@ export function prioritizeProspects(
     .map((prospect) => {
       const potential = calculatePotential(prospect, opportunities, activities, profile, now);
       const urgency = calculateUrgency(prospect, opportunities, activities, now);
-      const nextAction = urgency.level === "high"
+      const nextAction = urgency.level === "high" || urgency.level === "not_evaluable"
         ? urgency.nextAction
         : potential.classification === "insufficient"
           ? "Completar información comercial antes de asignar prioridad."
-          : prospect.status === "proposal"
+          : normalize(prospect.status) === "proposal"
             ? "Dar seguimiento a la propuesta y acordar el siguiente paso."
             : "Validar necesidad, plazo y próximo paso con el prospecto.";
       return { prospect, potential, urgency, nextAction };
@@ -440,7 +457,32 @@ export function prioritizeProspects(
         return b.potential.score - a.potential.score;
       }
       if (a.potential.coverage !== b.potential.coverage) return b.potential.coverage - a.potential.coverage;
-      const urgencyOrder = { high: 0, medium: 1, low: 2, not_evaluable: 3 };
-      return urgencyOrder[a.urgency.level] - urgencyOrder[b.urgency.level];
+      // El potencial no debe subir o bajar por la urgencia operativa.
+      // Desempate estable y neutral para que el ranking sea reproducible.
+      return normalize(a.prospect.full_name).localeCompare(normalize(b.prospect.full_name));
+    });
+}
+
+
+/**
+ * Ordena prospectos por necesidad operativa de contacto, sin confundir urgencia
+ * con potencial comercial. Útil para responder "¿a quién debo contactar primero?".
+ */
+export function prioritizeProspectsByUrgency(
+  prospects: PrioritizationProspect[],
+  opportunities: PrioritizationOpportunity[],
+  activities: PrioritizationActivity[],
+  profile: PrioritizationProfile | null,
+  now = Date.now(),
+): ProspectPrioritization[] {
+  const urgencyOrder = { high: 0, medium: 1, not_evaluable: 2, low: 3 };
+  return prioritizeProspects(prospects, opportunities, activities, profile, now)
+    .sort((a, b) => {
+      const urgencyDifference = urgencyOrder[a.urgency.level] - urgencyOrder[b.urgency.level];
+      if (urgencyDifference) return urgencyDifference;
+      if (a.potential.coverage !== b.potential.coverage) {
+        return b.potential.coverage - a.potential.coverage;
+      }
+      return normalize(a.prospect.full_name).localeCompare(normalize(b.prospect.full_name));
     });
 }
