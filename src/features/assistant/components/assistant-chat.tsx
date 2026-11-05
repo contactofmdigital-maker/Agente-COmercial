@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Bot, Send, Sparkles, User, RotateCcw, LoaderCircle, FlaskConical, Zap, Database, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { classifyCrmQuery, isValidActivityDueDate, matchCrmProspects, prioritizeProspects } from "@/features/assistant/lib/prioritization";
+import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects } from "@/features/assistant/lib/prioritization";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type AssistantMode = "demo" | "crm" | "openai";
@@ -217,7 +217,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
   const dateLabel = (value: string | null) =>
     value ? new Date(value).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" }) : "Sin fecha";
 
-  const asksForDraft = /\b(mensaje|redacta|redactar|contactar|prospeccion|prospectar|seguimiento|retomar|no responde)\b/.test(normalized);
+  const asksForDraft = isExplicitDraftRequest(prompt);
   if (asksForDraft) {
     const matches = matchCrmProspects(prompt, prospects, opportunities, activities);
     if (matches.length !== 1) {
