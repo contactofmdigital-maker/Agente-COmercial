@@ -237,7 +237,7 @@ function buildCrmAnswer(prompt: string, context: CommercialContext, segment: Bus
     const service = profile?.products_services?.trim() ?? "";
     const company = safeCompanyName(prospect.company_name);
     const status = prospect.status.toLowerCase();
-    const isFollowUp = /seguimiento|retomar|no responde|anterior|ya le escribi|ya le escribí/.test(query);
+    const isFollowUp = /seguimiento|retomar|no responde|anterior|ya le escribi|ya le escribí/.test(normalized);
     const greeting = "Hola " + prospect.full_name.split(" ")[0] + ",";
     let body = "";
     if (status === "proposal" || linkedOpps.some((item) => item.stage === "proposal" || item.stage === "negotiation")) {
