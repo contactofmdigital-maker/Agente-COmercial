@@ -1,86 +1,121 @@
+import Image from "next/image";
+import Link from "next/link";
 import {
-  Activity,
-  ArrowUpRight,
-  Bot,
-  Building2,
-  ChartNoAxesCombined,
-  CircleHelp,
-  Command,
-  LayoutDashboard,
-  MessageSquareText,
-  Search,
-  Settings2,
-  ShieldCheck,
-  Sparkles,
-  Target,
-  Users,
-  Zap,
+  Activity, ArrowUpRight, Building2, ChartNoAxesCombined, CircleHelp,
+  LayoutDashboard, MessageSquareText, Search, Settings2, ShieldCheck,
+  Sparkles, Target, Users,
 } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProspectWorkspace } from "@/features/prospects/components/prospect-workspace";
+import { AssistantChat } from "@/features/assistant/components/assistant-chat";
+import { BusinessSettings } from "@/features/business/components/business-settings";
+import { OpportunityPipeline } from "@/features/opportunities/components/opportunity-pipeline";
+import { ActivityWorkspace } from "@/features/activities/components/activity-workspace";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
+import { filterRealActivities, filterRealOpportunities, filterRealProspects } from "@/features/data-classification/lib/record-classification";
 import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
-  // Require a valid authenticated Supabase user before rendering the dashboard.
+type Section = "overview" | "prospects" | "opportunities" | "activities" | "assistant" | "organization" | "settings";
+type PageProps = { searchParams: Promise<{ section?: string }> };
+
+const sections: { id: Section; label: string; icon: typeof LayoutDashboard; group: "workspace" | "system"; badge?: string }[] = [
+  { id: "overview", label: "Resumen", icon: LayoutDashboard, group: "workspace" },
+  { id: "prospects", label: "Prospectos", icon: Users, group: "workspace" },
+  { id: "opportunities", label: "Oportunidades", icon: Target, group: "workspace" },
+  { id: "activities", label: "Actividades", icon: Activity, group: "workspace" },
+  { id: "assistant", label: "Asistente comercial", icon: MessageSquareText, group: "workspace", badge: "IA" },
+  { id: "organization", label: "Organización", icon: Building2, group: "system" },
+  { id: "settings", label: "Configuración", icon: Settings2, group: "system" },
+];
+
+export default async function Home({ searchParams }: PageProps) {
+  const params = await searchParams;
+  const requested = params.section as Section | undefined;
+  const activeSection: Section = sections.some((item) => item.id === requested) ? requested! : "overview";
+
   let supabase: Awaited<ReturnType<typeof createClient>> | null = null;
-
-  try {
-    supabase = await createClient();
-  } catch {
-    supabase = null;
-  }
-
-  if (!supabase) {
-    redirect("/login");
-  }
+  try { supabase = await createClient(); } catch { supabase = null; }
+  if (!supabase) redirect("/login");
 
   let user: User | null = null;
   try {
     const { data, error } = await supabase.auth.getUser();
     if (!error) user = data.user;
-  } catch {
-    user = null;
-  }
-
-  if (!user) {
-    redirect("/login");
-  }
+  } catch { user = null; }
+  if (!user) redirect("/login");
 
   let connected = false;
   let prospectCount: number | null = null;
+  let activeOpportunityCount: number | null = null;
+  let conversionRate: string | null = null;
+  let pendingActivityCount: number | null = null;
   let connectionMessage = "Configura las variables de Supabase para activar los datos reales.";
-
   try {
     connected = true;
-    const { count, error } = await supabase
-      .from("sales_prospects")
-      .select("*", { count: "exact", head: true })
-      .eq("user_id", user.id);
-
-    if (!error) {
-      prospectCount = count ?? 0;
-      connectionMessage =
-        "Resumen consultado para el usuario autenticado. También estamos verificando las políticas RLS de la base.";
-    } else {
-      connectionMessage = `Supabase responde, pero falta revisar el esquema o la migración: ${error.message}`;
-    }
+    const pageSize = 500;
+    const [prospectRows, opportunityRows, activityRows] = await Promise.all([
+      (async () => {
+        const rows: { id: string }[] = [];
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await supabase.from("sales_prospects").select("id").eq("user_id", user.id).order("id", { ascending: true }).range(offset, offset + pageSize - 1);
+          if (error) throw error;
+          rows.push(...(data ?? []));
+          if (!data || data.length < pageSize) break;
+        }
+        return rows;
+      })(),
+      (async () => {
+        const rows: { id: string; prospect_id: string; stage: string }[] = [];
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await supabase.from("sales_opportunities").select("id,prospect_id,stage").eq("user_id", user.id).range(offset, offset + pageSize - 1);
+          if (error) throw error;
+          rows.push(...(data ?? []));
+          if (!data || data.length < pageSize) break;
+        }
+        return rows;
+      })(),
+      (async () => {
+        const rows: { id: string; prospect_id: string | null; opportunity_id: string | null; status: string }[] = [];
+        for (let offset = 0; ; offset += pageSize) {
+          const { data, error } = await supabase.from("sales_activities").select("id,prospect_id,opportunity_id,status").eq("user_id", user.id).range(offset, offset + pageSize - 1);
+          if (error) throw error;
+          rows.push(...(data ?? []));
+          if (!data || data.length < pageSize) break;
+        }
+        return rows;
+      })(),
+    ]);
+    const realProspects = filterRealProspects(prospectRows);
+    const realOpportunities = filterRealOpportunities(opportunityRows);
+    const demoOpportunityIds = new Set(
+      opportunityRows
+        .filter((item) => !realOpportunities.some((real) => real.id === item.id))
+        .map((item) => item.id),
+    );
+    const realActivities = filterRealActivities(activityRows, demoOpportunityIds);
+    prospectCount = realProspects.length;
+    activeOpportunityCount = realOpportunities.filter((item) => !["won", "lost"].includes(item.stage)).length;
+    const closed = realOpportunities.filter((item) => ["won", "lost"].includes(item.stage));
+    const won = closed.filter((item) => item.stage === "won").length;
+    conversionRate = closed.length ? `${Math.round((won / closed.length) * 100)}%` : "—";
+    pendingActivityCount = realActivities.filter((item) => ["pending", "in_progress"].includes(item.status)).length;
+    connectionMessage = "Resumen comercial real consultado para el usuario autenticado. Los registros demo auditados no participan en los indicadores.";
   } catch {
     connectionMessage = "Supabase no está configurado o no se pudo conectar. Revisa .env.local.";
   }
+
+  const activeLabel = sections.find((item) => item.id === activeSection)?.label ?? "Resumen";
 
   return (
     <main className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <div className="brand-mark"><Zap size={20} /></div>
-          <div><b>UpScale <span>IA</span></b><small>COMMERCIAL INTELLIGENCE</small></div>
+          <Image src="/images/upscale-ia-horizontal.png" alt="UpScale IA" width={190} height={60} priority className="brand-logo" />
         </div>
-
         <div className="workspace-pill">
           <div className="workspace-avatar">U</div>
           <div><b>Workspace comercial</b><small>Fase inicial · VIP Premium</small></div>
@@ -88,25 +123,36 @@ export default async function Home() {
         </div>
 
         <div className="nav-label">WORKSPACE</div>
-        <nav className="nav-list">
-          <a className="nav-item active"><LayoutDashboard size={17} />Resumen <span className="nav-dot" /></a>
-          <a className="nav-item"><Users size={17} />Prospectos</a>
-          <a className="nav-item"><Target size={17} />Oportunidades</a>
-          <a className="nav-item"><Activity size={17} />Actividades</a>
-          <a className="nav-item"><MessageSquareText size={17} />Asistente comercial <span className="nav-new">IA</span></a>
+        <nav className="nav-list" aria-label="Navegación del workspace">
+          {sections.filter((item) => item.group === "workspace").map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.id} href={item.id === "overview" ? "/" : `/?section=${item.id}`} className={`nav-item ${activeSection === item.id ? "active" : ""}`} aria-current={activeSection === item.id ? "page" : undefined}>
+                <Icon size={17} />{item.label}
+                {item.badge && <span className="nav-new">{item.badge}</span>}
+                {activeSection === item.id && <span className="nav-dot" />}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="nav-label">SISTEMA</div>
-        <nav className="nav-list">
-          <a className="nav-item"><Building2 size={17} />Organización</a>
-          <a className="nav-item"><Settings2 size={17} />Configuración</a>
+        <nav className="nav-list" aria-label="Configuración del sistema">
+          {sections.filter((item) => item.group === "system").map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link key={item.id} href={`/?section=${item.id}`} className={`nav-item ${activeSection === item.id ? "active" : ""}`} aria-current={activeSection === item.id ? "page" : undefined}>
+                <Icon size={17} />{item.label}
+                {activeSection === item.id && <span className="nav-dot" />}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="sidebar-bottom">
           <div className="secure-icon"><ShieldCheck size={17} /></div>
           <div><b>Control comercial</b><small>Las acciones externas requieren aprobación.</small></div>
         </div>
-
         <div className="profile">
           <div className="profile-avatar">{user.email?.slice(0, 2).toUpperCase() || "US"}</div>
           <div><b>{user.email || "Usuario"}</b><small>Sesión autenticada</small></div>
@@ -116,7 +162,7 @@ export default async function Home() {
 
       <section className="main-area">
         <header className="topbar">
-          <div className="breadcrumbs">Workspace <span>/</span> <b>Resumen</b></div>
+          <div className="breadcrumbs">Workspace <span>/</span> <b>{activeLabel}</b></div>
           <div className="top-actions">
             <div className="search-mini"><Search size={15} /><span>Búsqueda rápida</span><kbd>⌘ K</kbd></div>
             <div className="avatar-small" title={user.email || "Usuario autenticado"}>{user.email?.slice(0, 2).toUpperCase() || "US"}</div>
@@ -125,91 +171,106 @@ export default async function Home() {
         </header>
 
         <div className="content">
-          <div className="eyebrow"><span className="status-pulse" /> COMMERCIAL INTELLIGENCE <span className="eyebrow-divider">/</span> FASE 01</div>
-
-          <div className="hero-row">
-            <div>
-              <h1>Tu próximo cliente<br /><span>empieza aquí.</span></h1>
-              <p className="hero-copy">Centraliza tus oportunidades, identifica prioridades y prepara conversaciones comerciales mejor informadas.</p>
-            </div>
-            <div className="hero-art">
-              <div className="orb orb-one" />
-              <div className="orb orb-two" />
-              <div className="hero-target"><Target size={39} /><Sparkles size={17} className="spark" /></div>
-              <div className="orbit-label label-top">INTELIGENCIA</div>
-              <div className="orbit-label label-bottom">CRECIMIENTO</div>
-            </div>
-          </div>
-
-          <div className={`connection-banner ${connected && prospectCount !== null ? "connected" : "warning"}`}>
-            <div className="connection-symbol">{connected && prospectCount !== null ? <ShieldCheck size={17} /> : <CircleHelp size={17} />}</div>
-            <div><b>{connected && prospectCount !== null ? "Supabase conectado" : "Conexión pendiente de validar"}</b><p>{connectionMessage}</p></div>
-            <span className="connection-state">{connected && prospectCount !== null ? "EN LÍNEA" : "CONFIGURACIÓN"}</span>
-          </div>
-
-          <div className="section-heading">
-            <div><h2>Resumen comercial</h2><p>Actividad del espacio de trabajo</p></div>
-            <span className="period-chip">Vista general <ArrowUpRight size={13} /></span>
-          </div>
-
-          <div className="metrics-grid">
-            <Metric icon={<Users size={18} />} label="Prospectos registrados" value={prospectCount === null ? "—" : String(prospectCount)} change={connected && prospectCount !== null ? "Dato consultado en Supabase" : "Pendiente de conexión"} tone="violet" />
-            <Metric icon={<Target size={18} />} label="Oportunidades activas" value="—" change="Disponible tras configurar el pipeline" tone="blue" />
-            <Metric icon={<ChartNoAxesCombined size={18} />} label="Conversión comercial" value="—" change="Se calculará con actividad real" tone="green" />
-            <Metric icon={<Activity size={18} />} label="Seguimientos pendientes" value="—" change="Requiere módulo de tareas" tone="amber" />
-          </div>
-
-          <div className="workspace-grid">
-            <section className="panel prospect-panel">
-              <div className="panel-heading">
-                <div><div className="panel-kicker">CRM · CAPTACIÓN</div><h3>Prospectos</h3><p>Registra contactos e importa tu base comercial.</p></div>
-                <div className="panel-icon"><Users size={18} /></div>
+          {activeSection === "overview" && (
+            <>
+              <div className="eyebrow"><span className="status-pulse" />COMMERCIAL INTELLIGENCE<span className="eyebrow-divider">/</span>FASE 01</div>
+              <div className="hero-row">
+                <div>
+                  <h1>Tu próximo cliente<br /><span>empieza aquí.</span></h1>
+                  <p className="hero-copy">Centraliza tus oportunidades, identifica prioridades y prepara conversaciones comerciales mejor informadas.</p>
+                </div>
+                <div className="hero-art">
+                  <div className="orb orb-one" /><div className="orb orb-two" />
+                  <div className="hero-target"><Target size={39} /><Sparkles size={17} className="spark" /></div>
+                  <div className="orbit-label label-top">INTELIGENCIA</div><div className="orbit-label label-bottom">CRECIMIENTO</div>
+                </div>
               </div>
+              <div className={`connection-banner ${connected && prospectCount !== null ? "connected" : "warning"}`}>
+                <div className="connection-symbol">{connected && prospectCount !== null ? <ShieldCheck size={17} /> : <CircleHelp size={17} />}</div>
+                <div><b>{connected && prospectCount !== null ? "Supabase conectado" : "Conexión pendiente de validar"}</b><p>{connectionMessage}</p></div>
+                <span className="connection-state">{connected && prospectCount !== null ? "EN LÍNEA" : "CONFIGURACIÓN"}</span>
+              </div>
+              <div className="section-heading">
+                <div><h2>Resumen comercial</h2><p>Actividad del espacio de trabajo</p></div>
+                <span className="period-chip">Vista general <ArrowUpRight size={13} /></span>
+              </div>
+              <div className="metrics-grid">
+                <Metric icon={<Users size={18} />} label="Prospectos registrados" value={prospectCount === null ? "—" : String(prospectCount)} change={connected && prospectCount !== null ? "Dato consultado en Supabase" : "Pendiente de conexión"} tone="violet" />
+                <Metric icon={<Target size={18} />} label="Oportunidades activas" value={activeOpportunityCount === null ? "—" : String(activeOpportunityCount)} change="Negociaciones abiertas, sin demos" tone="blue" />
+                <Metric icon={<ChartNoAxesCombined size={18} />} label="Conversión comercial" value={conversionRate ?? "—"} change="Ganadas / oportunidades cerradas" tone="green" />
+                <Metric icon={<Activity size={18} />} label="Seguimientos pendientes" value={pendingActivityCount === null ? "—" : String(pendingActivityCount)} change="Pendientes y en curso, sin demos" tone="amber" />
+              </div>
+              <div className="overview-shortcuts">
+                <Link href="/?section=prospects">Ir a Prospectos <ArrowUpRight size={14} /></Link>
+                <Link href="/?section=opportunities">Ver oportunidades <ArrowUpRight size={14} /></Link>
+                <Link href="/?section=activities">Revisar actividades <ArrowUpRight size={14} /></Link>
+              </div>
+            </>
+          )}
+
+          {activeSection === "prospects" && (
+            <ModuleHeader kicker="CRM · CAPTACIÓN" title="Prospectos" description="Registra contactos, administra tu base comercial e importa prospectos mediante CSV." icon={<Users size={18} />}>
               <ProspectWorkspace />
-            </section>
-
-            <section className="panel assistant-panel">
-              <div className="panel-heading">
-                <div><div className="panel-kicker">AI SALES COPILOT</div><h3>Asistente comercial</h3><p>Prepara el siguiente paso con contexto.</p></div>
-                <div className="ai-icon"><Bot size={19} /></div>
+            </ModuleHeader>
+          )}
+          {activeSection === "opportunities" && (
+            <ModuleHeader kicker="CRM · GESTIÓN DE VENTAS" title="Oportunidades" description="Organiza negociaciones, controla etapas y revisa el valor de tu pipeline." icon={<Target size={18} />}>
+              <OpportunityPipeline />
+            </ModuleHeader>
+          )}
+          {activeSection === "activities" && (
+            <ModuleHeader kicker="WORKSPACE · SEGUIMIENTO" title="Actividades" description="Centraliza llamadas, reuniones y tareas para que ninguna oportunidad quede sin seguimiento." icon={<Activity size={18} />}>
+              <ActivityWorkspace />
+            </ModuleHeader>
+          )}
+          {activeSection === "assistant" && (
+            <ModuleHeader kicker="AI SALES COPILOT" title="Asistente comercial" description="Consulta tu CRM, prioriza prospectos y prepara el siguiente movimiento comercial." icon={<Sparkles size={18} />}>
+              <AssistantChat />
+            </ModuleHeader>
+          )}
+          {activeSection === "organization" && (
+            <ModuleHeader kicker="SISTEMA · PERFIL DEL NEGOCIO" title="Organización" description="Configura el contexto comercial que utiliza UpScale IA para adaptar sus recomendaciones." icon={<Building2 size={18} />}>
+              <BusinessSettings />
+            </ModuleHeader>
+          )}
+          {activeSection === "settings" && (
+            <ModuleHeader kicker="SISTEMA · PREFERENCIAS" title="Configuración" description="Preferencias generales de tu espacio de trabajo." icon={<Settings2 size={18} />}>
+              <div className="module-placeholder">
+                <div className="placeholder-icon"><Settings2 size={22} /></div>
+                <h3>Configuración de cuenta</h3>
+                <p>La navegación ya está preparada. En la siguiente pasada incorporaremos aquí las preferencias de cuenta y seguridad disponibles.</p>
+                <span className="placeholder-status">SECCIÓN PREPARADA</span>
               </div>
-              <div className="assistant-preview">
-                <div className="assistant-glow"><Sparkles size={20} /></div>
-                <b>Una buena conversación empieza con contexto.</b>
-                <p>El módulo de IA se habilitará al configurar un proveedor y su clave privada en el servidor.</p>
-                <div className="feature-row"><span><ShieldCheck size={14} /> Revisión humana</span><span><Command size={14} /> Contexto comercial</span></div>
-              </div>
-              <button className="button button-disabled" disabled><Bot size={16} /> IA pendiente de configuración</button>
-              <div className="assistant-foot"><span className="mini-dot" /> No se envían mensajes automáticamente</div>
-            </section>
-          </div>
+            </ModuleHeader>
+          )}
 
-          <footer className="footer"><span>© 2026 UpScale IA · Agente Comercial VIP Premium</span><span><ShieldCheck size={13} /> Desarrollo local · Fase 01</span></footer>
+          <footer className="footer">
+            <span>© 2026 UpScale IA · Agente Comercial VIP Premium</span>
+            <span><ShieldCheck size={13} /> Desarrollo local · Fase 01</span>
+          </footer>
         </div>
       </section>
     </main>
   );
 }
 
-function Metric({
-  icon,
-  label,
-  value,
-  change,
-  tone,
-}: {
-  icon: ReactNode;
-  label: string;
-  value: string;
-  change: string;
-  tone: string;
-}) {
+function ModuleHeader({ kicker, title, description, icon, children }: { kicker: string; title: string; description: string; icon: ReactNode; children: ReactNode }) {
+  return (
+    <section className="module-page">
+      <div className="module-title-row">
+        <div><div className="panel-kicker">{kicker}</div><h1>{title}</h1><p>{description}</p></div>
+        <div className="panel-icon">{icon}</div>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function Metric({ icon, label, value, change, tone }: { icon: ReactNode; label: string; value: string; change: string; tone: string }) {
   return (
     <div className="metric-card">
       <div className="metric-top"><div className={`metric-icon ${tone}`}>{icon}</div><span className="metric-menu">•••</span></div>
-      <div className="metric-label">{label}</div>
-      <div className="metric-value">{value}</div>
-      <div className="metric-change">{change}</div>
+      <div className="metric-label">{label}</div><div className="metric-value">{value}</div><div className="metric-change">{change}</div>
     </div>
   );
 }
