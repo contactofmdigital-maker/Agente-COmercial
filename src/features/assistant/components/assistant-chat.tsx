@@ -59,6 +59,7 @@ type CommercialContext = {
     opportunities_loaded: number;
     active_opportunities: number;
     won_opportunities: number;
+    unknown_stage_opportunities?: number;
     activities_loaded: number;
     pending_activities: number;
     overdue_activities: number;
@@ -136,10 +137,11 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
     "Perfil: " + label + businessName + ". " + segmentGuidance[segment] + "\n" +
     (profile?.sales_goal ? "Objetivo comercial: " + profile.sales_goal + "\n" : "") +
     "\nRESUMEN DE TU NEGOCIO\n" +
-    "Prospectos: " + context.summary.prospects_loaded +
-    " · Oportunidades: " + context.summary.opportunities_loaded +
+    "Prospectos cargados: " + context.summary.prospects_loaded +
+    " · Oportunidades cargadas: " + context.summary.opportunities_loaded +
     " · Activas: " + context.summary.active_opportunities +
     " · Ganadas: " + context.summary.won_opportunities +
+    " · Etapas por revisar: " + (context.summary.unknown_stage_opportunities ?? 0) +
     " · Actividades pendientes: " + context.summary.pending_activities +
     " · Actividades vencidas válidas: " + context.summary.overdue_activities +
     " · Fechas por revisar: " + (context.summary.invalid_date_activities ?? 0) + "\n\n";
