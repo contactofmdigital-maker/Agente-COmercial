@@ -341,6 +341,14 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
       (potentialTop.length ? potentialTop.map(formatItem).join("\n") : "No hay prospectos activos para evaluar.") +
       "\n\nREQUIEREN ATENCIÓN OPERATIVA (ordenados por urgencia):\n" +
       (attentionTop.length ? attentionTop.map(formatItem).join("\n") : "No hay actividades asociadas que indiquen una atención inmediata o próxima.") +
+      (pending.some((item) => !resolveActivityProspect(item))
+        ? "\n\nACTIVIDADES QUE REQUIEREN CORRECCIÓN DE VÍNCULO:\n" +
+          pending.filter((item) => !resolveActivityProspect(item)).map((item, index) =>
+            (index + 1) + ". " + item.title + " · " + activityDateState(item) + " · Vence: " + dateLabel(item.due_at) +
+            " · " + activityRecommendation(item)
+          ).join("\n") +
+          "\nEstas actividades aparecen en el resumen general, pero no se atribuyen a un prospecto hasta corregir su vínculo."
+        : "") +
       "\n\nDIFERENCIA: el potencial estima el atractivo comercial según la evidencia registrada; la urgencia indica cuándo conviene actuar por vencimientos, compromisos próximos o fechas por revisar. Un prospecto puede tener alto potencial y baja urgencia, o bajo potencial y alta urgencia.\n\nNo se han modificado registros ni enviado mensajes.";
   }
 
@@ -636,7 +644,7 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
     .replace(/\b\d{1,2}(?:\.\d{3}){2}-[0-9kK]\b/g, "[RUT oculto]")
     .replace(/\b\d{7,8}-[0-9kK]\b/g, "[RUT oculto]")
     .replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, "[correo oculto]")
-    .replace(/\+?56\s?9\d{8}\b/g, "[teléfono oculto]");
+    .replace(/(?:\+?56[\s-]?)?9(?:[\s-]?\d){8}\b/g, "[teléfono oculto]");
 }
 
 export function AssistantChat() {
