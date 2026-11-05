@@ -95,6 +95,16 @@ export function classifyCrmQuery(prompt: string): CrmQueryIntent {
   return "general";
 }
 
+/** Detects an explicit request to compose a message, email, or response.
+ * A bare mention of a pending follow-up is a CRM activity query, not a drafting request.
+ */
+export function isExplicitDraftRequest(prompt: string): boolean {
+  const value = normalize(prompt);
+  const hasDraftVerb = /\\b(redacta|redactar|escribe|escribir|crea|crear|genera|generar|prepara|preparar)\\b/.test(value);
+  const hasDraftArtifact = /\\b(mensaje|correo|email|whatsapp|borrador|texto|respuesta)\\b/.test(value);
+  return hasDraftVerb && hasDraftArtifact;
+}
+
 const WEIGHTS = {
   intent: 30,
   opportunity: 25,
