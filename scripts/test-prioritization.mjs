@@ -90,6 +90,11 @@ assert.equal(missingIntent, "missing_information", "Debe detectar una solicitud 
 
 const rankingIntent = engine.classifyCrmQuery("¿Qué prospectos debería priorizar?");
 assert.equal(rankingIntent, "prospects", "Debe mantener la consulta de ranking");
+assert.equal(
+  engine.classifyCrmQuery("Analiza mis oportunidades comerciales y dime cuáles debería priorizar."),
+  "opportunities",
+  "Debe clasificar el análisis de oportunidades antes que un ranking general de prospectos",
+);
 
 const prospectForIdentity = {
   id: "p-security", full_name: "Contacto de prueba", company_name: "test seguridad b",
@@ -149,7 +154,7 @@ assert.equal(
   "Una etapa desconocida no debe sumar puntos de avance",
 );
 
-console.log("OK: 17 pruebas del motor y clasificación CRM.");
+console.log("OK: 22 pruebas del motor y clasificación CRM.");
 
 const duplicateSource = await readFile(
   new URL("../src/features/prospects/lib/duplicate-detection.ts", import.meta.url),
