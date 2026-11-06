@@ -236,7 +236,7 @@ const crmProspects=[
 ];
 const crmOpportunities=[{id:"o-test",prospect_id:"p-test",title:"TEST OPORTUNIDAD b",description:null,stage:"negotiation",estimated_value:15000000,currency:"CLP",expected_close_date:"2026-12-30",created_at:"2026-11-03T12:00:00.000Z"}];
 const crmActivities=[
- {id:"a-overdue",prospect_id:null,opportunity_id:"o-test",activity_type:"follow_up",title:"test - b",description:null,due_at:"2026-11-04T12:00:00-03:00",priority:"medium",status:"pending",created_at:"2026-11-03T12:00:00-03:00",completed_at:null},
+ {id:"a-overdue",prospect_id:null,opportunity_id:"o-test",activity_type:"follow_up",title:"test - b",description:null,due_at:"2026-10-31T12:00:00-03:00",priority:"medium",status:"pending",created_at:"2026-11-03T12:00:00-03:00",completed_at:null},
  {id:"a-invalid",prospect_id:"p-test",opportunity_id:null,activity_type:"task",title:"fecha antigua",description:null,due_at:"1995-03-28T10:00:00.000Z",priority:"low",status:"in_progress",created_at:"2026-11-03T12:00:00.000Z",completed_at:null},
  {id:"a-undated",prospect_id:"p-test",opportunity_id:null,activity_type:"call",title:"llamada sin fecha",description:null,due_at:null,priority:"high",status:"pending",created_at:"2026-11-03T12:00:00.000Z",completed_at:null},
 ];
@@ -253,6 +253,9 @@ assert.ok(!answerPotential.includes("ACTIVIDADES Y SEGUIMIENTOS"));
 const answerUrgency=crmAnswer.buildCrmAnswer(qUrgency,crmContext,"agency");
 assert.ok(answerUrgency.indexOf("test seguridad b")<answerUrgency.indexOf("Francisco Javier"));
 assert.ok(answerUrgency.includes("Urgencia de gestión: ALTA"), "El seguimiento vencido vinculado por oportunidad debe elevar la urgencia del prospecto.");
+assert.ok(answerUrgency.includes("RECOMENDACIÓN PRINCIPAL PARA HOY\\nContacta primero a test seguridad b"), "La respuesta debe nombrar al primer prospecto que requiere contacto hoy.");
+assert.ok(!answerUrgency.includes("Urgencia de gestión: BAJA"), "No debe mostrar urgencia baja cuando hay un seguimiento vencido asociado.");
+assert.ok(answerUrgency.includes("Vence: 31/10/2026"), "Debe mostrar la fecha de vencimiento de la actividad que justifica la prioridad.");
 assert.ok(answerUrgency.includes("Actividad relacionada: test - b"), "Debe identificar la actividad asociada a través de su oportunidad.");
 const answerCompare=crmAnswer.buildCrmAnswer(qCompare,crmContext,"agency");
 assert.ok(answerCompare.includes("MAYOR POTENCIAL COMERCIAL")&&answerCompare.includes("REQUIEREN ATENCIÓN OPERATIVA"));
