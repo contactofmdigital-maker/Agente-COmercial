@@ -152,13 +152,11 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
     " · Fechas por revisar: " + (context.summary.invalid_date_activities ?? 0) + "\n" +
     (context.limits?.note ? "ALCANCE DEL CONTEXTO: " + context.limits.note + "\n\n" : "ALCANCE DEL CONTEXTO: se consideran todos los registros disponibles para tu usuario.\n\n");
 
-  if (!prospects.length && !opportunities.length && !activities.length) {
-    return header + "Todavía no hay registros comerciales en tu espacio. Registra prospectos, oportunidades o actividades para comenzar.";
-  }
-
   const normalized = prompt.toLowerCase();
   const intent = classifyCrmQuery(prompt);
-  const broadAnalysis = intent === "summary" || intent === "general";
+  // "general" no significa "muéstrame todo": una intención no reconocida
+  // debe pedir precisión en lugar de mezclar módulos del CRM.
+  const broadAnalysis = intent === "summary";
   const showActivities = intent === "activities" || broadAnalysis;
   const showOpportunities = intent === "opportunities" || broadAnalysis;
   const showProspects = intent === "prospects" || intent === "prospect_urgency" || broadAnalysis;
@@ -322,6 +320,17 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
       "\n\nDATOS UTILIZADOS DEL CRM\n- " + evidence.join("\n- ") +
       (missing.length ? "\n\nPARA MEJORAR LA PERSONALIZACIÓN FALTA\n- " + missing.join("\n- ") : "") +
       "\n\nEl texto es un borrador editable. No se han enviado mensajes ni modificado registros. Revisa que el contexto siga vigente antes de usarlo.";
+  }
+
+  if (intent === "general") {
+    return header +
+      "No pude identificar con suficiente seguridad qué resultado buscas, así que no voy a mezclar datos de prospectos, oportunidades y actividades. " +
+      "Puedes precisar si necesitas: priorizar prospectos por potencial, saber a quién contactar hoy, revisar seguimientos, analizar oportunidades, consultar un prospecto específico o preparar un mensaje. " +
+      "Si tu consulta es de estrategia comercial general y no requiere datos del CRM, cambia al modo OpenAI.";
+  }
+
+  if (!prospects.length && !opportunities.length && !activities.length) {
+    return header + "Todavía no hay registros comerciales en tu espacio. Registra prospectos, oportunidades o actividades para comenzar.";
   }
 
   if (intent === "potential_urgency_comparison") {
