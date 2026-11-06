@@ -422,3 +422,17 @@ assert.ok(
   "Una consulta no reconocida no debe recibir un volcado de módulos ajenos; debe pedir precisión.",
 );
 console.log("OK: enrutamiento seguro de consultas no reconocidas y preguntas de contacto para hoy.");
+
+const demoFallback = crmAnswer.buildDemoAnswer("¿Cómo funciona la integración con WhatsApp?");
+assert.ok(
+  demoFallback.includes("no voy a inventar prospectos") &&
+  !demoFallback.includes("Empresa Norte") &&
+  !demoFallback.includes("Estudio Central"),
+  "El modo Demo no debe contestar preguntas no reconocidas con prospectos ficticios.",
+);
+assert.match(
+  assistantSource,
+  /useState<AssistantMode>\("crm"\)/,
+  "El agente debe abrir en modo CRM para consultar datos reales y no responder con simulaciones por defecto.",
+);
+console.log("OK: modo CRM por defecto y fallback Demo sin datos ficticios.");
