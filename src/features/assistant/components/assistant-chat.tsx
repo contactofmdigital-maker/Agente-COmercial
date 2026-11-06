@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Bot, Send, Sparkles, User, RotateCcw, LoaderCircle, FlaskConical, Zap, Database, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, prioritizeProspectsByUrgency, resolveActivityProspectId } from "@/features/assistant/lib/prioritization";
+import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, resolveActivityProspectId } from "@/features/assistant/lib/prioritization";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type AssistantMode = "demo" | "crm" | "openai";
@@ -216,7 +216,62 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
     ideal_customer: profile.ideal_customer,
   } : null;
   const prioritizedByPotential = prioritizeProspects(prospects, opportunities, activities, prioritizationProfile, now);
-  const prioritizedByUrgency = prioritizeProspectsByUrgency(prospects, opportunities, activities, prioritizationProfile, now);
+  // El ranking reutiliza las mismas colecciones que alimentan el resumen:
+  // no vuelve a inferir qué actividades están pendientes o vencidas.
+  // Esto evita que una actividad visible como vencida termine evaluada como baja.
+  const urgencyOrder = { high: 0, medium: 1, not_evaluable: 2, low: 3 };
+  const prioritizedByUrgency = prioritizedByPotential
+    .map((item) => {
+      const belongsToProspect = (activity: Activity) =>
+        resolveActivityProspect(activity)?.id === item.prospect.id;
+      const linkedPending = pending.filter(belongsToProspect);
+      const linkedOverdue = overdue.filter(belongsToProspect);
+      const linkedInvalid = invalidDateActivities.filter(belongsToProspect);
+      const validLinkedPending = linkedPending.filter((activity) => !invalidDateIds.has(activity.id));
+      const highPrioritySoon = validLinkedPending.filter((activity) => {
+        if (!activity.due_at || normalizeCrmValue(activity.priority) !== "high") return false;
+        const due = new Date(activity.due_at).getTime();
+        return Number.isFinite(due) && due >= now && due - now <= 48 * 3600000;
+      });
+      const urgency = linkedOverdue.length
+        ? {
+            level: "high" as const,
+            reasons: linkedOverdue.map((activity) => "Actividad vencida: " + activity.title),
+            nextAction: "Atender primero la actividad vencida y registrar el resultado del contacto.",
+          }
+        : highPrioritySoon.length
+          ? {
+              level: "high" as const,
+              reasons: highPrioritySoon.map((activity) => "Compromiso de prioridad alta próximo: " + activity.title),
+              nextAction: "Preparar el compromiso próximo y confirmar el siguiente paso.",
+            }
+          : validLinkedPending.length
+            ? {
+                level: "medium" as const,
+                reasons: validLinkedPending.map((activity) =>
+                  activity.due_at ? "Actividad programada: " + activity.title : "Acción pendiente sin fecha: " + activity.title
+                ),
+                nextAction: "Revisar las actividades pendientes y completar el seguimiento.",
+              }
+            : linkedInvalid.length
+              ? {
+                  level: "not_evaluable" as const,
+                  reasons: linkedInvalid.map((activity) => "Fecha inválida que requiere revisión: " + activity.title),
+                  nextAction: "Corregir la fecha de la actividad antes de clasificar su urgencia.",
+                }
+              : {
+                  level: "low" as const,
+                  reasons: ["No hay actividades pendientes asociadas."],
+                  nextAction: "Mantener seguimiento según el ciclo comercial.",
+                };
+      return { ...item, urgency };
+    })
+    .sort((a, b) => {
+      const difference = urgencyOrder[a.urgency.level] - urgencyOrder[b.urgency.level];
+      if (difference) return difference;
+      if (a.potential.coverage !== b.potential.coverage) return b.potential.coverage - a.potential.coverage;
+      return a.prospect.full_name.localeCompare(b.prospect.full_name, "es");
+    });
   const prioritized = intent === "prospect_urgency" ? prioritizedByUrgency : prioritizedByPotential;
   const normalizedIdentity = (value: string | null | undefined) =>
     (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -324,9 +379,9 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
 
   if (intent === "general") {
     return header +
-      "No pude identificar con suficiente seguridad qué resultado buscas, así que no voy a mezclar datos de prospectos, oportunidades y actividades. " +
-      "Puedes precisar si necesitas: priorizar prospectos por potencial, saber a quién contactar hoy, revisar seguimientos, analizar oportunidades, consultar un prospecto específico o preparar un mensaje. " +
-      "Si tu consulta es de estrategia comercial general y no requiere datos del CRM, cambia al modo OpenAI.";
+      "Esta consulta parece ser de estrategia comercial general y no requiere consultar registros del CRM. " +
+      "Cambia al modo OpenAI para analizar cómo mejorar tus ventas. " +
+      "Si quieres una respuesta basada en tus datos, pregunta por prospectos, seguimientos u oportunidades concretas.";
   }
 
   if (!prospects.length && !opportunities.length && !activities.length) {
@@ -598,6 +653,15 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
   }
 
   if (showProspects) {
+    if (intent === "prospect_urgency") {
+      const firstActionable = prioritized.find((item) => item.urgency.level === "high" || item.urgency.level === "medium");
+      response += firstActionable
+        ? "RECOMENDACIÓN PRINCIPAL PARA HOY\nContacta primero a " + firstActionable.prospect.full_name +
+          (safeCompanyName(firstActionable.prospect.company_name) ? " · " + safeCompanyName(firstActionable.prospect.company_name) : "") +
+          ". Motivo: " + firstActionable.urgency.reasons.join("; ") +
+          " Siguiente paso: " + firstActionable.urgency.nextAction + "\n\n"
+        : "RECOMENDACIÓN PRINCIPAL PARA HOY\nNo hay actividades vencidas ni compromisos próximos vinculados que justifiquen un contacto urgente. Revisa el ranking y completa los datos comerciales antes de asignar una prioridad.\n\n";
+    }
     response += intent === "prospect_urgency"
       ? "PROSPECTOS ORDENADOS POR URGENCIA DE CONTACTO\n"
       : "PROSPECTOS PRIORIZADOS POR POTENCIAL COMERCIAL\n";
@@ -622,7 +686,7 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
             "\n   Potencial comercial: " + potentialLabel +
             "\n   Urgencia de gestión: " + urgencyLabel +
             (related.length ? " · Oportunidades activas: " + related.length : "") +
-            (nextActivity ? "\n   Actividad relacionada: " + nextActivity.title : "") +
+            (nextActivity ? "\n   Actividad relacionada: " + nextActivity.title + " · " + activityDateState(nextActivity) + " · Vence: " + dateLabel(nextActivity.due_at) : "") +
             "\n   Evidencia: " + (item.potential.reasons.join("; ") || "No hay evidencia comercial suficiente.") +
             (item.potential.missingEvidence.length ? "\n   Falta información: " + item.potential.missingEvidence.join(", ") : "") +
             "\n   Urgencia: " + item.urgency.reasons.join("; ") +

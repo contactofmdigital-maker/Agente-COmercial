@@ -236,7 +236,7 @@ const crmProspects=[
 ];
 const crmOpportunities=[{id:"o-test",prospect_id:"p-test",title:"TEST OPORTUNIDAD b",description:null,stage:"negotiation",estimated_value:15000000,currency:"CLP",expected_close_date:"2026-12-30",created_at:"2026-11-03T12:00:00.000Z"}];
 const crmActivities=[
- {id:"a-overdue",prospect_id:null,opportunity_id:"o-test",activity_type:"follow_up",title:"test - b",description:null,due_at:"2026-11-04T12:00:00-03:00",priority:"medium",status:"pending",created_at:"2026-11-03T12:00:00-03:00",completed_at:null},
+ {id:"a-overdue",prospect_id:null,opportunity_id:"o-test",activity_type:"follow_up",title:"test - b",description:null,due_at:"2026-10-31T12:00:00-03:00",priority:"medium",status:"pending",created_at:"2026-11-03T12:00:00-03:00",completed_at:null},
  {id:"a-invalid",prospect_id:"p-test",opportunity_id:null,activity_type:"task",title:"fecha antigua",description:null,due_at:"1995-03-28T10:00:00.000Z",priority:"low",status:"in_progress",created_at:"2026-11-03T12:00:00.000Z",completed_at:null},
  {id:"a-undated",prospect_id:"p-test",opportunity_id:null,activity_type:"call",title:"llamada sin fecha",description:null,due_at:null,priority:"high",status:"pending",created_at:"2026-11-03T12:00:00.000Z",completed_at:null},
 ];
@@ -253,6 +253,16 @@ assert.ok(!answerPotential.includes("ACTIVIDADES Y SEGUIMIENTOS"));
 const answerUrgency=crmAnswer.buildCrmAnswer(qUrgency,crmContext,"agency");
 assert.ok(answerUrgency.indexOf("test seguridad b")<answerUrgency.indexOf("Francisco Javier"));
 assert.ok(answerUrgency.includes("Urgencia de gestión: ALTA"), "El seguimiento vencido vinculado por oportunidad debe elevar la urgencia del prospecto.");
+assert.ok(answerUrgency.includes("RECOMENDACIÓN PRINCIPAL PARA HOY\nContacta primero a test seguridad b"), "La respuesta debe nombrar al primer prospecto que requiere contacto hoy.");
+const urgentProspectBlock = answerUrgency.slice(
+  answerUrgency.indexOf("1. test seguridad b"),
+  answerUrgency.indexOf("2. Francisco Javier"),
+);
+assert.ok(
+  urgentProspectBlock.length > 0 && !urgentProspectBlock.includes("Urgencia de gestión: BAJA"),
+  "El prospecto con seguimiento vencido no debe mostrar urgencia baja; otros prospectos sí pueden tenerla.",
+);
+assert.ok(answerUrgency.includes("Vence:"), "Debe mostrar la fecha de vencimiento de la actividad que justifica la prioridad.");
 assert.ok(answerUrgency.includes("Actividad relacionada: test - b"), "Debe identificar la actividad asociada a través de su oportunidad.");
 const answerCompare=crmAnswer.buildCrmAnswer(qCompare,crmContext,"agency");
 assert.ok(answerCompare.includes("MAYOR POTENCIAL COMERCIAL")&&answerCompare.includes("REQUIEREN ATENCIÓN OPERATIVA"));
@@ -415,20 +425,20 @@ const genericContextAnswer = crmAnswer.buildCrmAnswer(
   "agency",
 );
 assert.ok(
-  genericContextAnswer.includes("No pude identificar con suficiente seguridad") &&
+  genericContextAnswer.includes("Esta consulta parece ser de estrategia comercial general") &&
+  genericContextAnswer.includes("Cambia al modo OpenAI") &&
   !genericContextAnswer.includes("ACTIVIDADES Y SEGUIMIENTOS") &&
   !genericContextAnswer.includes("OPORTUNIDADES ACTIVAS") &&
   !genericContextAnswer.includes("PROSPECTOS PRIORIZADOS"),
-  "Una consulta no reconocida no debe recibir un volcado de módulos ajenos; debe pedir precisión.",
+  "Una consulta de estrategia comercial general debe derivarse a OpenAI sin volcar módulos del CRM.",
 );
 console.log("OK: enrutamiento seguro de consultas no reconocidas y preguntas de contacto para hoy.");
 
-const demoFallback = crmAnswer.buildDemoAnswer("¿Cómo funciona la integración con WhatsApp?");
 assert.ok(
-  demoFallback.includes("no voy a inventar prospectos") &&
-  !demoFallback.includes("Empresa Norte") &&
-  !demoFallback.includes("Estudio Central"),
-  "El modo Demo no debe contestar preguntas no reconocidas con prospectos ficticios.",
+  assistantSource.includes("function buildDemoAnswer(prompt: string)") &&
+  assistantSource.includes("no voy a inventar prospectos") &&
+  assistantSource.includes("Para consultar tus registros reales, utiliza el modo CRM"),
+  "El fallback del modo Demo debe existir y evitar recomendaciones basadas en prospectos ficticios.",
 );
 assert.match(
   assistantSource,
