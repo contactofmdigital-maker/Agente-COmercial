@@ -83,7 +83,7 @@ export function classifyCrmQuery(prompt: string): CrmQueryIntent {
       /(oportunidad|pipeline|negociaci|venta|propuesta)/.test(value)) return "prospect_detail";
   if (/(mayor potencial|mas potencial|potencial comercial|potencial de los prospectos|potencial de cada prospecto)/.test(value)) return "prospects";
   const asksForExplicitActivities = /actividades?|seguimientos? vencid|seguimientos? con fechas|tareas?|llamadas?|reuniones?|correos?/.test(value);
-  const asksForOpportunity = /oportunidad|pipeline|negociaci|estancad|cierre|venta|propuesta/.test(value);
+  const asksForOpportunity = /oportunidad|pipeline|negociaci|estancad|cierre|propuesta|proceso de venta|ventas? activas|venta en curso/.test(value);
   if (asksForExplicitActivities) return "activities";
   // Las consultas explícitas de oportunidades tienen prioridad sobre palabras
   // temporales como "hoy" o verbos como "contactar".
