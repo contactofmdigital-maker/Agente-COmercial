@@ -111,7 +111,7 @@ function buildDemoAnswer(prompt: string) {
   if (normalized.includes("seguimiento") || normalized.includes("follow") || normalized.includes("no responde")) {
     return disclaimer + "SEGUIMIENTO COMERCIAL\n\n1. Primer seguimiento: 2–3 días después del contacto inicial, aporta una idea útil.\n2. Segundo seguimiento: 4–5 días después, pregunta si es una prioridad actual.\n3. Cierre respetuoso: deja abierta la posibilidad de retomar más adelante.\n\nEjemplo:\n“Hola, [Nombre]. Retomo brevemente mi mensaje anterior. Preparé una idea que podría ayudar a [Empresa] a mejorar [objetivo]. ¿Te viene bien revisarla esta semana?”";
   }
-  return disclaimer + "ANÁLISIS COMERCIAL DE EJEMPLO\n\n1. Empresa Norte — prioridad alta: solicitó información y tiene una necesidad definida. Acción: contactar hoy y agendar diagnóstico.\n2. Estudio Central — prioridad media: mostró interés, pero no confirmó presupuesto ni plazo. Acción: enviar una pregunta de calificación.\n3. Comercio Sur — prioridad baja: contacto inicial sin respuesta. Acción: realizar un seguimiento breve y luego pausar.\n\nCriterios: intención, necesidad, interacción reciente y claridad del próximo paso. Estos datos son ficticios.";
+  return disclaimer + "No identifiqué una de las consultas de demostración disponibles, así que no voy a inventar prospectos ni recomendar acciones sobre datos ficticios. En Demo puedo simular: priorización comercial, primer mensaje, seguimiento o respuesta a una objeción. Para consultar tus registros reales, utiliza el modo CRM; para estrategia y preguntas abiertas, utiliza OpenAI.";
 }
 
 
@@ -152,13 +152,11 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
     " · Fechas por revisar: " + (context.summary.invalid_date_activities ?? 0) + "\n" +
     (context.limits?.note ? "ALCANCE DEL CONTEXTO: " + context.limits.note + "\n\n" : "ALCANCE DEL CONTEXTO: se consideran todos los registros disponibles para tu usuario.\n\n");
 
-  if (!prospects.length && !opportunities.length && !activities.length) {
-    return header + "Todavía no hay registros comerciales en tu espacio. Registra prospectos, oportunidades o actividades para comenzar.";
-  }
-
   const normalized = prompt.toLowerCase();
   const intent = classifyCrmQuery(prompt);
-  const broadAnalysis = intent === "summary" || intent === "general";
+  // "general" no significa "muéstrame todo": una intención no reconocida
+  // debe pedir precisión en lugar de mezclar módulos del CRM.
+  const broadAnalysis = intent === "summary";
   const showActivities = intent === "activities" || broadAnalysis;
   const showOpportunities = intent === "opportunities" || broadAnalysis;
   const showProspects = intent === "prospects" || intent === "prospect_urgency" || broadAnalysis;
@@ -322,6 +320,17 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
       "\n\nDATOS UTILIZADOS DEL CRM\n- " + evidence.join("\n- ") +
       (missing.length ? "\n\nPARA MEJORAR LA PERSONALIZACIÓN FALTA\n- " + missing.join("\n- ") : "") +
       "\n\nEl texto es un borrador editable. No se han enviado mensajes ni modificado registros. Revisa que el contexto siga vigente antes de usarlo.";
+  }
+
+  if (intent === "general") {
+    return header +
+      "No pude identificar con suficiente seguridad qué resultado buscas, así que no voy a mezclar datos de prospectos, oportunidades y actividades. " +
+      "Puedes precisar si necesitas: priorizar prospectos por potencial, saber a quién contactar hoy, revisar seguimientos, analizar oportunidades, consultar un prospecto específico o preparar un mensaje. " +
+      "Si tu consulta es de estrategia comercial general y no requiere datos del CRM, cambia al modo OpenAI.";
+  }
+
+  if (!prospects.length && !opportunities.length && !activities.length) {
+    return header + "Todavía no hay registros comerciales en tu espacio. Registra prospectos, oportunidades o actividades para comenzar.";
   }
 
   if (intent === "potential_urgency_comparison") {
@@ -647,7 +656,7 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
 }
 
 export function AssistantChat() {
-  const [mode, setMode] = useState<AssistantMode>("demo");
+  const [mode, setMode] = useState<AssistantMode>("crm");
   const [segment, setSegment] = useState<BusinessSegment>("agency");
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: welcomeMessage }]);
   const [input, setInput] = useState("");

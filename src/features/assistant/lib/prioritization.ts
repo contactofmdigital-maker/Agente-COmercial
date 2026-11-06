@@ -82,13 +82,15 @@ export function classifyCrmQuery(prompt: string): CrmQueryIntent {
       /\b(prospecto|cliente|contacto)\b/.test(value) &&
       /(oportunidad|pipeline|negociaci|venta|propuesta)/.test(value)) return "prospect_detail";
   if (/(mayor potencial|mas potencial|potencial comercial|potencial de los prospectos|potencial de cada prospecto)/.test(value)) return "prospects";
-  if (/(contactar primero|orden.*urgencia|segun.*urgencia|urgencia de gestion|atencion inmediata|necesitan atencion)/.test(value) &&
-      /(prospect|cliente|contact|lead|comercial)/.test(value)) return "prospect_urgency";
   const asksForExplicitActivities = /actividades?|seguimientos? vencid|seguimientos? con fechas|tareas?|llamadas?|reuniones?|correos?/.test(value);
-  const asksForOpportunity = /oportunidad|pipeline|negociaci|estancad|cierre|venta|propuesta/.test(value);
+  const asksForOpportunity = /oportunidad|pipeline|negociaci|estancad|cierre|propuesta|proceso de venta|ventas? activas|venta en curso/.test(value);
   if (asksForExplicitActivities) return "activities";
-  if (/actividad|seguimiento|vencid|atrasad|tarea|llamad|reunion|correo/.test(value) && !asksForOpportunity) return "activities";
+  // Las consultas explícitas de oportunidades tienen prioridad sobre palabras
+  // temporales como "hoy" o verbos como "contactar".
   if (asksForOpportunity) return "opportunities";
+  if (/(contactar primero|contactar hoy|a quien|quien deberia|quien debo|llamar primero|llamar hoy|orden.*urgencia|segun.*urgencia|urgencia de gestion|atencion inmediata|necesitan atencion|prioridad.*hoy)/.test(value) &&
+      /(prospect|cliente|contact|lead|comercial|a quien|quien|llamar)/.test(value)) return "prospect_urgency";
+  if (/actividad|seguimiento|vencid|atrasad|tarea|llamad|reunion|correo/.test(value)) return "activities";
   if (/prospect|cliente|contact|prioriz|captar|lead|conseguir|potencial/.test(value)) return "prospects";
   if (/analiza mi negocio|resumen|situacion|estado comercial|que deberia priorizar/.test(value)) return "summary";
   return "general";
