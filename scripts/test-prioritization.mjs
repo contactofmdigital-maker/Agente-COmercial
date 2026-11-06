@@ -435,10 +435,10 @@ assert.ok(
 console.log("OK: enrutamiento seguro de consultas no reconocidas y preguntas de contacto para hoy.");
 
 const demoFunctionStart = assistantSource.indexOf("function buildDemoAnswer(");
-const demoFunctionEnd = assistantSource.indexOf("\\n\\nfunction getSegmentAction", demoFunctionStart);
+const demoFunctionEnd = assistantSource.indexOf("\n\nfunction getSegmentAction", demoFunctionStart);
 assert.ok(demoFunctionStart >= 0 && demoFunctionEnd > demoFunctionStart);
 const demoFunctionSource = assistantSource.slice(demoFunctionStart, demoFunctionEnd);
-const demoCompiled = ts.transpileModule(demoFunctionSource + "\\nexport { buildDemoAnswer };", {
+const demoCompiled = ts.transpileModule(demoFunctionSource + "\nexport { buildDemoAnswer };", {
   compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
 }).outputText;
 const demoUrl = "data:text/javascript;base64," + Buffer.from(demoCompiled).toString("base64");
