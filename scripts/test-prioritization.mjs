@@ -396,3 +396,29 @@ const realActivities = classification.filterRealActivities([
 assert.deepEqual(realActivities.map((item) => item.id), ["real-activity"]);
 
 console.log("OK: 6 pruebas de clasificación de registros demo.");
+
+
+const qContactToday = "¿A quién debería contactar hoy?";
+assert.equal(
+  engine.classifyCrmQuery(qContactToday),
+  "prospect_urgency",
+  "Una pregunta natural sobre a quién contactar hoy debe clasificarse como urgencia de prospectos.",
+);
+assert.equal(
+  engine.classifyCrmQuery("¿Qué debería hacer hoy para avanzar con TEST OPORTUNIDAD b y cómo registrar el resultado?"),
+  "opportunities",
+  "La consulta explícita de una oportunidad no debe desviarse por mencionar hoy o contactar.",
+);
+const genericContextAnswer = crmAnswer.buildCrmAnswer(
+  "¿Cómo puedo mejorar mis ventas?",
+  crmContext,
+  "agency",
+);
+assert.ok(
+  genericContextAnswer.includes("No pude identificar con suficiente seguridad") &&
+  !genericContextAnswer.includes("ACTIVIDADES Y SEGUIMIENTOS") &&
+  !genericContextAnswer.includes("OPORTUNIDADES ACTIVAS") &&
+  !genericContextAnswer.includes("PROSPECTOS PRIORIZADOS"),
+  "Una consulta no reconocida no debe recibir un volcado de módulos ajenos; debe pedir precisión.",
+);
+console.log("OK: enrutamiento seguro de consultas no reconocidas y preguntas de contacto para hoy.");
