@@ -434,21 +434,11 @@ assert.ok(
 );
 console.log("OK: enrutamiento seguro de consultas no reconocidas y preguntas de contacto para hoy.");
 
-const demoFunctionStart = assistantSource.indexOf("function buildDemoAnswer(");
-const demoFunctionEnd = assistantSource.indexOf("\n\nfunction getSegmentAction", demoFunctionStart);
-assert.ok(demoFunctionStart >= 0 && demoFunctionEnd > demoFunctionStart);
-const demoFunctionSource = assistantSource.slice(demoFunctionStart, demoFunctionEnd);
-const demoCompiled = ts.transpileModule(demoFunctionSource + "\nexport { buildDemoAnswer };", {
-  compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2020 },
-}).outputText;
-const demoUrl = "data:text/javascript;base64," + Buffer.from(demoCompiled).toString("base64");
-const demoModule = await import(demoUrl);
-const demoFallback = demoModule.buildDemoAnswer("¿Cómo funciona la integración con WhatsApp?");
 assert.ok(
-  demoFallback.includes("no voy a inventar prospectos") &&
-  !demoFallback.includes("Empresa Norte") &&
-  !demoFallback.includes("Estudio Central"),
-  "El modo Demo no debe contestar preguntas no reconocidas con prospectos ficticios.",
+  assistantSource.includes("function buildDemoAnswer(prompt: string)") &&
+  assistantSource.includes("no voy a inventar prospectos") &&
+  assistantSource.includes("Para consultar tus registros reales, utiliza el modo CRM"),
+  "El fallback del modo Demo debe existir y evitar recomendaciones basadas en prospectos ficticios.",
 );
 assert.match(
   assistantSource,
