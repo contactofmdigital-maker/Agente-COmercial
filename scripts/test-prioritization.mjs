@@ -205,13 +205,29 @@ const urgencyOrder=engine.prioritizeProspectsByUrgency(
  profile,now
 );
 assert.equal(urgencyOrder[0].prospect.id,"p-urgent");
+assert.equal(
+  engine.resolveActivityProspectId(
+    { prospect_id: null, opportunity_id: "o-urgent" },
+    [{ id: "o-urgent", prospect_id: "p-urgent", stage: "qualification" }],
+  ),
+  "p-urgent",
+  "Una actividad vinculada solo mediante oportunidad debe resolverse al prospecto correcto.",
+);
+assert.equal(
+  engine.resolveActivityProspectId(
+    { prospect_id: "p-other", opportunity_id: "o-urgent" },
+    [{ id: "o-urgent", prospect_id: "p-urgent", stage: "qualification" }],
+  ),
+  null,
+  "Una asociación directa que contradice la oportunidad debe quedar sin atribución y requerir corrección.",
+);
 
 const assistantSource=await readFile(new URL("../src/features/assistant/components/assistant-chat.tsx",import.meta.url),"utf8");
 const helperStart=assistantSource.indexOf("const segmentOptions");
 const helperEnd=assistantSource.indexOf("export function AssistantChat()");
 assert.ok(helperStart>=0&&helperEnd>helperStart);
 const helperSource=assistantSource.slice(helperStart,helperEnd);
-const helperImports = 'import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, prioritizeProspectsByUrgency } from "' + moduleUrl + '";\n';
+const helperImports = 'import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, prioritizeProspectsByUrgency, resolveActivityProspectId } from "' + moduleUrl + '";\n';
 const helperCompiled=ts.transpileModule(helperImports+helperSource,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2020}}).outputText;
 const crmAnswer=await import("data:text/javascript;base64,"+Buffer.from(helperCompiled).toString("base64"));
 const crmProspects=[
@@ -232,7 +248,7 @@ const crmContext={
 };
 const answerPotential=crmAnswer.buildCrmAnswer(qPotential,crmContext,"agency");
 assert.ok(answerPotential.includes("PROSPECTOS PRIORIZADOS POR POTENCIAL COMERCIAL"));
-assert.ok(answerPotential.includes("ALCANCE DEL CONTEXTO: Se cargan hasta 100 registros por módulo."));
+assert.ok(answerPotential.includes("ALCANCE DEL CONTEXTO: Se recuperan todos los registros"));
 assert.ok(!answerPotential.includes("ACTIVIDADES Y SEGUIMIENTOS"));
 const answerUrgency=crmAnswer.buildCrmAnswer(qUrgency,crmContext,"agency");
 assert.ok(answerUrgency.indexOf("test seguridad b")<answerUrgency.indexOf("Francisco Javier"));
