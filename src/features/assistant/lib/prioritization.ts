@@ -150,19 +150,35 @@ function matchesIdentity(query: string, candidate: string | null | undefined) {
  * Resolve a CRM mention to a prospect using its name, company, linked opportunity,
  * or linked activity. Ambiguous matches are preserved for explicit disambiguation.
  */
+/**
+ * Canonical association rule shared by scoring and CRM answer rendering.
+ * An opportunity link is authoritative, but a conflicting direct prospect link
+ * is treated as inconsistent and must never be silently assigned.
+ */
+export function resolveActivityProspectId(
+  activity: Pick<PrioritizationActivity, "prospect_id" | "opportunity_id">,
+  opportunities: PrioritizationOpportunity[],
+): string | null {
+  const linkedOpportunity = activity.opportunity_id
+    ? opportunities.find((item) => item.id === activity.opportunity_id)
+    : undefined;
+
+  if (linkedOpportunity) {
+    if (activity.prospect_id && activity.prospect_id !== linkedOpportunity.prospect_id) {
+      return null;
+    }
+    return linkedOpportunity.prospect_id;
+  }
+
+  return activity.prospect_id;
+}
+
 function isActivityRelatedToProspect(
   activity: PrioritizationActivity,
   prospectId: string,
   opportunities: PrioritizationOpportunity[],
 ) {
-  const linkedOpportunity = activity.opportunity_id
-    ? opportunities.find((item) => item.id === activity.opportunity_id)
-    : undefined;
-  if (linkedOpportunity) {
-    return linkedOpportunity.prospect_id === prospectId &&
-      (!activity.prospect_id || activity.prospect_id === linkedOpportunity.prospect_id);
-  }
-  return activity.prospect_id === prospectId;
+  return resolveActivityProspectId(activity, opportunities) === prospectId;
 }
 
 export function matchCrmProspects<T extends { id: string; full_name: string; company_name: string | null }>(
