@@ -425,11 +425,12 @@ const genericContextAnswer = crmAnswer.buildCrmAnswer(
   "agency",
 );
 assert.ok(
-  genericContextAnswer.includes("No pude identificar con suficiente seguridad") &&
+  genericContextAnswer.includes("Esta consulta parece ser de estrategia comercial general") &&
+  genericContextAnswer.includes("Cambia al modo OpenAI") &&
   !genericContextAnswer.includes("ACTIVIDADES Y SEGUIMIENTOS") &&
   !genericContextAnswer.includes("OPORTUNIDADES ACTIVAS") &&
   !genericContextAnswer.includes("PROSPECTOS PRIORIZADOS"),
-  "Una consulta no reconocida no debe recibir un volcado de módulos ajenos; debe pedir precisión.",
+  "Una consulta de estrategia comercial general debe derivarse a OpenAI sin volcar módulos del CRM.",
 );
 console.log("OK: enrutamiento seguro de consultas no reconocidas y preguntas de contacto para hoy.");
 
