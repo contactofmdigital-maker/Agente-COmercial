@@ -236,7 +236,7 @@ const crmProspects=[
 ];
 const crmOpportunities=[{id:"o-test",prospect_id:"p-test",title:"TEST OPORTUNIDAD b",description:null,stage:"negotiation",estimated_value:15000000,currency:"CLP",expected_close_date:"2026-12-30",created_at:"2026-11-03T12:00:00.000Z"}];
 const crmActivities=[
- {id:"a-overdue",prospect_id:null,opportunity_id:"o-test",activity_type:"follow_up",title:"test - b",description:null,due_at:"2026-10-31T12:00:00-03:00",priority:"medium",status:"pending",created_at:"2026-11-03T12:00:00-03:00",completed_at:null},
+ {id:"a-overdue",prospect_id:null,opportunity_id:"o-test",activity_type:"follow_up",title:"test - b",description:null,due_at:"2026-10-31T12:00:00-03:00",priority:"medium",status:"pending",created_at:"2026-10-30T12:00:00-03:00",completed_at:null},
  {id:"a-invalid",prospect_id:"p-test",opportunity_id:null,activity_type:"task",title:"fecha antigua",description:null,due_at:"1995-03-28T10:00:00.000Z",priority:"low",status:"in_progress",created_at:"2026-11-03T12:00:00.000Z",completed_at:null},
  {id:"a-undated",prospect_id:"p-test",opportunity_id:null,activity_type:"call",title:"llamada sin fecha",description:null,due_at:null,priority:"high",status:"pending",created_at:"2026-11-03T12:00:00.000Z",completed_at:null},
 ];
