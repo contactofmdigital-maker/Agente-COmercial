@@ -111,7 +111,7 @@ function buildDemoAnswer(prompt: string) {
   if (normalized.includes("seguimiento") || normalized.includes("follow") || normalized.includes("no responde")) {
     return disclaimer + "SEGUIMIENTO COMERCIAL\n\n1. Primer seguimiento: 2–3 días después del contacto inicial, aporta una idea útil.\n2. Segundo seguimiento: 4–5 días después, pregunta si es una prioridad actual.\n3. Cierre respetuoso: deja abierta la posibilidad de retomar más adelante.\n\nEjemplo:\n“Hola, [Nombre]. Retomo brevemente mi mensaje anterior. Preparé una idea que podría ayudar a [Empresa] a mejorar [objetivo]. ¿Te viene bien revisarla esta semana?”";
   }
-  return disclaimer + "ANÁLISIS COMERCIAL DE EJEMPLO\n\n1. Empresa Norte — prioridad alta: solicitó información y tiene una necesidad definida. Acción: contactar hoy y agendar diagnóstico.\n2. Estudio Central — prioridad media: mostró interés, pero no confirmó presupuesto ni plazo. Acción: enviar una pregunta de calificación.\n3. Comercio Sur — prioridad baja: contacto inicial sin respuesta. Acción: realizar un seguimiento breve y luego pausar.\n\nCriterios: intención, necesidad, interacción reciente y claridad del próximo paso. Estos datos son ficticios.";
+  return disclaimer + "No identifiqué una de las consultas de demostración disponibles, así que no voy a inventar prospectos ni recomendar acciones sobre datos ficticios. En Demo puedo simular: priorización comercial, primer mensaje, seguimiento o respuesta a una objeción. Para consultar tus registros reales, utiliza el modo CRM; para estrategia y preguntas abiertas, utiliza OpenAI.";
 }
 
 
@@ -656,7 +656,7 @@ export function buildCrmAnswer(prompt: string, context: CommercialContext, segme
 }
 
 export function AssistantChat() {
-  const [mode, setMode] = useState<AssistantMode>("demo");
+  const [mode, setMode] = useState<AssistantMode>("crm");
   const [segment, setSegment] = useState<BusinessSegment>("agency");
   const [messages, setMessages] = useState<ChatMessage[]>([{ role: "assistant", content: welcomeMessage }]);
   const [input, setInput] = useState("");
