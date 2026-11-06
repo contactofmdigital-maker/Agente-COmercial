@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Bot, Send, Sparkles, User, RotateCcw, LoaderCircle, FlaskConical, Zap, Database, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, prioritizeProspectsByUrgency } from "@/features/assistant/lib/prioritization";
+import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, prioritizeProspectsByUrgency, resolveActivityProspectId } from "@/features/assistant/lib/prioritization";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type AssistantMode = "demo" | "crm" | "openai";
@@ -55,7 +55,8 @@ type CommercialContext = {
     sales_goal: string;
   } | null;
   limits?: {
-    per_module: number;
+    complete?: boolean;
+    page_size?: number;
     note: string;
   };
   summary: {
@@ -149,7 +150,7 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
     " · Actividades pendientes: " + context.summary.pending_activities +
     " · Actividades vencidas válidas: " + context.summary.overdue_activities +
     " · Fechas por revisar: " + (context.summary.invalid_date_activities ?? 0) + "\n" +
-    (context.limits?.note ? "ALCANCE DEL CONTEXTO: " + context.limits.note + "\n\n" : "ALCANCE DEL CONTEXTO: se consideran hasta 100 registros por módulo.\n\n");
+    (context.limits?.note ? "ALCANCE DEL CONTEXTO: " + context.limits.note + "\n\n" : "ALCANCE DEL CONTEXTO: se consideran todos los registros disponibles para tu usuario.\n\n");
 
   if (!prospects.length && !opportunities.length && !activities.length) {
     return header + "Todavía no hay registros comerciales en tu espacio. Registra prospectos, oportunidades o actividades para comenzar.";
@@ -180,11 +181,10 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
   const activeOpps = opportunities.filter((item) => activeStages.has(normalizeCrmValue(item.stage)));
   const unknownStageOpps = opportunities.filter((item) => !activeStages.has(normalizeCrmValue(item.stage)) && !closedStages.has(normalizeCrmValue(item.stage)));
   const opportunityById = new Map(opportunities.map((item) => [item.id, item]));
+  const prospectById = new Map(prospects.map((item) => [item.id, item]));
   const resolveActivityProspect = (activity: Activity) => {
-    const direct = activity.prospect_id ? prospectById.get(activity.prospect_id) ?? null : null;
-    const linkedOpportunity = activity.opportunity_id ? opportunityById.get(activity.opportunity_id) : undefined;
-    if (linkedOpportunity && direct && direct.id !== linkedOpportunity.prospect_id) return null;
-    return linkedOpportunity ? prospectById.get(linkedOpportunity.prospect_id) ?? direct : direct;
+    const prospectId = resolveActivityProspectId(activity, opportunities);
+    return prospectId ? prospectById.get(prospectId) ?? null : null;
   };
   const isActivityRelatedToOpportunity = (activity: Activity, opportunity: Opportunity) =>
     activity.opportunity_id === opportunity.id;
@@ -234,7 +234,6 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
     seenKeys.add(key);
   }
   const possibleDuplicateCount = duplicateKeys.size;
-  const prospectById = new Map(prospects.map((item) => [item.id, item]));
   const safeCompanyName = (value: string | null) => {
     if (!value) return "";
     const compact = value.trim();

@@ -7,8 +7,24 @@ import { checkRateLimit } from "@/lib/rate-limit";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CONTEXT_LIMIT = 100;
+const CONTEXT_PAGE_SIZE = 500;
 const CONTEXT_RATE_LIMIT = 60;
+
+async function fetchAllPages<T>(
+  fetchPage: (from: number, to: number) => PromiseLike<{
+    data: T[] | null;
+    error: { message: string } | null;
+  }>,
+): Promise<T[]> {
+  const records: T[] = [];
+  for (let from = 0; ; from += CONTEXT_PAGE_SIZE) {
+    const { data, error } = await fetchPage(from, from + CONTEXT_PAGE_SIZE - 1);
+    if (error) throw new Error(error.message);
+    records.push(...(data ?? []));
+    if (!data || data.length < CONTEXT_PAGE_SIZE) break;
+  }
+  return records;
+}
 
 function privateJson(body: unknown, status = 200, headers?: HeadersInit) {
   const responseHeaders = new Headers(headers);
@@ -49,7 +65,7 @@ export async function GET() {
 
     // Todas las consultas están limitadas al usuario autenticado.
     // RLS continúa siendo la segunda barrera de aislamiento de datos.
-    const [profileResult, prospectsResult, opportunitiesResult, activitiesResult] =
+    const [profileResult, prospectRows, opportunityRows, activityRows] =
       await Promise.all([
         supabase
           .from("business_profiles")
@@ -58,58 +74,52 @@ export async function GET() {
           )
           .eq("user_id", user.id)
           .maybeSingle(),
-        supabase
-          .from("sales_prospects")
-          .select(
-            "id,full_name,company_name,email,website,country,notes,status,created_at",
-          )
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(CONTEXT_LIMIT),
-        supabase
-          .from("sales_opportunities")
-          .select(
-            "id,prospect_id,title,description,stage,estimated_value,currency,expected_close_date,created_at",
-          )
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false })
-          .limit(CONTEXT_LIMIT),
-        supabase
-          .from("sales_activities")
-          .select(
-            "id,prospect_id,opportunity_id,activity_type,title,description,due_at,priority,status,created_at,completed_at",
-          )
-          .eq("user_id", user.id)
-          .order("due_at", { ascending: true, nullsFirst: false })
-          .limit(CONTEXT_LIMIT),
+        fetchAllPages((from, to) =>
+          supabase
+            .from("sales_prospects")
+            .select("id,full_name,company_name,email,website,country,notes,status,created_at")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: true })
+            .range(from, to),
+        ),
+        fetchAllPages((from, to) =>
+          supabase
+            .from("sales_opportunities")
+            .select("id,prospect_id,title,description,stage,estimated_value,currency,expected_close_date,created_at")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false })
+            .order("id", { ascending: true })
+            .range(from, to),
+        ),
+        fetchAllPages((from, to) =>
+          supabase
+            .from("sales_activities")
+            .select("id,prospect_id,opportunity_id,activity_type,title,description,due_at,priority,status,created_at,completed_at")
+            .eq("user_id", user.id)
+            .order("due_at", { ascending: true, nullsFirst: false })
+            .order("id", { ascending: true })
+            .range(from, to),
+        ),
       ]);
 
-    const queryError =
-      profileResult.error ||
-      prospectsResult.error ||
-      opportunitiesResult.error ||
-      activitiesResult.error;
-
-    if (queryError) {
-      console.error("Commercial context query error:", queryError.message);
+    if (profileResult.error) {
+      console.error("Commercial profile query error:", profileResult.error.message);
       return privateJson(
-        {
-          error:
-            "No se pudo consultar todo el contexto comercial. Verifica las migraciones y permisos de Supabase.",
-        },
+        { error: "No se pudo consultar el perfil comercial. Verifica las migraciones y permisos de Supabase." },
         500,
       );
     }
 
     const profile = profileResult.data;
-    const prospects = filterRealProspects(prospectsResult.data ?? []);
-    const opportunities = filterRealOpportunities(opportunitiesResult.data ?? []);
+    const prospects = filterRealProspects(prospectRows);
+    const opportunities = filterRealOpportunities(opportunityRows);
     const demoOpportunityIds = new Set(
-      (opportunitiesResult.data ?? [])
+      opportunityRows
         .filter((item) => !opportunities.some((real) => real.id === item.id))
         .map((item) => item.id),
     );
-    const activities = filterRealActivities(activitiesResult.data ?? [], demoOpportunityIds);
+    const activities = filterRealActivities(activityRows, demoOpportunityIds);
 
     const normalizeCrmValue = (value: string | null | undefined) => (value ?? "").trim().toLowerCase();
     const activeOpportunityStages = new Set(["qualification", "diagnosis", "proposal", "negotiation"]);
@@ -153,8 +163,9 @@ export async function GET() {
         activities,
       },
       limits: {
-        per_module: CONTEXT_LIMIT,
-        note: "Se cargan hasta 100 registros por módulo. Prospectos y oportunidades se ordenan por creación descendente; actividades por vencimiento ascendente. Los conteos reflejan los registros cargados, no el total completo de la base si se supera ese límite.",
+        complete: true,
+        page_size: CONTEXT_PAGE_SIZE,
+        note: "Se recuperan todos los registros de prospectos, oportunidades y actividades en páginas de 500, con orden estable. Los conteos corresponden al conjunto completo visible para el usuario autenticado y las políticas RLS.",
       },
     });
   } catch (error) {

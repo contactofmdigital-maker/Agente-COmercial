@@ -205,13 +205,29 @@ const urgencyOrder=engine.prioritizeProspectsByUrgency(
  profile,now
 );
 assert.equal(urgencyOrder[0].prospect.id,"p-urgent");
+assert.equal(
+  engine.resolveActivityProspectId(
+    { prospect_id: null, opportunity_id: "o-urgent" },
+    [{ id: "o-urgent", prospect_id: "p-urgent", stage: "qualification" }],
+  ),
+  "p-urgent",
+  "Una actividad vinculada solo mediante oportunidad debe resolverse al prospecto correcto.",
+);
+assert.equal(
+  engine.resolveActivityProspectId(
+    { prospect_id: "p-other", opportunity_id: "o-urgent" },
+    [{ id: "o-urgent", prospect_id: "p-urgent", stage: "qualification" }],
+  ),
+  null,
+  "Una asociación directa que contradice la oportunidad debe quedar sin atribución y requerir corrección.",
+);
 
 const assistantSource=await readFile(new URL("../src/features/assistant/components/assistant-chat.tsx",import.meta.url),"utf8");
 const helperStart=assistantSource.indexOf("const segmentOptions");
 const helperEnd=assistantSource.indexOf("export function AssistantChat()");
 assert.ok(helperStart>=0&&helperEnd>helperStart);
 const helperSource=assistantSource.slice(helperStart,helperEnd);
-const helperImports = 'import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, prioritizeProspectsByUrgency } from "' + moduleUrl + '";\n';
+const helperImports = 'import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, prioritizeProspectsByUrgency, resolveActivityProspectId } from "' + moduleUrl + '";\n';
 const helperCompiled=ts.transpileModule(helperImports+helperSource,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2020}}).outputText;
 const crmAnswer=await import("data:text/javascript;base64,"+Buffer.from(helperCompiled).toString("base64"));
 const crmProspects=[
@@ -228,11 +244,11 @@ const crmContext={
  profile:{business_name:"UpScale IA",segment:"agency",country:"Chile",currency:"CLP",description:"Servicios de marketing digital",products_services:"SEO y marketing digital",ideal_customer:"Agencias de marketing",sales_goal:"Captar agencias"},
  summary:{prospects_loaded:2,opportunities_loaded:1,active_opportunities:1,won_opportunities:0,unknown_stage_opportunities:0,activities_loaded:3,pending_activities:3,overdue_activities:1,invalid_date_activities:1},
  data:{prospects:crmProspects,opportunities:crmOpportunities,activities:crmActivities},
- limits:{per_module:100,note:"Se cargan hasta 100 registros por módulo. Los conteos reflejan los registros cargados."},
+ limits:{complete:true,page_size:500,note:"Se recuperan todos los registros de prospectos, oportunidades y actividades en páginas de 500, con orden estable. Los conteos corresponden al conjunto completo visible para el usuario autenticado y las políticas RLS."},
 };
 const answerPotential=crmAnswer.buildCrmAnswer(qPotential,crmContext,"agency");
 assert.ok(answerPotential.includes("PROSPECTOS PRIORIZADOS POR POTENCIAL COMERCIAL"));
-assert.ok(answerPotential.includes("ALCANCE DEL CONTEXTO: Se cargan hasta 100 registros por módulo."));
+assert.ok(answerPotential.includes("ALCANCE DEL CONTEXTO: Se recuperan todos los registros"));
 assert.ok(!answerPotential.includes("ACTIVIDADES Y SEGUIMIENTOS"));
 const answerUrgency=crmAnswer.buildCrmAnswer(qUrgency,crmContext,"agency");
 assert.ok(answerUrgency.indexOf("test seguridad b")<answerUrgency.indexOf("Francisco Javier"));
