@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Bot, Send, Sparkles, User, RotateCcw, LoaderCircle, FlaskConical, Zap, Database, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { calculateUrgency, classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, resolveActivityProspectId } from "@/features/assistant/lib/prioritization";
+import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, resolveActivityProspectId } from "@/features/assistant/lib/prioritization";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type AssistantMode = "demo" | "crm" | "openai";
@@ -216,24 +216,55 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
     ideal_customer: profile.ideal_customer,
   } : null;
   const prioritizedByPotential = prioritizeProspects(prospects, opportunities, activities, prioritizationProfile, now);
-  // Resolver la relación una sola vez desde el contexto visible y calcular la
-  // urgencia con actividades ya atribuidas al prospecto. Así el ranking y el
-  // detalle usan exactamente el mismo conjunto de compromisos, incluso cuando
-  // la actividad está vinculada únicamente mediante una oportunidad.
+  // El ranking reutiliza las mismas colecciones que alimentan el resumen:
+  // no vuelve a inferir qué actividades están pendientes o vencidas.
+  // Esto evita que una actividad visible como vencida termine evaluada como baja.
   const urgencyOrder = { high: 0, medium: 1, not_evaluable: 2, low: 3 };
   const prioritizedByUrgency = prioritizedByPotential
     .map((item) => {
-      const resolvedActivities = activities
-        .filter((activity) => resolveActivityProspect(activity)?.id === item.prospect.id)
-        .map((activity) => ({
-          ...activity,
-          prospect_id: item.prospect.id,
-          opportunity_id: null,
-        }));
-      return {
-        ...item,
-        urgency: calculateUrgency(item.prospect, [], resolvedActivities, now),
-      };
+      const belongsToProspect = (activity: Activity) =>
+        resolveActivityProspect(activity)?.id === item.prospect.id;
+      const linkedPending = pending.filter(belongsToProspect);
+      const linkedOverdue = overdue.filter(belongsToProspect);
+      const linkedInvalid = invalidDateActivities.filter(belongsToProspect);
+      const validLinkedPending = linkedPending.filter((activity) => !invalidDateIds.has(activity.id));
+      const highPrioritySoon = validLinkedPending.filter((activity) => {
+        if (!activity.due_at || normalizeCrmValue(activity.priority) !== "high") return false;
+        const due = new Date(activity.due_at).getTime();
+        return Number.isFinite(due) && due >= now && due - now <= 48 * 3600000;
+      });
+      const urgency = linkedOverdue.length
+        ? {
+            level: "high" as const,
+            reasons: linkedOverdue.map((activity) => "Actividad vencida: " + activity.title),
+            nextAction: "Atender primero la actividad vencida y registrar el resultado del contacto.",
+          }
+        : highPrioritySoon.length
+          ? {
+              level: "high" as const,
+              reasons: highPrioritySoon.map((activity) => "Compromiso de prioridad alta próximo: " + activity.title),
+              nextAction: "Preparar el compromiso próximo y confirmar el siguiente paso.",
+            }
+          : validLinkedPending.length
+            ? {
+                level: "medium" as const,
+                reasons: validLinkedPending.map((activity) =>
+                  activity.due_at ? "Actividad programada: " + activity.title : "Acción pendiente sin fecha: " + activity.title
+                ),
+                nextAction: "Revisar las actividades pendientes y completar el seguimiento.",
+              }
+            : linkedInvalid.length
+              ? {
+                  level: "not_evaluable" as const,
+                  reasons: linkedInvalid.map((activity) => "Fecha inválida que requiere revisión: " + activity.title),
+                  nextAction: "Corregir la fecha de la actividad antes de clasificar su urgencia.",
+                }
+              : {
+                  level: "low" as const,
+                  reasons: ["No hay actividades pendientes asociadas."],
+                  nextAction: "Mantener seguimiento según el ciclo comercial.",
+                };
+      return { ...item, urgency };
     })
     .sort((a, b) => {
       const difference = urgencyOrder[a.urgency.level] - urgencyOrder[b.urgency.level];
