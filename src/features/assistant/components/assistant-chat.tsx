@@ -666,10 +666,17 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
       const firstCommercialCandidate = prioritizedByPotential.find((item) =>
         item.potential.score !== null && item.potential.classification !== "insufficient"
       );
+      // Una recomendación por urgencia solo puede desplazar al candidato comercial
+      // si todavía existe un compromiso pendiente que justifique esa prioridad.
+      // Así, las actividades completadas no mantienen una urgencia obsoleta.
+      const hasPendingCommitment = pending.length > 0;
+      const recommendationUsesUrgency =
+        intent === "prospect_urgency" && hasPendingCommitment && Boolean(firstUrgent);
       const recommendation = intent === "commercial_recommendation"
         ? firstCommercialCandidate
-        : firstUrgent ?? firstCommercialCandidate;
-      const recommendationUsesUrgency = intent === "prospect_urgency" && Boolean(firstUrgent);
+        : recommendationUsesUrgency
+          ? firstUrgent
+          : firstCommercialCandidate;
       response += recommendation
         ? "RECOMENDACIÓN PRINCIPAL PARA HOY\n" +
           (recommendationUsesUrgency
