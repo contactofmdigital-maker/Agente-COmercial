@@ -429,7 +429,7 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
         (potential.classification === "sufficient" ? "mayor (cobertura suficiente)" : potential.classification === "provisional" ? "limitada (cobertura parcial)" : "baja (evidencia insuficiente)") +
         "\n  Criterios evaluados:\n" + (breakdown || "  - Sin criterios evaluables.") +
         "\n  Información faltante: " + (potential.missingEvidence.length ? potential.missingEvidence.join(", ") : "ninguna detectada") +
-        "\n  Urgencia independiente: " + item.urgency.level.toUpperCase() + " · " + item.urgency.reasons.join("; ");
+        "\n  Urgencia independiente: " + ({ high: "ALTA", medium: "MEDIA", low: "BAJA", not_evaluable: "NO EVALUABLE" }[item.urgency.level]) + " · " + item.urgency.reasons.join("; ");
     });
     return header + "EXPLICACIÓN DEL POTENCIAL DE CADA PROSPECTO ACTIVO\n\n" +
       (explanations.length ? explanations.join("\n\n") : "No hay prospectos activos para explicar.") +
