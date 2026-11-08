@@ -67,7 +67,7 @@ export function isValidActivityDueDate(dueAt: string | null, createdAt: string) 
 export type CrmQueryIntent =
   | "explain_prospect" | "explain_all" | "missing_information"
   | "prospect_detail" | "potential_urgency_comparison" | "prospect_urgency"
-  | "activities" | "opportunities" | "prospects" | "summary" | "general";
+  | "activities" | "opportunities" | "prospects" | "commercial_recommendation" | "summary" | "general";
 
 export function classifyCrmQuery(prompt: string): CrmQueryIntent {
   const value = normalize(prompt);
@@ -76,6 +76,11 @@ export function classifyCrmQuery(prompt: string): CrmQueryIntent {
   const asksWhoToContact = /\b(a quien|a que prospecto|quien deberia|quien debo|a que cliente)\b.*\b(contactar|llamar|escribir|contacto)\b/.test(value) ||
     /\b(contactar|llamar)\b.*\b(hoy|primero)\b/.test(value);
   if (asksWhoToContact) return "prospect_urgency";
+  const asksForExplicitActivities = /actividades?|seguimientos? vencid|seguimientos? con fechas|tareas?|llamadas?|reuniones?|correos?/.test(value);
+  const asksForCommercialRecommendation =
+    /(que prospecto representa|que prospecto.*mejor oportunidad|mejor oportunidad comercial|mejor prospecto|mejor cliente potencial)/.test(value) ||
+    /(?:mejor|mayor|principal).{0,35}(?:oportunidad|prospecto|cliente)|(?:oportunidad|prospecto|cliente).{0,35}(?:mejor|mayor|principal)/.test(value);
+  if (asksForCommercialRecommendation) return "commercial_recommendation";
   const asksToExplain = /\b(por que|porque|explica|explicame|desglosa)\b/.test(value);
   const asksForScore = /(potencial|puntuacion|puntaje|score|calificacion|prioridad)/.test(value);
   if (asksToExplain && asksForScore) {
@@ -87,7 +92,6 @@ export function classifyCrmQuery(prompt: string): CrmQueryIntent {
       /\b(prospecto|cliente|contacto)\b/.test(value) &&
       /(oportunidad|pipeline|negociaci|venta|propuesta)/.test(value)) return "prospect_detail";
   if (/(mayor potencial|mas potencial|potencial comercial|potencial de los prospectos|potencial de cada prospecto)/.test(value)) return "prospects";
-  const asksForExplicitActivities = /actividades?|seguimientos? vencid|seguimientos? con fechas|tareas?|llamadas?|reuniones?|correos?/.test(value);
   const asksForOpportunity = /oportunidad|pipeline|negociaci|estancad|cierre|propuesta|proceso de venta|ventas? activas|venta en curso/.test(value);
   if (asksForExplicitActivities) return "activities";
   // Las consultas explícitas de oportunidades tienen prioridad sobre palabras
