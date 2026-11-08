@@ -409,7 +409,7 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
       selected.full_name + (safeCompanyName(selected.company_name) ? " · " + safeCompanyName(selected.company_name) : "") +
       "\nEstado CRM: " + statusLabel +
       "\nPotencial: " + (!result || result.potential.score === null ? "sin clasificación" : result.potential.score + "/100") +
-      " · Cobertura: " + (result?.potential.coverage ?? 0) + "%" + " · Urgencia: " + (result?.urgency.level ?? "no evaluable").toUpperCase() +
+      " · Cobertura: " + (result?.potential.coverage ?? 0) + "%" + " · Urgencia: " + ({ high: "ALTA", medium: "MEDIA", low: "BAJA", not_evaluable: "NO EVALUABLE" }[result?.urgency.level ?? "not_evaluable"]) +
       "\n\nOPORTUNIDADES VINCULADAS A ESTE PROSPECTO\n" + (opportunityLines.length ? opportunityLines.join("\n") : "No registra oportunidades vinculadas en el contexto cargado.") +
       "\n\nACTIVIDADES PENDIENTES VINCULADAS\n" + (activityLines.length ? activityLines.join("\n") : "No registra actividades pendientes vinculadas.") +
       (result ? "\n\nSIGUIENTE ACCIÓN RECOMENDADA\n" + (result.urgency.level === "high" || result.urgency.level === "not_evaluable" ? result.urgency.nextAction : result.nextAction) : "") +
@@ -423,8 +423,9 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
         "  - " + criterion.name + ": " + (criterion.points === null ? "No evaluado" : criterion.points + "/" + criterion.weight + " puntos") + ". " + criterion.reason
       ).join("\n");
       return (index + 1) + ". " + item.prospect.full_name + (item.prospect.company_name ? " · " + item.prospect.company_name : "") +
-        "\n  Potencial: " + (potential.score === null ? "sin clasificación" : potential.score + "/100") +
-        " · Cobertura: " + potential.coverage + "% · Confiabilidad: " +
+        "\n  Potencial respaldado: " + (potential.score === null ? "sin clasificación" : potential.score + "/100") +
+        " · Rango posible: " + potential.scoreRange.min + "–" + potential.scoreRange.max +
+        " · Cobertura: " + potential.coverage + "% · Rendimiento observado: " + (potential.observedScore === null ? "no evaluable" : potential.observedScore + "/100") + " · Confiabilidad: " +
         (potential.classification === "sufficient" ? "mayor (cobertura suficiente)" : potential.classification === "provisional" ? "limitada (cobertura parcial)" : "baja (evidencia insuficiente)") +
         "\n  Criterios evaluados:\n" + (breakdown || "  - Sin criterios evaluables.") +
         "\n  Información faltante: " + (potential.missingEvidence.length ? potential.missingEvidence.join(", ") : "ninguna detectada") +
@@ -432,7 +433,7 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
     });
     return header + "EXPLICACIÓN DEL POTENCIAL DE CADA PROSPECTO ACTIVO\n\n" +
       (explanations.length ? explanations.join("\n\n") : "No hay prospectos activos para explicar.") +
-      "\n\nMETODOLOGÍA: la puntuación es heurística y se calcula solo con criterios respaldados por datos. La cobertura indica qué parte del modelo pudo evaluarse; un puntaje con cobertura baja no debe interpretarse como potencial confirmado.\n\nNo se han modificado registros ni enviado mensajes.";
+      "\n\nMETODOLOGÍA: el potencial respaldado suma puntos ponderados reales sobre 100 y nunca reescala los criterios faltantes. El rendimiento observado solo describe los criterios disponibles; el rango posible muestra el margen que queda por validar. La cobertura indica qué parte del modelo pudo evaluarse.\n\nNo se han modificado registros ni enviado mensajes.";
   }
 
   if (intent === "explain_prospect") {
@@ -453,8 +454,10 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
     ).join("\n");
     return header + "EXPLICACIÓN DE PUNTUACIÓN\n" +
       p.full_name + company + "\n" +
-      "Potencial: " + (potential.score === null ? "Sin clasificación" : potential.score + "/100") +
-      " · Cobertura: " + potential.coverage + "% · Clasificación: " + potential.classification + "\n\n" +
+      "Potencial respaldado: " + (potential.score === null ? "Sin clasificación" : potential.score + "/100") +
+      " · Rango posible: " + potential.scoreRange.min + "–" + potential.scoreRange.max +
+      " · Cobertura: " + potential.coverage + "% · Rendimiento observado: " + (potential.observedScore === null ? "no evaluable" : potential.observedScore + "/100") +
+      " · Clasificación: " + potential.classification + "\n\n" +
       "DESGLOSE DE CRITERIOS\n" + breakdown + "\n\n" +
       "Urgencia de gestión: " + ({ high: "ALTA", medium: "MEDIA", low: "BAJA", not_evaluable: "NO EVALUABLE" }[selected.urgency.level]) + ". " + selected.urgency.reasons.join("; ") + "\n" +
       (potential.missingEvidence.length ? "Información faltante: " + potential.missingEvidence.join(", ") + "\n" : "No se detectan criterios faltantes.\n") +
