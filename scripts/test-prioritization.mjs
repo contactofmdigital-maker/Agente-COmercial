@@ -393,7 +393,12 @@ assert.ok(
   !evidenceRecommendation.includes("considera contactar a Danae"),
   "La recomendación debe coincidir con el candidato que supera el umbral de evidencia.",
 );
-assert.ok(answerPotential.includes("43/100") === answerCompare.includes("43/100"), "El puntaje debe mostrarse de forma consistente entre ranking y comparación.");
+const extractBackedScores = (answer) => [...answer.matchAll(/Potencial respaldado: (\\d+\\/100)/g)].map((match) => match[1]);
+assert.deepEqual(
+  extractBackedScores(answerPotential),
+  extractBackedScores(answerCompare),
+  "El mismo prospecto debe conservar exactamente el mismo puntaje entre ranking y comparación.",
+);
 assert.ok(
   answerCompare.includes("ordenado por puntos ponderados respaldados sobre 100") &&
   answerCompare.includes("no se reescala una muestra parcial a 100"),
