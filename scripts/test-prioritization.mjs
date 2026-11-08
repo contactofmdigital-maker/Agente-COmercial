@@ -186,6 +186,11 @@ const qDraft = "Redacta un mensaje de seguimiento profesional para el prospecto 
 const qDetail = "Explícame el estado comercial del prospecto Francisco Javier Marin Sepulveda y sus oportunidades, sin mostrar RUT, teléfono ni datos personales sensibles.";
 assert.equal(engine.classifyCrmQuery(qPotential), "prospects");
 assert.equal(engine.classifyCrmQuery(qUrgency), "prospect_urgency");
+assert.equal(
+  engine.classifyCrmQuery("¿A qué prospecto debería contactar hoy y por qué? Analiza las actividades pendientes, vencidas y la prioridad comercial."),
+  "prospect_urgency",
+  "La petición de decidir a quién contactar debe prevalecer sobre la solicitud de explicación de prioridad.",
+);
 assert.equal(engine.classifyCrmQuery(qCompare), "potential_urgency_comparison");
 assert.equal(engine.classifyCrmQuery(qOverdue), "activities");
 assert.equal(engine.classifyCrmQuery(qDateBuckets), "activities");
@@ -254,6 +259,23 @@ const answerUrgency=crmAnswer.buildCrmAnswer(qUrgency,crmContext,"agency");
 assert.ok(answerUrgency.indexOf("test seguridad b")<answerUrgency.indexOf("Francisco Javier"));
 assert.ok(answerUrgency.includes("Urgencia de gestión: ALTA"), "El seguimiento vencido vinculado por oportunidad debe elevar la urgencia del prospecto.");
 assert.ok(answerUrgency.includes("RECOMENDACIÓN PRINCIPAL PARA HOY\nContacta primero a test seguridad b"), "La respuesta debe nombrar al primer prospecto que requiere contacto hoy.");
+const noUrgencyContext = {
+  ...crmContext,
+  data: {
+    ...crmContext.data,
+    activities: crmActivities.map((item) => ({ ...item, status: "completed", completed_at: "2026-11-01T10:00:00.000Z" })),
+  },
+  summary: { ...crmContext.summary, pending_activities: 0, overdue_activities: 0, invalid_date_activities: 0 },
+};
+const noUrgencyAnswer = crmAnswer.buildCrmAnswer(qUrgency, noUrgencyContext, "agency");
+assert.ok(
+  noUrgencyAnswer.includes("No hay compromisos urgentes registrados. Como siguiente acción comercial, considera contactar a"),
+  "Sin urgencias debe recomendar un candidato comercial con evidencia suficiente, no detenerse en la ausencia de vencimientos.",
+);
+assert.ok(
+  noUrgencyAnswer.includes("cobertura de") && noUrgencyAnswer.includes("Siguiente paso:"),
+  "La recomendación comercial sin urgencia debe transparentar cobertura y acción siguiente.",
+);
 const urgentProspectBlock = answerUrgency.slice(
   answerUrgency.indexOf("1. test seguridad b"),
   answerUrgency.indexOf("2. Francisco Javier"),
