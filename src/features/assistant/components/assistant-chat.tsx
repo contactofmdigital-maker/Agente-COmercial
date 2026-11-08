@@ -681,9 +681,9 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
         ? "RECOMENDACIÓN PRINCIPAL PARA HOY\n" +
           (recommendationUsesUrgency
             ? "Contacta primero a "
-            : intent === "commercial_recommendation"
-              ? "El mejor candidato comercial según la evidencia disponible es "
-              : "No hay compromisos urgentes registrados. Como siguiente acción comercial, considera contactar a ") +
+            : !hasPendingCommitment
+              ? "No hay compromisos urgentes registrados. Como siguiente acción comercial, considera contactar a "
+              : "El mejor candidato comercial según la evidencia disponible es ") +
           recommendation.prospect.full_name +
           (safeCompanyName(recommendation.prospect.company_name) ? " · " + safeCompanyName(recommendation.prospect.company_name) : "") +
           (recommendationUsesUrgency
