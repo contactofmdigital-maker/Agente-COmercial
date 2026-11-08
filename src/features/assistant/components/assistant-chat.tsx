@@ -397,7 +397,18 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
   }
 
   if (intent === "potential_urgency_comparison") {
-    const potentialTop = prioritizedByPotential.slice(0, 5);
+    // Ordenar el puntaje numérico de mayor a menor. La cobertura se muestra
+    // por separado para no confundir una puntuación alta con evidencia sólida.
+    const potentialTop = [...prioritizedByPotential]
+      .sort((a, b) => {
+        const aScore = a.potential.score ?? -1;
+        const bScore = b.potential.score ?? -1;
+        if (aScore !== bScore) return bScore - aScore;
+        if (a.potential.coverage !== b.potential.coverage) return b.potential.coverage - a.potential.coverage;
+        const classOrder = { sufficient: 0, provisional: 1, insufficient: 2, excluded: 3 };
+        return classOrder[a.potential.classification] - classOrder[b.potential.classification];
+      })
+      .slice(0, 5);
     const attentionTop = prioritizedByUrgency.filter((item) => ["high", "medium", "not_evaluable"].includes(item.urgency.level)).slice(0, 5);
     const formatItem = (item: typeof prioritizedByPotential[number], index: number) => {
       const company = safeCompanyName(item.prospect.company_name);
@@ -408,8 +419,9 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
         " · Urgencia: " + item.urgency.level.toUpperCase() + " · " + item.urgency.reasons.join("; ");
     };
     return header + "COMPARACIÓN DE POTENCIAL COMERCIAL Y ATENCIÓN INMEDIATA\n\n" +
-      "MAYOR POTENCIAL COMERCIAL (ordenado por potencial, sin usar vencimientos como criterio de orden):\n" +
+      "MAYOR POTENCIAL COMERCIAL (ordenado por puntaje numérico descendente; la cobertura indica cuánta evidencia respalda cada puntuación):\n" +
       (potentialTop.length ? potentialTop.map(formatItem).join("\n") : "No hay prospectos activos para evaluar.") +
+      "\nNota: un puntaje alto con cobertura baja tiene evidencia insuficiente o provisional y no debe interpretarse como una oportunidad confirmada. Los puntajes con distinta cobertura tienen diferente nivel de respaldo." +
       "\n\nREQUIEREN ATENCIÓN OPERATIVA (ordenados por urgencia):\n" +
       (attentionTop.length ? attentionTop.map(formatItem).join("\n") : "No hay actividades asociadas que indiquen una atención inmediata o próxima.") +
       (pending.some((item) => !resolveActivityProspect(item))
