@@ -393,7 +393,7 @@ assert.ok(
   !evidenceRecommendation.includes("considera contactar a Danae"),
   "La recomendación debe coincidir con el candidato que supera el umbral de evidencia.",
 );
-const extractBackedScores = (answer) => [...answer.matchAll(/Potencial respaldado: (\d+\/100)/g)].map((match) => match[1]);
+const extractBackedScores = (answer) => [...answer.matchAll(/(?:Potencial respaldado: |Potencial comercial: )(\d+\/100)/g)].map((match) => match[1]);
 assert.deepEqual(
   extractBackedScores(answerPotential),
   extractBackedScores(answerCompare),
