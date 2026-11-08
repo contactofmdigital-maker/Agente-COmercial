@@ -308,6 +308,16 @@ assert.ok(answerUrgency.includes("Actividad relacionada: test - b"), "Debe ident
 const answerCompare=crmAnswer.buildCrmAnswer(qCompare,crmContext,"agency");
 assert.ok(answerCompare.includes("MAYOR POTENCIAL COMERCIAL")&&answerCompare.includes("REQUIEREN ATENCIÓN OPERATIVA"));
 assert.ok(answerPotential.includes("43/100") === answerCompare.includes("43/100"), "El puntaje debe mostrarse de forma consistente entre ranking y comparación.");
+assert.ok(
+  answerCompare.includes("ordenado por puntaje numérico descendente") &&
+  answerCompare.includes("puntaje alto con cobertura baja tiene evidencia insuficiente o provisional"),
+  "La comparación debe ordenar por puntaje visible y advertir cuando la cobertura no respalda una conclusión firme.",
+);
+assert.match(
+  assistantSource,
+  /const aScore = a\.potential\.score \?\? -1;[\s\S]*?return bScore - aScore;/,
+  "El ranking comparativo debe ordenar realmente por puntaje descendente, no por clasificación de evidencia antes que por potencial.",
+);
 const answerOverdue=crmAnswer.buildCrmAnswer(qOverdue,crmContext,"agency");
 assert.ok(answerOverdue.includes("VENCIDAS:")&&answerOverdue.includes("test seguridad b")&&answerOverdue.includes("Siguiente acción:"));
 const answerBuckets=crmAnswer.buildCrmAnswer(qDateBuckets,crmContext,"agency");
