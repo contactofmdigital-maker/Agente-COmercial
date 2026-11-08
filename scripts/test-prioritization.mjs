@@ -445,6 +445,8 @@ assert.deepEqual(realActivities.map((item) => item.id), ["real-activity"]);
 console.log("OK: 6 pruebas de clasificación de registros demo.");
 
 
+const qCompositeRecommendation = "No tengo actividades pendientes ni vencidas. ¿Qué prospecto representa mi mejor oportunidad comercial y qué debería hacer?";
+assert.equal(engine.classifyCrmQuery(qCompositeRecommendation), "commercial_recommendation", "Una pregunta que combina ausencia de seguimientos y decisión comercial debe priorizar la recomendación sin perder el módulo de actividades.");
 const qContactToday = "¿A quién debería contactar hoy?";
 assert.equal(
   engine.classifyCrmQuery(qContactToday),
@@ -469,7 +471,12 @@ assert.ok(
   !genericContextAnswer.includes("PROSPECTOS PRIORIZADOS"),
   "Una consulta de estrategia comercial general debe derivarse a OpenAI sin volcar módulos del CRM.",
 );
-console.log("OK: enrutamiento seguro de consultas no reconocidas y preguntas de contacto para hoy.");
+const compositeAnswer = crmAnswer.buildCrmAnswer(qCompositeRecommendation, noUrgencyContext, "agency");
+assert.ok(compositeAnswer.includes("ACTIVIDADES Y SEGUIMIENTOS"), "La consulta mixta debe conservar el resumen de actividades solicitado.");
+assert.ok(compositeAnswer.includes("PROSPECTOS EVALUADOS PARA RECOMENDACIÓN COMERCIAL"), "La consulta mixta debe ejecutar el ranking comercial.");
+assert.ok(compositeAnswer.includes("RECOMENDACIÓN PRINCIPAL PARA HOY"), "La consulta mixta debe entregar una recomendación comercial.");
+assert.ok(compositeAnswer.includes("No hay compromisos urgentes registrados. Como siguiente acción comercial, considera contactar a"), "Sin actividades urgentes debe recomendar un candidato comercial respaldado por evidencia.");
+console.log("OK: enrutamiento seguro, consultas mixtas y preguntas de contacto para hoy.");
 
 assert.ok(
   assistantSource.includes("function buildDemoAnswer(prompt: string)") &&
