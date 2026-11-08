@@ -288,6 +288,10 @@ assert.ok(
   "Sin urgencias debe recomendar un candidato comercial con evidencia suficiente, no detenerse en la ausencia de vencimientos.",
 );
 assert.ok(
+  !noUrgencyAnswer.includes("Contacta primero a"),
+  "Las actividades completadas no deben conservar una recomendación de contacto urgente.",
+);
+assert.ok(
   noUrgencyAnswer.includes("cobertura de") && noUrgencyAnswer.includes("Siguiente paso:"),
   "La recomendación comercial sin urgencia debe transparentar cobertura y acción siguiente.",
 );
