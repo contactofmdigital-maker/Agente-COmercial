@@ -78,8 +78,7 @@ export function classifyCrmQuery(prompt: string): CrmQueryIntent {
   if (asksWhoToContact) return "prospect_urgency";
   const asksForExplicitActivities = /actividades?|seguimientos? vencid|seguimientos? con fechas|tareas?|llamadas?|reuniones?|correos?/.test(value);
   const asksForCommercialRecommendation =
-    /(que prospecto representa|que prospecto.*mejor oportunidad|mejor oportunidad comercial|mejor prospecto|mejor cliente potencial)/.test(value) ||
-    /(?:mejor|mayor|principal).{0,35}(?:oportunidad|prospecto|cliente)|(?:oportunidad|prospecto|cliente).{0,35}(?:mejor|mayor|principal)/.test(value);
+    /(que prospecto representa|que prospecto.*mejor oportunidad|mejor oportunidad comercial|mejor prospecto|mejor cliente potencial|a que prospecto.*(conviene|deberia)|que cliente.*(conviene|deberia))/.test(value);
   if (asksForCommercialRecommendation) return "commercial_recommendation";
   const asksToExplain = /\b(por que|porque|explica|explicame|desglosa)\b/.test(value);
   const asksForScore = /(potencial|puntuacion|puntaje|score|calificacion|prioridad)/.test(value);
