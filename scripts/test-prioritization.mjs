@@ -357,8 +357,8 @@ assert.ok(answerCompare.includes("Potencial respaldado:") && answerCompare.inclu
 assert.ok(!answerCompare.includes("Urgencia: LOW"), "La salida CRM debe mantener las etiquetas de urgencia en español.");
 assert.ok(answerPotential.includes("43/100") === answerCompare.includes("43/100"), "El puntaje debe mostrarse de forma consistente entre ranking y comparación.");
 assert.ok(
-  answerCompare.includes("ordenado por puntaje numérico descendente") &&
-  answerCompare.includes("puntaje alto con cobertura baja tiene evidencia insuficiente o provisional"),
+  answerCompare.includes("ordenado por puntos ponderados respaldados sobre 100") &&
+  answerCompare.includes("no se reescala una muestra parcial a 100"),
   "La comparación debe ordenar por puntaje visible y advertir cuando la cobertura no respalda una conclusión firme.",
 );
 assert.match(
