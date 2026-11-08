@@ -280,7 +280,7 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
       if (a.potential.coverage !== b.potential.coverage) return b.potential.coverage - a.potential.coverage;
       return a.prospect.full_name.localeCompare(b.prospect.full_name, "es");
     });
-  const prioritized = isProspectRecommendation ? prioritizedByUrgency : prioritizedByPotential;
+  const prioritized = intent === "prospect_urgency" ? prioritizedByUrgency : prioritizedByPotential;
   const normalizedIdentity = (value: string | null | undefined) =>
     (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
   const identityKey = (prospect: Prospect) => {
@@ -666,20 +666,28 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
       const firstCommercialCandidate = prioritizedByPotential.find((item) =>
         item.potential.score !== null && item.potential.classification !== "insufficient"
       );
-      const recommendation = firstUrgent ?? firstCommercialCandidate;
+      const recommendation = intent === "commercial_recommendation"
+        ? firstCommercialCandidate
+        : firstUrgent ?? firstCommercialCandidate;
+      const recommendationUsesUrgency = intent === "prospect_urgency" && Boolean(firstUrgent);
       response += recommendation
         ? "RECOMENDACIÓN PRINCIPAL PARA HOY\n" +
-          (firstUrgent
+          (recommendationUsesUrgency
             ? "Contacta primero a "
-            : "No hay compromisos urgentes registrados. Como siguiente acción comercial, considera contactar a ") +
+            : intent === "commercial_recommendation"
+              ? "El mejor candidato comercial según la evidencia disponible es "
+              : "No hay compromisos urgentes registrados. Como siguiente acción comercial, considera contactar a ") +
           recommendation.prospect.full_name +
           (safeCompanyName(recommendation.prospect.company_name) ? " · " + safeCompanyName(recommendation.prospect.company_name) : "") +
-          (firstUrgent
+          (recommendationUsesUrgency
             ? ". Motivo: " + recommendation.urgency.reasons.join("; ")
             : ". Motivo: mejor posición disponible en el ranking de potencial, con " +
               recommendation.potential.score + "/100 y cobertura de " + recommendation.potential.coverage +
               "%. Esta es una señal heurística, no una predicción de cierre.") +
-          " Siguiente paso: " + (firstUrgent ? recommendation.urgency.nextAction : getSegmentAction(segment, recommendation.prospect)) + "\n\n"
+          " Siguiente paso: " +
+          (recommendation.urgency.level === "high" || recommendation.urgency.level === "medium"
+            ? recommendation.urgency.nextAction
+            : getSegmentAction(segment, recommendation.prospect)) + "\n\n"
         : "RECOMENDACIÓN PRINCIPAL PARA HOY\nNo hay urgencias ni evidencia comercial suficiente para recomendar un prospecto con confianza. Completa necesidad, intención, perfil de cliente ideal y datos de contacto antes de priorizar.\n\n";
     }
     response += intent === "prospect_urgency"
