@@ -35,7 +35,12 @@ export type PrioritizationProfile = {
 };
 
 export type PotentialEvaluation = {
+  /** Puntos ponderados respaldados por evidencia, siempre sobre el modelo completo de 100 puntos. */
   score: number | null;
+  /** Rendimiento porcentual dentro de los criterios que sí pudieron evaluarse. */
+  observedScore: number | null;
+  /** Intervalo posible: puntos ya respaldados hasta el máximo si se completa la evidencia faltante. */
+  scoreRange: { min: number; max: number };
   coverage: number;
   classification: "insufficient" | "provisional" | "sufficient" | "excluded";
   evaluable: boolean;
@@ -335,7 +340,7 @@ export function calculatePotential(
   const status = normalize(prospect.status);
   if (["won", "lost"].includes(status)) {
     return {
-      score: null, coverage: 0, classification: "excluded", evaluable: false,
+      score: null, observedScore: null, scoreRange: { min: 0, max: 0 }, coverage: 0, classification: "excluded", evaluable: false,
       reasons: ["El prospecto está cerrado y no participa en la captación activa."],
       missingEvidence: [], criteria: [],
     };
@@ -359,15 +364,21 @@ export function calculatePotential(
   const possibleWeight = evaluable.reduce((sum, item) => sum + item.weight, 0);
   const earned = evaluable.reduce((sum, item) => sum + (item.result?.points ?? 0), 0);
   const coverage = Math.round(possibleWeight);
-  // El score representa el rendimiento sobre los criterios que sí tienen evidencia.
-  // coverage indica cuánto del modelo total (100 puntos de peso) pudo evaluarse.
-  // Por eso un score alto con cobertura baja NO debe interpretarse como potencial confirmado.
-  const score = possibleWeight > 0 ? Math.round((earned / possibleWeight) * 100) : null;
+  // El puntaje público siempre representa puntos ponderados respaldados sobre 100.
+  // Nunca se reescala una muestra pequeña para aparentar un 100/100.
+  const score = possibleWeight > 0 ? Math.round(earned) : null;
+  const observedScore = possibleWeight > 0 ? Math.round((earned / possibleWeight) * 100) : null;
+  const scoreRange = {
+    min: score ?? 0,
+    max: Math.min(100, Math.round(earned + (100 - possibleWeight))),
+  };
   const classification =
     coverage < 40 ? "insufficient" : coverage < 70 ? "provisional" : "sufficient";
 
   return {
     score,
+    observedScore,
+    scoreRange,
     coverage,
     classification,
     evaluable: score !== null,
@@ -489,6 +500,20 @@ export function prioritizeProspects(
     });
 }
 
+
+/**
+ * Elige una recomendación comercial solo entre registros con evidencia suficiente
+ * o provisional. Un puntaje alto con cobertura insuficiente nunca gana por sí solo.
+ */
+export function selectCommercialRecommendation(
+  ranked: ProspectPrioritization[],
+): ProspectPrioritization | null {
+  return ranked.find((item) =>
+    item.potential.score !== null && item.potential.classification === "sufficient"
+  ) ?? ranked.find((item) =>
+    item.potential.score !== null && item.potential.classification === "provisional"
+  ) ?? null;
+}
 
 /**
  * Ordena prospectos por necesidad operativa de contacto, sin confundir urgencia
