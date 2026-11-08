@@ -285,7 +285,7 @@ const noUrgencyContext = {
 const noUrgencyAnswer = crmAnswer.buildCrmAnswer(qUrgency, noUrgencyContext, "agency");
 assert.ok(
   noUrgencyAnswer.includes("No hay compromisos urgentes registrados. Como siguiente acción comercial, considera contactar a"),
-  "Sin urgencias debe recomendar un candidato comercial con evidencia suficiente, no detenerse en la ausencia de vencimientos.",
+  "Sin urgencias debe recomendar un candidato comercial con evidencia suficiente, no detenerse en la ausencia de vencimientos.\n\nRespuesta generada:\n" + noUrgencyAnswer,
 );
 assert.ok(
   !noUrgencyAnswer.includes("Contacta primero a"),
