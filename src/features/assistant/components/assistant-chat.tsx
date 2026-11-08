@@ -157,9 +157,11 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
   // "general" no significa "muéstrame todo": una intención no reconocida
   // debe pedir precisión en lugar de mezclar módulos del CRM.
   const broadAnalysis = intent === "summary";
-  const showActivities = intent === "activities" || broadAnalysis;
+  const asksForExplicitActivities = /actividades?|seguimientos? vencid|seguimientos? con fechas|tareas?|llamadas?|reuniones?|correos?/.test(prompt.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase());
+  const isProspectRecommendation = intent === "prospect_urgency" || intent === "commercial_recommendation";
+  const showActivities = intent === "activities" || (intent === "commercial_recommendation" && asksForExplicitActivities) || broadAnalysis;
   const showOpportunities = intent === "opportunities" || broadAnalysis;
-  const showProspects = intent === "prospects" || intent === "prospect_urgency" || broadAnalysis;
+  const showProspects = intent === "prospects" || isProspectRecommendation || broadAnalysis;
   const now = Date.now();
 
   const isPendingStatus = (status: string) => ["pending", "in_progress"].includes((status ?? "").trim().toLowerCase());
@@ -278,7 +280,7 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
       if (a.potential.coverage !== b.potential.coverage) return b.potential.coverage - a.potential.coverage;
       return a.prospect.full_name.localeCompare(b.prospect.full_name, "es");
     });
-  const prioritized = intent === "prospect_urgency" ? prioritizedByUrgency : prioritizedByPotential;
+  const prioritized = isProspectRecommendation ? prioritizedByUrgency : prioritizedByPotential;
   const normalizedIdentity = (value: string | null | undefined) =>
     (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
   const identityKey = (prospect: Prospect) => {
@@ -645,7 +647,7 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
     response += "\n";
   }
 
-  if (intent === "prospect_urgency") {
+  if (isProspectRecommendation) {
     const unassignedPending = pending.filter((item) => !resolveActivityProspect(item));
     if (unassignedPending.length) {
       response += "\n\nACTIVIDADES PENDIENTES SIN ASOCIACIÓN VÁLIDA\n" +
@@ -659,7 +661,7 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
   }
 
   if (showProspects) {
-    if (intent === "prospect_urgency") {
+    if (isProspectRecommendation) {
       const firstUrgent = prioritized.find((item) => item.urgency.level === "high" || item.urgency.level === "medium");
       const firstCommercialCandidate = prioritizedByPotential.find((item) =>
         item.potential.score !== null && item.potential.classification !== "insufficient"
@@ -682,7 +684,9 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
     }
     response += intent === "prospect_urgency"
       ? "PROSPECTOS ORDENADOS POR URGENCIA DE CONTACTO\n"
-      : "PROSPECTOS PRIORIZADOS POR POTENCIAL COMERCIAL\n";
+      : intent === "commercial_recommendation"
+        ? "PROSPECTOS EVALUADOS PARA RECOMENDACIÓN COMERCIAL\n"
+        : "PROSPECTOS PRIORIZADOS POR POTENCIAL COMERCIAL\n";
     response += prioritized.length
       ? prioritized.slice(0, 10).map((item, index) => {
           const p = item.prospect;
@@ -695,7 +699,7 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
           const urgencyLabel = item.urgency.level === "high" ? "ALTA" :
             item.urgency.level === "medium" ? "MEDIA" :
             item.urgency.level === "low" ? "BAJA" : "NO EVALUABLE";
-          const action = intent === "prospect_urgency"
+          const action = isProspectRecommendation
             ? (item.urgency.level !== "low" ? item.urgency.nextAction : getSegmentAction(segment, p))
             : (item.urgency.level === "high" || item.urgency.level === "not_evaluable" ? item.urgency.nextAction : getSegmentAction(segment, p));
           return (index + 1) + ". " + p.full_name +
