@@ -71,6 +71,11 @@ export type CrmQueryIntent =
 
 export function classifyCrmQuery(prompt: string): CrmQueryIntent {
   const value = normalize(prompt);
+  // Una petición de decisión de contacto tiene prioridad sobre "por qué" o "prioridad":
+  // la explicación debe acompañar la recomendación, no convertirla en una consulta individual.
+  const asksWhoToContact = /\b(a quien|a que prospecto|quien deberia|quien debo|a que cliente)\b.*\b(contactar|llamar|escribir|contacto)\b/.test(value) ||
+    /\b(contactar|llamar)\b.*\b(hoy|primero)\b/.test(value);
+  if (asksWhoToContact) return "prospect_urgency";
   const asksToExplain = /\b(por que|porque|explica|explicame|desglosa)\b/.test(value);
   const asksForScore = /(potencial|puntuacion|puntaje|score|calificacion|prioridad)/.test(value);
   if (asksToExplain && asksForScore) {
@@ -498,6 +503,12 @@ export function prioritizeProspectsByUrgency(
     .sort((a, b) => {
       const urgencyDifference = urgencyOrder[a.urgency.level] - urgencyOrder[b.urgency.level];
       if (urgencyDifference) return urgencyDifference;
+      const classOrder = { sufficient: 0, provisional: 1, insufficient: 2, excluded: 3 };
+      const classDifference = classOrder[a.potential.classification] - classOrder[b.potential.classification];
+      if (classDifference) return classDifference;
+      if (a.potential.score !== null && b.potential.score !== null && a.potential.score !== b.potential.score) {
+        return b.potential.score - a.potential.score;
+      }
       if (a.potential.coverage !== b.potential.coverage) {
         return b.potential.coverage - a.potential.coverage;
       }
