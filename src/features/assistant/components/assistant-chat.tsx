@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Bot, Send, Sparkles, User, RotateCcw, LoaderCircle, FlaskConical, Zap, Database, Building2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, resolveActivityProspectId } from "@/features/assistant/lib/prioritization";
+import { classifyCrmQuery, isExplicitDraftRequest, isValidActivityDueDate, matchCrmProspects, prioritizeProspects, prioritizeProspectsByUrgency, resolveActivityProspectId, selectCommercialRecommendation } from "@/features/assistant/lib/prioritization";
 
 type ChatMessage = { role: "user" | "assistant"; content: string };
 type AssistantMode = "demo" | "crm" | "openai";
@@ -218,68 +218,15 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
     ideal_customer: profile.ideal_customer,
   } : null;
   const prioritizedByPotential = prioritizeProspects(prospects, opportunities, activities, prioritizationProfile, now);
-  // El ranking reutiliza las mismas colecciones que alimentan el resumen:
-  // no vuelve a inferir qué actividades están pendientes o vencidas.
-  // Esto evita que una actividad visible como vencida termine evaluada como baja.
-  const urgencyOrder = { high: 0, medium: 1, not_evaluable: 2, low: 3 };
-  const prioritizedByUrgency = prioritizedByPotential
-    .map((item) => {
-      const belongsToProspect = (activity: Activity) =>
-        resolveActivityProspect(activity)?.id === item.prospect.id;
-      const linkedPending = pending.filter(belongsToProspect);
-      const linkedOverdue = overdue.filter(belongsToProspect);
-      const linkedInvalid = invalidDateActivities.filter(belongsToProspect);
-      const validLinkedPending = linkedPending.filter((activity) => !invalidDateIds.has(activity.id));
-      const highPrioritySoon = validLinkedPending.filter((activity) => {
-        if (!activity.due_at || normalizeCrmValue(activity.priority) !== "high") return false;
-        const due = new Date(activity.due_at).getTime();
-        return Number.isFinite(due) && due >= now && due - now <= 48 * 3600000;
-      });
-      const urgency = linkedOverdue.length
-        ? {
-            level: "high" as const,
-            reasons: linkedOverdue.map((activity) => "Actividad vencida: " + activity.title),
-            nextAction: "Atender primero la actividad vencida y registrar el resultado del contacto.",
-          }
-        : highPrioritySoon.length
-          ? {
-              level: "high" as const,
-              reasons: highPrioritySoon.map((activity) => "Compromiso de prioridad alta próximo: " + activity.title),
-              nextAction: "Preparar el compromiso próximo y confirmar el siguiente paso.",
-            }
-          : validLinkedPending.length
-            ? {
-                level: "medium" as const,
-                reasons: validLinkedPending.map((activity) =>
-                  activity.due_at ? "Actividad programada: " + activity.title : "Acción pendiente sin fecha: " + activity.title
-                ),
-                nextAction: "Revisar las actividades pendientes y completar el seguimiento.",
-              }
-            : linkedInvalid.length
-              ? {
-                  level: "not_evaluable" as const,
-                  reasons: linkedInvalid.map((activity) => "Fecha inválida que requiere revisión: " + activity.title),
-                  nextAction: "Corregir la fecha de la actividad antes de clasificar su urgencia.",
-                }
-              : {
-                  level: "low" as const,
-                  reasons: ["No hay actividades pendientes asociadas."],
-                  nextAction: "Mantener seguimiento según el ciclo comercial.",
-                };
-      return { ...item, urgency };
-    })
-    .sort((a, b) => {
-      const difference = urgencyOrder[a.urgency.level] - urgencyOrder[b.urgency.level];
-      if (difference) return difference;
-      const classOrder = { sufficient: 0, provisional: 1, insufficient: 2, excluded: 3 };
-      const classDifference = classOrder[a.potential.classification] - classOrder[b.potential.classification];
-      if (classDifference) return classDifference;
-      if (a.potential.score !== null && b.potential.score !== null && a.potential.score !== b.potential.score) {
-        return b.potential.score - a.potential.score;
-      }
-      if (a.potential.coverage !== b.potential.coverage) return b.potential.coverage - a.potential.coverage;
-      return a.prospect.full_name.localeCompare(b.prospect.full_name, "es");
-    });
+  // La urgencia se calcula en el mismo motor que el potencial. La vista no mantiene
+  // una segunda implementación con reglas propias.
+  const prioritizedByUrgency = prioritizeProspectsByUrgency(
+    prospects,
+    opportunities,
+    activities,
+    prioritizationProfile,
+    now,
+  );
   const prioritized = intent === "prospect_urgency" ? prioritizedByUrgency : prioritizedByPotential;
   const normalizedIdentity = (value: string | null | undefined) =>
     (value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase().replace(/\s+/g, " ");
@@ -413,15 +360,17 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
     const formatItem = (item: typeof prioritizedByPotential[number], index: number) => {
       const company = safeCompanyName(item.prospect.company_name);
       const score = item.potential.score === null ? "sin puntuación" : item.potential.score + "/100";
+      const range = item.potential.scoreRange.min + "–" + item.potential.scoreRange.max;
       const confidence = item.potential.classification === "sufficient" ? "suficiente" : item.potential.classification === "provisional" ? "provisional" : "insuficiente";
+      const urgencyLabel = { high: "ALTA", medium: "MEDIA", low: "BAJA", not_evaluable: "NO EVALUABLE" }[item.urgency.level];
       return (index + 1) + ". " + item.prospect.full_name + (company ? " · " + company : "") +
-        " · Potencial: " + score + " · Cobertura: " + item.potential.coverage + "% · Evidencia: " + confidence +
-        " · Urgencia: " + item.urgency.level.toUpperCase() + " · " + item.urgency.reasons.join("; ");
+        " · Potencial respaldado: " + score + " · Rango posible: " + range + " · Cobertura: " + item.potential.coverage + "% · Evidencia: " + confidence +
+        " · Urgencia: " + urgencyLabel + " · " + item.urgency.reasons.join("; ");
     };
     return header + "COMPARACIÓN DE POTENCIAL COMERCIAL Y ATENCIÓN INMEDIATA\n\n" +
-      "MAYOR POTENCIAL COMERCIAL (ordenado por puntaje numérico descendente; la cobertura indica cuánta evidencia respalda cada puntuación):\n" +
+      "MAYOR POTENCIAL COMERCIAL (ordenado por puntos ponderados respaldados sobre 100; el rango y la cobertura hacen visible la evidencia faltante):\n" +
       (potentialTop.length ? potentialTop.map(formatItem).join("\n") : "No hay prospectos activos para evaluar.") +
-      "\nNota: un puntaje alto con cobertura baja tiene evidencia insuficiente o provisional y no debe interpretarse como una oportunidad confirmada. Los puntajes con distinta cobertura tienen diferente nivel de respaldo." +
+      "\nNota: el potencial respaldado suma puntos reales de los criterios evaluados; no se reescala una muestra parcial a 100. El rango muestra cuánto podría variar al completar los datos. Un prospecto con evidencia insuficiente no puede ser elegido como recomendación principal." +
       "\n\nREQUIEREN ATENCIÓN OPERATIVA (ordenados por urgencia):\n" +
       (attentionTop.length ? attentionTop.map(formatItem).join("\n") : "No hay actividades asociadas que indiquen una atención inmediata o próxima.") +
       (pending.some((item) => !resolveActivityProspect(item))
@@ -674,10 +623,8 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
 
   if (showProspects) {
     if (isProspectRecommendation) {
-      const firstUrgent = prioritized.find((item) => item.urgency.level === "high" || item.urgency.level === "medium");
-      const firstCommercialCandidate = prioritizedByPotential.find((item) =>
-        item.potential.score !== null && item.potential.classification !== "insufficient"
-      );
+      const firstUrgent = prioritizedByUrgency.find((item) => item.urgency.level === "high" || item.urgency.level === "medium");
+      const firstCommercialCandidate = selectCommercialRecommendation(prioritizedByPotential);
       // Una recomendación por urgencia solo puede desplazar al candidato comercial
       // si todavía existe un compromiso pendiente que justifique esa prioridad.
       // Así, las actividades completadas no mantienen una urgencia obsoleta.
@@ -701,8 +648,10 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
           (recommendationUsesUrgency
             ? ". Motivo: " + recommendation.urgency.reasons.join("; ")
             : ". Motivo: mejor posición disponible en el ranking de potencial, con " +
-              recommendation.potential.score + "/100 y cobertura de " + recommendation.potential.coverage +
-              "%. Esta es una señal heurística, no una predicción de cierre.") +
+              recommendation.potential.score + "/100 puntos respaldados, rango posible " +
+              recommendation.potential.scoreRange.min + "–" + recommendation.potential.scoreRange.max +
+              " y cobertura de " + recommendation.potential.coverage +
+              "%. Se prioriza evidencia suficiente o provisional; los registros con evidencia insuficiente no se recomiendan como primera opción. Es una señal heurística, no una predicción de cierre.") +
           " Siguiente paso: " +
           (recommendation.urgency.level === "high" || recommendation.urgency.level === "medium"
             ? recommendation.urgency.nextAction
@@ -720,7 +669,8 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
           const company = safeCompanyName(p.company_name);
           const related = opportunities.filter((opportunity) => opportunity.prospect_id === p.id && activeStages.has(normalizeCrmValue(opportunity.stage)));
           const nextActivity = pending.find((activity) => resolveActivityProspect(activity)?.id === p.id && !invalidDateIds.has(activity.id));
-          const potentialLabel = (item.potential.score === null ? "Sin puntuación" : item.potential.score + "/100") +
+          const potentialLabel = (item.potential.score === null ? "Sin puntuación" : item.potential.score + "/100 puntos respaldados") +
+            " · rango posible " + item.potential.scoreRange.min + "–" + item.potential.scoreRange.max +
             " · cobertura " + item.potential.coverage + "% · evidencia " +
             (item.potential.classification === "sufficient" ? "suficiente" : item.potential.classification === "provisional" ? "provisional" : "insuficiente");
           const urgencyLabel = item.urgency.level === "high" ? "ALTA" :
