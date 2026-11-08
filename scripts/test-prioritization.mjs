@@ -210,6 +210,21 @@ const urgencyOrder=engine.prioritizeProspectsByUrgency(
  profile,now
 );
 assert.equal(urgencyOrder[0].prospect.id,"p-urgent");
+const noActivityUrgencyOrder = engine.prioritizeProspectsByUrgency(
+  [
+    prospect({ id: "p-commercial-a", full_name: "A Comercial", notes: "Solicitó cotización y presupuesto" }),
+    prospect({ id: "p-commercial-b", full_name: "B Comercial", notes: "Contacto inicial" }),
+  ],
+  [],
+  [],
+  profile,
+  now,
+);
+assert.equal(
+  noActivityUrgencyOrder[0].prospect.id,
+  "p-commercial-a",
+  "Cuando la urgencia es igual, el ranking operativo debe desempatar por potencial y evidencia comercial.",
+);
 assert.equal(
   engine.resolveActivityProspectId(
     { prospect_id: null, opportunity_id: "o-urgent" },
