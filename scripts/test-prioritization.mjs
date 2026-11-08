@@ -48,6 +48,52 @@ assert.equal(bestOpportunity.criteria.find((item) => item.name === "Avance de op
 const noOpportunity = engine.calculatePotential(prospect({ notes: "" }), [], [], null, now);
 assert.equal(noOpportunity.criteria.find((item) => item.name === "Avance de oportunidad").points, null);
 
+const lowCoverageProspect = prospect({
+  id: "p-low-coverage",
+  full_name: "Danae",
+  notes: "",
+  email: "danae@example.com",
+});
+const lowCoverage = engine.calculatePotential(lowCoverageProspect, [], [], null, now);
+assert.equal(lowCoverage.coverage, 5, "Un único criterio de identificación solo aporta 5% de cobertura.");
+assert.equal(lowCoverage.score, 5, "El puntaje público debe reflejar los 5 puntos respaldados, no reescalar a 100.");
+assert.equal(lowCoverage.observedScore, 100, "El rendimiento observado se informa por separado del puntaje respaldado.");
+assert.deepEqual(lowCoverage.scoreRange, { min: 5, max: 100 });
+
+const evidenceBackedProspect = prospect({
+  id: "p-evidence-backed",
+  full_name: "Agencia Norte",
+  notes: "Solicitó una cotización y presupuesto",
+  email: "ventas@agencianorte.cl",
+});
+const evidenceBacked = engine.calculatePotential(
+  evidenceBackedProspect,
+  [opportunity("negotiation", "o-evidence-backed")],
+  [],
+  profile,
+  now,
+);
+assert.equal(evidenceBacked.coverage, 60);
+assert.equal(evidenceBacked.score, 60, "El potencial respaldado suma puntos reales sobre el modelo completo.");
+const commercialRanking = engine.prioritizeProspects(
+  [lowCoverageProspect, evidenceBackedProspect],
+  [opportunity("negotiation", "o-evidence-backed")],
+  [],
+  profile,
+  now,
+);
+assert.equal(commercialRanking[0].prospect.id, "p-evidence-backed");
+assert.equal(
+  engine.selectCommercialRecommendation(commercialRanking)?.prospect.id,
+  "p-evidence-backed",
+  "La recomendación debe elegir el candidato con evidencia provisional antes que un 100 observado con 5% de cobertura.",
+);
+assert.equal(
+  engine.selectCommercialRecommendation(engine.prioritizeProspects([lowCoverageProspect], [], [], profile, now)),
+  null,
+  "No se debe recomendar como primera opción un prospecto con evidencia insuficiente.",
+);
+
 const completed = engine.calculatePotential(prospect({ notes: "" }), [], [activity()], null, now);
 assert.equal(completed.criteria.find((item) => item.name === "Interacción comercial").points, 8);
 assert.equal(completed.criteria.find((item) => item.name === "Recencia comercial").points, 10);
@@ -307,6 +353,8 @@ assert.ok(answerUrgency.includes("Vence:"), "Debe mostrar la fecha de vencimient
 assert.ok(answerUrgency.includes("Actividad relacionada: test - b"), "Debe identificar la actividad asociada a través de su oportunidad.");
 const answerCompare=crmAnswer.buildCrmAnswer(qCompare,crmContext,"agency");
 assert.ok(answerCompare.includes("MAYOR POTENCIAL COMERCIAL")&&answerCompare.includes("REQUIEREN ATENCIÓN OPERATIVA"));
+assert.ok(answerCompare.includes("Potencial respaldado:") && answerCompare.includes("Rango posible:"), "La comparación debe mostrar puntaje real y rango de incertidumbre.");
+assert.ok(!answerCompare.includes("Urgencia: LOW"), "La salida CRM debe mantener las etiquetas de urgencia en español.");
 assert.ok(answerPotential.includes("43/100") === answerCompare.includes("43/100"), "El puntaje debe mostrarse de forma consistente entre ranking y comparación.");
 assert.ok(
   answerCompare.includes("ordenado por puntaje numérico descendente") &&
@@ -492,6 +540,11 @@ assert.ok(compositeAnswer.includes("RECOMENDACIÓN PRINCIPAL PARA HOY"), "La con
 assert.ok(compositeAnswer.includes("No hay compromisos urgentes registrados. Como siguiente acción comercial, considera contactar a"), "Sin actividades urgentes debe recomendar un candidato comercial respaldado por evidencia.");
 console.log("OK: enrutamiento seguro, consultas mixtas y preguntas de contacto para hoy.");
 
+assert.ok(
+  assistantSource.includes("selectCommercialRecommendation(prioritizedByPotential)") &&
+  assistantSource.includes("prioritizeProspectsByUrgency("),
+  "La recomendación y la urgencia deben consumir el motor central, no reglas duplicadas en la vista.",
+);
 assert.ok(
   assistantSource.includes("function buildDemoAnswer(prompt: string)") &&
   assistantSource.includes("no voy a inventar prospectos") &&
