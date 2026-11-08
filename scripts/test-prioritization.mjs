@@ -355,6 +355,44 @@ const answerCompare=crmAnswer.buildCrmAnswer(qCompare,crmContext,"agency");
 assert.ok(answerCompare.includes("MAYOR POTENCIAL COMERCIAL")&&answerCompare.includes("REQUIEREN ATENCIÓN OPERATIVA"));
 assert.ok(answerCompare.includes("Potencial respaldado:") && answerCompare.includes("Rango posible:"), "La comparación debe mostrar puntaje real y rango de incertidumbre.");
 assert.ok(!answerCompare.includes("Urgencia: LOW"), "La salida CRM debe mantener las etiquetas de urgencia en español.");
+
+const evidenceComparisonContext = {
+  ...crmContext,
+  data: {
+    prospects: [lowCoverageProspect, evidenceBackedProspect],
+    opportunities: [{
+      id: "o-evidence-backed",
+      prospect_id: "p-evidence-backed",
+      title: "Propuesta SEO",
+      description: null,
+      stage: "negotiation",
+      estimated_value: 1000000,
+      currency: "CLP",
+      expected_close_date: null,
+      created_at: "2026-11-01T12:00:00.000Z",
+    }],
+    activities: [],
+  },
+};
+const evidenceComparison = crmAnswer.buildCrmAnswer(
+  "Compara mis prospectos con mayor potencial y los que requieren atención inmediata.",
+  evidenceComparisonContext,
+  "agency",
+);
+assert.ok(
+  evidenceComparison.indexOf("Agencia Norte") < evidenceComparison.indexOf("Danae"),
+  "El ranking visible debe mostrar primero los puntos ponderados respaldados y no el 100 observado con 5% de cobertura.",
+);
+const evidenceRecommendation = crmAnswer.buildCrmAnswer(
+  "¿A quién debería contactar hoy y por qué?",
+  evidenceComparisonContext,
+  "agency",
+);
+assert.ok(
+  evidenceRecommendation.includes("considera contactar a Agencia Norte") &&
+  !evidenceRecommendation.includes("considera contactar a Danae"),
+  "La recomendación debe coincidir con el candidato que supera el umbral de evidencia.",
+);
 assert.ok(answerPotential.includes("43/100") === answerCompare.includes("43/100"), "El puntaje debe mostrarse de forma consistente entre ranking y comparación.");
 assert.ok(
   answerCompare.includes("ordenado por puntos ponderados respaldados sobre 100") &&
@@ -372,6 +410,7 @@ const answerBuckets=crmAnswer.buildCrmAnswer(qDateBuckets,crmContext,"agency");
 assert.ok(answerBuckets.includes("FECHAS INVÁLIDAS")&&answerBuckets.includes("PENDIENTES SIN FECHA")&&answerBuckets.includes("VENCIDAS:"));
 const answerExplain=crmAnswer.buildCrmAnswer(qExplainAll,crmContext,"agency");
 assert.ok(answerExplain.includes("test seguridad b")&&answerExplain.includes("Francisco Javier Marin Sepulveda")&&answerExplain.includes("Confiabilidad:"));
+assert.ok(!answerExplain.includes("Urgencia independiente: LOW"), "La explicación global también debe presentar urgencia en español.");
 const answerDraft=crmAnswer.buildCrmAnswer(qDraft,crmContext,"agency");
 assert.ok(answerDraft.includes("TEST OPORTUNIDAD b")&&answerDraft.includes("reunión breve"));
 const answerDetail=crmAnswer.buildCrmAnswer(qDetail,crmContext,"agency");
