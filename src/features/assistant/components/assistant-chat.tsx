@@ -269,6 +269,12 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
     .sort((a, b) => {
       const difference = urgencyOrder[a.urgency.level] - urgencyOrder[b.urgency.level];
       if (difference) return difference;
+      const classOrder = { sufficient: 0, provisional: 1, insufficient: 2, excluded: 3 };
+      const classDifference = classOrder[a.potential.classification] - classOrder[b.potential.classification];
+      if (classDifference) return classDifference;
+      if (a.potential.score !== null && b.potential.score !== null && a.potential.score !== b.potential.score) {
+        return b.potential.score - a.potential.score;
+      }
       if (a.potential.coverage !== b.potential.coverage) return b.potential.coverage - a.potential.coverage;
       return a.prospect.full_name.localeCompare(b.prospect.full_name, "es");
     });
@@ -654,13 +660,25 @@ function buildCrmAnswerInternal(prompt: string, context: CommercialContext, segm
 
   if (showProspects) {
     if (intent === "prospect_urgency") {
-      const firstActionable = prioritized.find((item) => item.urgency.level === "high" || item.urgency.level === "medium");
-      response += firstActionable
-        ? "RECOMENDACIÓN PRINCIPAL PARA HOY\nContacta primero a " + firstActionable.prospect.full_name +
-          (safeCompanyName(firstActionable.prospect.company_name) ? " · " + safeCompanyName(firstActionable.prospect.company_name) : "") +
-          ". Motivo: " + firstActionable.urgency.reasons.join("; ") +
-          " Siguiente paso: " + firstActionable.urgency.nextAction + "\n\n"
-        : "RECOMENDACIÓN PRINCIPAL PARA HOY\nNo hay actividades vencidas ni compromisos próximos vinculados que justifiquen un contacto urgente. Revisa el ranking y completa los datos comerciales antes de asignar una prioridad.\n\n";
+      const firstUrgent = prioritized.find((item) => item.urgency.level === "high" || item.urgency.level === "medium");
+      const firstCommercialCandidate = prioritizedByPotential.find((item) =>
+        item.potential.score !== null && item.potential.classification !== "insufficient"
+      );
+      const recommendation = firstUrgent ?? firstCommercialCandidate;
+      response += recommendation
+        ? "RECOMENDACIÓN PRINCIPAL PARA HOY\n" +
+          (firstUrgent
+            ? "Contacta primero a "
+            : "No hay compromisos urgentes registrados. Como siguiente acción comercial, considera contactar a ") +
+          recommendation.prospect.full_name +
+          (safeCompanyName(recommendation.prospect.company_name) ? " · " + safeCompanyName(recommendation.prospect.company_name) : "") +
+          (firstUrgent
+            ? ". Motivo: " + recommendation.urgency.reasons.join("; ")
+            : ". Motivo: mejor posición disponible en el ranking de potencial, con " +
+              recommendation.potential.score + "/100 y cobertura de " + recommendation.potential.coverage +
+              "%. Esta es una señal heurística, no una predicción de cierre.") +
+          " Siguiente paso: " + (firstUrgent ? recommendation.urgency.nextAction : getSegmentAction(segment, recommendation.prospect)) + "\n\n"
+        : "RECOMENDACIÓN PRINCIPAL PARA HOY\nNo hay urgencias ni evidencia comercial suficiente para recomendar un prospecto con confianza. Completa necesidad, intención, perfil de cliente ideal y datos de contacto antes de priorizar.\n\n";
     }
     response += intent === "prospect_urgency"
       ? "PROSPECTOS ORDENADOS POR URGENCIA DE CONTACTO\n"
