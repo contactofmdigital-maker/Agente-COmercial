@@ -32,7 +32,7 @@ function classifyIntent(message: string) {
   if (/\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante)\b/.test(text)) return "human_request";
   if (/\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\b/.test(text)) return "complaint";
   if (/\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar)\b/.test(text)) return "pricing";
-  if (/\b(horario|horarios|atencion|abren|cierran|direccion|ubicacion|donde estan|despacho|envio|cobertura)\b/.test(text)) return "business_info";
+  if (/\b(horario|horarios|atencion|atienden|abren|abierto|abierta|abren|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura)\b/.test(text)) return "business_info";
   if (/\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido)\b/.test(text)) return "purchase";
   if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing)\b/.test(text)) return "product";
   if (/\b(disponible|stock|disponibilidad|plazo|entrega)\b/.test(text)) return "availability";
@@ -41,7 +41,12 @@ function classifyIntent(message: string) {
 }
 
 function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
-  const query = new Set(tokens(message));
+  const queryTokens = tokens(message);
+  const normalizedMessage = normalize(message);
+  if (/\b(fin de semana|fines de semana|sabado|domingo)\b/.test(normalizedMessage)) {
+    queryTokens.push("horario", "atencion", "sabado", "domingo", "fin", "semana");
+  }
+  const query = new Set(queryTokens);
   if (!query.size) return [];
   return knowledge.map((item) => {
     const titleTokens = new Set(tokens(item.title));
@@ -84,6 +89,18 @@ function nextQualificationQuestion(capture: LeadCapture) {
   if (!capture.budget) return "¿Tienes un presupuesto estimado para este proyecto?";
   if (!capture.timeline) return "¿En qué plazo te gustaría tener lista la landing page?";
   return "Ya tengo los datos principales. ¿Hay alguna funcionalidad o requisito especial que debamos considerar?";
+}
+
+function looksLikeInternalInstructions(value: string) {
+  return /\b(eres|tu funcion|tu función|tu objetivo|debes|instrucciones|utiliza exclusivamente|no inventes|cuando un cliente|responde de manera|fuentes autorizadas)\b/i.test(value)
+    || value.split("\\n").filter((line) => line.trim()).length > 2;
+}
+
+function safeQualificationQuestion(config: AgentRuntimeConfig) {
+  const configured = (config.qualification_questions || "").split("\\n")
+    .map((line) => line.trim())
+    .find((line) => line.length >= 8 && line.length <= 240 && line.includes("?") && !looksLikeInternalInstructions(line));
+  return configured || "¿Qué servicio necesitas y cuál es el objetivo de tu proyecto?";
 }
 
 function safeGreeting(config: AgentRuntimeConfig) {
@@ -138,10 +155,10 @@ export function orchestrateConversation(input: {
   const requiresGrounding = ["pricing", "business_info", "availability", "product", "purchase"].includes(intent);
   if (requiresGrounding) {
     const fallback = config.human_handoff_enabled
-      ? config.handoff_message || "No tengo información publicada suficiente para confirmarlo. Puedo derivarte con una persona del equipo."
-      : "No tengo información publicada suficiente para confirmarlo. Prefiero no inventar datos. ¿Quieres contarme un poco más?";
+      ? "No tengo información publicada suficiente para confirmar ese dato. Esta consulta requiere confirmación del equipo; en esta simulación no se realiza una derivación automática."
+      : "No tengo información publicada suficiente para confirmar ese dato. Prefiero no inventar información. ¿Hay algo más en lo que pueda orientarte?";
     return { answer: fallback, intent, route: config.human_handoff_enabled ? "handoff" : "clarify", confidence: "none", sources: [], handoff_required: config.human_handoff_enabled, lead_capture, actions: config.human_handoff_enabled ? ["human_handoff"] : ["request_more_information"] };
   }
 
-  return { answer: "Claro, puedo orientarte. " + (config.qualification_questions?.trim() || "¿Qué servicio necesitas y cuál es el objetivo de tu proyecto?"), intent, route: "qualify", confidence: "limited", sources: [], handoff_required: false, lead_capture, actions: ["qualify_lead"] };
+  return { answer: "Claro, puedo orientarte. " + safeQualificationQuestion(config), intent, route: "qualify", confidence: "limited", sources: [], handoff_required: false, lead_capture, actions: ["qualify_lead"] };
 }
