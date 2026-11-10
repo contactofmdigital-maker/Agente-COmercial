@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Activity, ArrowUpRight, Building2, ChartNoAxesCombined, CircleHelp,
+  Activity, ArrowUpRight, BookOpen, Building2, ChartNoAxesCombined, CircleHelp,
   LayoutDashboard, MessageSquareText, Search, Settings2, ShieldCheck,
   Sparkles, Target, Users,
 } from "lucide-react";
@@ -10,16 +10,18 @@ import { createClient } from "@/lib/supabase/server";
 import { ProspectWorkspace } from "@/features/prospects/components/prospect-workspace";
 import { AssistantChat } from "@/features/assistant/components/assistant-chat";
 import { BusinessSettings } from "@/features/business/components/business-settings";
+import { KnowledgeHub } from "@/features/knowledge/components/knowledge-hub";
 import { OpportunityPipeline } from "@/features/opportunities/components/opportunity-pipeline";
 import { ActivityWorkspace } from "@/features/activities/components/activity-workspace";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { filterRealActivities, filterRealOpportunities, filterRealProspects } from "@/features/data-classification/lib/record-classification";
 import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
+import "./knowledge-hub.css";
 
 export const dynamic = "force-dynamic";
 
-type Section = "overview" | "prospects" | "opportunities" | "activities" | "assistant" | "organization" | "settings";
+type Section = "overview" | "prospects" | "opportunities" | "activities" | "assistant" | "knowledge" | "organization" | "settings";
 type PageProps = { searchParams: Promise<{ section?: string }> };
 
 const sections: { id: Section; label: string; icon: typeof LayoutDashboard; group: "workspace" | "system"; badge?: string }[] = [
@@ -28,6 +30,7 @@ const sections: { id: Section; label: string; icon: typeof LayoutDashboard; grou
   { id: "opportunities", label: "Oportunidades", icon: Target, group: "workspace" },
   { id: "activities", label: "Actividades", icon: Activity, group: "workspace" },
   { id: "assistant", label: "Asistente comercial", icon: MessageSquareText, group: "workspace", badge: "IA" },
+  { id: "knowledge", label: "Centro de conocimiento", icon: BookOpen, group: "workspace", badge: "BASE" },
   { id: "organization", label: "Organización", icon: Building2, group: "system" },
   { id: "settings", label: "Configuración", icon: Settings2, group: "system" },
 ];
@@ -228,7 +231,7 @@ export default async function Home({ searchParams }: PageProps) {
               <AssistantChat />
             </ModuleHeader>
           )}
-          {activeSection === "organization" && (
+          {activeSection === "knowledge" && (\n            <ModuleHeader kicker="AGENTE · CONTEXTO Y CONTENIDO" title="Centro de conocimiento" description="Administra la información aprobada que servirá de base para las respuestas del futuro agente comercial." icon={<BookOpen size={18} />}>\n              <KnowledgeHub />\n            </ModuleHeader>\n          )}\n          {activeSection === "organization" && (
             <ModuleHeader kicker="SISTEMA · PERFIL DEL NEGOCIO" title="Organización" description="Configura el contexto comercial que utiliza UpScale IA para adaptar sus recomendaciones." icon={<Building2 size={18} />}>
               <BusinessSettings />
             </ModuleHeader>
