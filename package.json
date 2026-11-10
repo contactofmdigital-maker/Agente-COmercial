@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test:prioritization": "node scripts/test-prioritization.mjs"
+    "test:prioritization": "node scripts/test-prioritization.mjs",
+    "test:agent": "node scripts/test-agent-orchestration.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
