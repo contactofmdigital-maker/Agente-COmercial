@@ -2709,3 +2709,25 @@ body {
 @keyframes duplicate-fade-in{from{opacity:0}to{opacity:1}}
 @media(max-width:560px){.duplicate-modal{padding:19px;border-radius:15px}.duplicate-modal-actions{flex-direction:column-reverse}.duplicate-modal-actions .button{width:100%}}
 @media(prefers-reduced-motion:reduce){.duplicate-modal-backdrop{animation:none}}
+
+
+/* Configurador del agente: jerarquía clara y controles avanzados accesibles */
+.agent-config-advanced { padding: 0; overflow: hidden; }
+.agent-config-advanced > summary { display: block; padding: 18px 20px; cursor: pointer; list-style: none; }
+.agent-config-advanced > summary::-webkit-details-marker { display: none; }
+.agent-config-advanced > summary::after { content: "Abrir opciones"; display: inline-block; margin: 0 20px 16px; color: var(--upscale-gold-light, #e6bd72); font-size: 10px; }
+.agent-config-advanced[open] > summary::after { content: "Cerrar opciones"; }
+.agent-config-advanced > summary .agent-config-card-head { margin: 0; }
+.agent-config-advanced-body { display: grid; gap: 16px; padding: 0 20px 20px; }
+.agent-config-advanced-body > .agent-field { min-width: 0; }
+.agent-config-advanced .agent-config-grid { margin-top: 2px; }
+.agent-config-advanced .agent-toggle { margin: 2px 0; }
+.agent-config .agent-config-card-head p { max-width: 650px; }
+.agent-config .agent-config-summary > div { min-width: 0; }
+.agent-config .agent-config-summary strong { overflow-wrap: anywhere; }
+.agent-config .agent-field-full { grid-column: 1 / -1; }
+@media (max-width: 640px) {
+  .agent-config-advanced > summary { padding: 15px; }
+  .agent-config-advanced-body { padding: 0 15px 16px; }
+  .agent-config-advanced > summary::after { margin-left: 15px; }
+}
