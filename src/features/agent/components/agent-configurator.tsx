@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Bot, CheckCircle2, CircleHelp, LoaderCircle, MessageCircle, Save, ShieldCheck, Sparkles, UserRound, BookOpen, Eye } from "lucide-react";
+import { Bot, CheckCircle2, CircleHelp, LoaderCircle, MessageCircle, Save, ShieldCheck, Sparkles, BookOpen, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 type Tone = "professional" | "friendly" | "consultative" | "premium" | "direct";
@@ -120,7 +120,7 @@ export function AgentConfigurator() {
       <div className="agent-config-banner">
         <div className="agent-config-banner-icon"><Bot size={22} /></div>
         <div><strong>Diseña cómo debe comportarse tu agente</strong><p>Define identidad, objetivos, conocimiento, límites y derivación humana. Todo se guarda sin conectar modelos de IA ni consumir tokens.</p></div>
-        <span className={config.enabled ? "agent-state agent-state-on" : "agent-state"}>{config.enabled ? "CONFIGURADO COMO ACTIVO" : "EN PREPARACIÓN"}</span>
+        <span className={config.enabled ? "agent-state agent-state-on" : "agent-state"}>{config.enabled ? "HABILITACIÓN CONFIGURADA" : "EN PREPARACIÓN"}</span>
       </div>
 
       <div className="agent-config-summary">
@@ -133,6 +133,7 @@ export function AgentConfigurator() {
       <form className="agent-config-form" onSubmit={save}>
         <section className="agent-config-card">
           <div className="agent-config-card-head"><div><span className="panel-kicker">01 · IDENTIDAD</span><h3>Nombre y personalidad</h3><p>La identidad que tendrá el asistente al conversar con tus clientes.</p></div><Bot size={19} /></div>
+          <label className="agent-toggle"><input type="checkbox" checked={config.enabled} onChange={e => update("enabled", e.target.checked)} /><span><strong>Marcar agente como habilitado para una futura conexión</strong><small>Este ajuste guarda tu preferencia; no activa IA ni conecta WhatsApp.</small></span></label>
           <div className="agent-config-grid">
             <div className="agent-field"><label htmlFor="agent-name">Nombre del agente</label><input id="agent-name" value={config.agent_name} onChange={e => update("agent_name", e.target.value)} maxLength={80} minLength={2} required /></div>
             <div className="agent-field"><label htmlFor="agent-language">Idioma principal</label><select id="agent-language" value={config.language} onChange={e => update("language", e.target.value)}><option value="es">Español</option><option value="en">Inglés</option><option value="pt">Portugués</option></select></div>
