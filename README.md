@@ -40,7 +40,7 @@ Consulta `.env.example`. No subas `.env.local`, claves privadas, service-role ke
 - `npm run build`: compilación de producción.
 - `npm run lint`: análisis ESLint.
 - `npm run typecheck`: validación TypeScript.
-- `npm run test:prioritization`: pruebas del motor de priorización CRM.
+- `npm run test:prioritization`: pruebas del motor de priorización CRM.\n- `npm run test:agent`: pruebas deterministas de captura progresiva, fuentes autorizadas y derivación humana.
 
 ## Seguridad y datos
 
@@ -53,7 +53,7 @@ Consulta `.env.example`. No subas `.env.local`, claves privadas, service-role ke
 
 ## Base de datos
 
-Las migraciones en `supabase/migrations` representan cambios incrementales. No ejecutes de nuevo la migración inicial `0001_sales_workspace.sql` sobre una base existente sin verificar previamente tablas, columnas, políticas y relaciones. Las migraciones más recientes utilizan un esquema por usuario (`user_id)); la documentación de cada migración debe prevalecer sobre supuestos antiguos del starter.
+Las migraciones en `supabase/migrations` representan cambios incrementales. No ejecutes de nuevo la migración inicial `0001_sales_workspace.sql` sobre una base existente sin verificar previamente tablas, columnas, políticas y relaciones. Las migraciones más recientes y el código actual utilizan un esquema por usuario (`user_id`). Existe una diferencia con el modelo histórico por organizaciones de `0001_sales_workspace.sql`; no apliques esa migración inicial en una base existente sin comparar el esquema desplegado.
 
 ## Respaldos
 
