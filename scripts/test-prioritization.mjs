@@ -18,7 +18,11 @@ const prospect = (overrides = {}) => ({
   email: "ana@example.com", website: null, notes: "Solicitó una cotización para SEO",
   status: "contacted", ...overrides,
 });
-const opportunity = (stage, id = "o1") => ({ id, prospect_id: "p1", stage });
+const opportunity = (stage, id = "o1", prospectId = "p1") => ({
+  id,
+  prospect_id: prospectId,
+  stage,
+});
 const activity = (overrides = {}) => ({
   id: "a1", prospect_id: "p1", opportunity_id: null, activity_type: "call",
   title: "Llamada comercial", description: null, due_at: null, priority: "normal",
@@ -68,7 +72,7 @@ const evidenceBackedProspect = prospect({
 });
 const evidenceBacked = engine.calculatePotential(
   evidenceBackedProspect,
-  [opportunity("negotiation", "o-evidence-backed")],
+  [opportunity("negotiation", "o-evidence-backed", "p-evidence-backed")],
   [],
   profile,
   now,
@@ -77,7 +81,7 @@ assert.equal(evidenceBacked.coverage, 60);
 assert.equal(evidenceBacked.score, 60, "El potencial respaldado suma puntos reales sobre el modelo completo.");
 const commercialRanking = engine.prioritizeProspects(
   [lowCoverageProspect, evidenceBackedProspect],
-  [opportunity("negotiation", "o-evidence-backed")],
+  [opportunity("negotiation", "o-evidence-backed", "p-evidence-backed")],
   [],
   profile,
   now,
