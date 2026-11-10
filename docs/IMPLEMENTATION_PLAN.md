@@ -25,7 +25,7 @@
 - Configuración de identidad, tono, límites y derivación.
 - Simulación sin llamadas de IA.
 - Clasificación de intención y respuestas fundamentadas.
-- Pendiente: simplificar el configurador y evitar duplicación con Perfil de negocio.
+- Rediseñado: tres pasos principales (identidad, objetivo e información autorizada) y opciones avanzadas plegables.\n- Perfil de negocio establecido como fuente principal para oferta, público objetivo y metas; se conserva el campo histórico del agente por compatibilidad.
 
 ### Fase 4 — Captura progresiva de oportunidades
 - Detección de interés comercial.
@@ -33,7 +33,7 @@
 - Preguntar solo por datos faltantes.
 - Guardar/actualizar un único prospecto por conversación.
 - Conservar datos existentes y respetar el aislamiento por usuario.
-- Estado: implementación en estabilización; no cerrar hasta completar matriz de pruebas, build, lint, typecheck y comprobación CRM.
+- Se añadió `npm run test:agent` con escenarios del flujo de tres mensajes, prioridad comercial, conocimiento no autorizado y derivación explícita.\n- Estado: en estabilización; falta ejecutar la nueva prueba y validar build, lint, typecheck, persistencia CRM y RLS en Supabase.
 
 ### Fase 5 — Calidad conversacional y observabilidad
 - Pruebas unitarias del clasificador y extracción.
