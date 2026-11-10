@@ -1,33 +1,71 @@
-# Plan de implementación — Fase 1
+# Plan de implementación — UpScale IA
 
-## Objetivo
-Nuevo proyecto independiente para el agente comercial. El proyecto UpScale IA original queda intacto.
+## Principios del producto
 
-## Alcance
-- Workspace/dashboard premium.
-- CRM de prospectos y vista de lista.
-- Alta manual y lectura desde Supabase.
-- Importación CSV con vista previa.
-- Preparación para el asistente IA, sin fingir conexión.
-- Acciones comerciales siempre manuales.
+- El cliente configura el negocio y el comportamiento comercial desde una experiencia simple.
+- UpScale se encarga de la implementación técnica, integraciones, pruebas y puesta en marcha.
+- El motor no inventa datos, no afirma acciones externas no ejecutadas y no mezcla datos entre usuarios.
+- El simulador determinista funciona sin proveedor de IA ni consumo de tokens.
+- CRM existente como fuente única de prospectos; no crear un CRM paralelo.
 
-## Bloqueadores que se deben resolver antes de usar datos reales
-1. Verificar esquema real de organizaciones y membresías.
-2. Añadir un selector de organización autorizado en servidor.
-3. Completar autenticación (login, logout, recuperación de sesión).
-4. Ajustar inserciones para asignar `organization_id` desde la sesión/organización autorizada, nunca desde un campo libre del cliente.
-5. Añadir pruebas RLS y pruebas de importación.
-6. Añadir transacción RPC para importación completa y detección de duplicados contra registros existentes.
-7. Conectar proveedor de IA en servidor y definir política de retención de conversaciones.
+## Estado y etapas
 
-## Criterios de aceptación
-- `npm run typecheck` pasa.
-- `npm run build` pasa.
-- La aplicación no afirma que datos ficticios sean reales.
-- Sin configuración de Supabase, el error se explica claramente.
-- Solo usuarios autenticados y miembros autorizados acceden a datos de su organización.
-- CSV inválido produce informe de filas rechazadas y no se presenta como importación completa.
-- Ningún mensaje externo se envía sin acción manual explícita.
+### Fase 1 — Base de plataforma
+- Next.js App Router, autenticación Supabase y workspace.
+- CRM de prospectos, oportunidades y actividades.
+- Perfil comercial por usuario.
+- RLS y aislamiento por usuario sujetos a validación con cuentas separadas.
 
-## Estado honesto de este starter
-Es una base de proyecto entregable, no una aplicación certificada en producción. La integración con el esquema existente, el flujo de autenticación y el contexto de organización deben validarse con el proyecto Supabase real antes de guardar datos.
+### Fase 2 — Centro de conocimiento
+- Contenidos de negocio, productos/servicios, FAQ y políticas.
+- Estados borrador, publicado y desactivado.
+- El agente solo debe usar fuentes publicadas y seleccionadas.
+
+### Fase 3 — Configuración y motor determinista
+- Configuración de identidad, tono, límites y derivación.
+- Simulación sin llamadas de IA.
+- Clasificación de intención y respuestas fundamentadas.
+- Pendiente: simplificar el configurador y evitar duplicación con Perfil de negocio.
+
+### Fase 4 — Captura progresiva de oportunidades
+- Detección de interés comercial.
+- Extracción de datos desde varios mensajes.
+- Preguntar solo por datos faltantes.
+- Guardar/actualizar un único prospecto por conversación.
+- Conservar datos existentes y respetar el aislamiento por usuario.
+- Estado: implementación en estabilización; no cerrar hasta completar matriz de pruebas, build, lint, typecheck y comprobación CRM.
+
+### Fase 5 — Calidad conversacional y observabilidad
+- Pruebas unitarias del clasificador y extracción.
+- Pruebas de conversaciones completas y regresión.
+- Registro estructurado de decisiones, fuentes, campos detectados y errores.
+- Herramientas para revisar por qué se tomó una decisión, sin exponer información sensible.
+
+### Fase 6 — IA asistida
+- Solo después de aprobar Fase 4 y 5.
+- Proveedor y modelo configurables desde servidor.
+- Límites de uso, control de costos, timeout, manejo de errores y política de retención.
+- La IA redacta/razona; permisos, persistencia y acciones se mantienen bajo reglas verificables.
+- Activación explícita y pruebas con presupuesto controlado.
+
+### Fase 7 — Canales e integraciones
+- Adaptadores desacoplados por canal.
+- WhatsApp Business con autorización, webhooks, verificación, idempotencia y estado de entrega.
+- No mostrar un canal como conectado hasta validar envío y recepción reales.
+- Reintentos seguros y trazabilidad de eventos.
+
+### Fase 8 — Producción y operación multi-cliente
+- Modelo de organización/tenant definido antes de vender acceso multiusuario.
+- Roles, permisos y administración de clientes.
+- Auditoría de seguridad, backup/restore, monitoreo, alertas y política de privacidad.
+- Despliegue controlado, migraciones reversibles y plan de rollback.
+
+## Criterios de salida de cada fase
+
+Una fase no se considera terminada solo porque el código exista. Requiere:
+1. Revisión del cambio.
+2. Build y typecheck exitosos.
+3. Lint sin errores relevantes.
+4. Pruebas funcionales de los casos esperados y de regresión.
+5. Validación de persistencia y permisos cuando corresponda.
+6. Documentación actualizada y respaldo del hito.
