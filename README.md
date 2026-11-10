@@ -1,47 +1,72 @@
-# UpScale IA — Agente Comercial VIP Premium (Fase 1)
+# UpScale IA — Agente Comercial VIP
 
-Proyecto **nuevo e independiente**. No modifica el código del UpScale IA principal. Se conecta al proyecto Supabase existente solo cuando tú configures las variables y apliques conscientemente la migración incluida.
+Plataforma Next.js + Supabase para configurar un agente comercial, administrar conocimiento aprobado, simular conversaciones y gestionar prospectos en un CRM.
 
-## Incluido en este starter
+## Estado actual
 
-- Next.js App Router + React + TypeScript.
-- Tailwind CSS 4, interfaz responsive estilo dashboard premium.
-- Supabase SSR client helpers y pantalla de inicio.
-- CRM: alta y consulta de prospectos persistidos.
-- Importación CSV con previsualización, validación básica y control de duplicados por email dentro del archivo.
-- Base SQL inicial aislada con `sales_prospects` y `sales_activities`, con `organization_id`, RLS y políticas de acceso.
-- `.env.example`; no incluye credenciales reales.
-- Las acciones comerciales son manuales: no se envían emails ni mensajes automáticamente.
+- **Fase 1–3:** base de CRM, perfil comercial, centro de conocimiento, configurador y motor determinista de simulación.
+- **Fase 4:** captura progresiva de oportunidades y actualización del CRM por conversación. En estabilización y validación; no declarar lista hasta completar pruebas locales y de Supabase.
+- **IA y canales externos:** existen rutas y preparaciones separadas. El playground determinista no debe invocar proveedores de IA ni enviar mensajes. WhatsApp no está conectado por el simple hecho de guardar su configuración.
+
+## Stack
+
+- Next.js App Router, React y TypeScript.
+- Supabase Auth, Postgres y RLS.
+- Zod para validación de solicitudes.
+- Motor determinista para simulación sin consumo de tokens.
 
 ## Requisitos
 
-Node.js LTS compatible con la versión de Next.js instalada, npm y acceso al proyecto Supabase. Verifica las versiones instaladas con `node -v` y `npm -v`.
+- Node.js compatible con Next.js 16.
+- npm.
+- Proyecto Supabase configurado.
 
-## Arranque local
+## Desarrollo local
 
-1. Descomprime el ZIP.
-2. Abre una terminal dentro de `upscale-agente-comercial-vip`.
-3. Ejecuta `npm install`.
-4. Copia `.env.example` a `.env.local`.
-5. Completa `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_ANON_KEY` desde el panel de Supabase.
-6. Revisa `supabase/migrations/0001_sales_workspace.sql` antes de ejecutarlo. **No lo apliques sin confirmar que los nombres de tablas y políticas no colisionan con el proyecto existente.**
-7. Aplica la migración revisada en el SQL Editor de Supabase o con Supabase CLI.
-8. Ejecuta `npm run dev` y abre `http://localhost:3000`.
+1. Clona el repositorio y entra a su carpeta.
+2. Ejecuta `npm install`.
+3. Crea `.env.local` usando como referencia `.env.example`.
+4. Configura las variables públicas de Supabase.
+5. Verifica que las migraciones aplicadas correspondan al esquema real de tu proyecto.
+6. Ejecuta `npm run dev`.
 
-## Importante sobre el esquema existente
+## Variables de entorno
 
-Este starter usa tablas nuevas con prefijo `sales_` para reducir colisiones. La política RLS asume que existe `public.organizations(id uuid)` y que `public.organization_members(organization_id uuid, user_id uuid, role text)` representa la pertenencia del usuario a la organización. **Verifica los nombres y tipos reales antes de ejecutar la migración.** Si tu esquema difiere, adapta la migración a tu esquema real primero. No usa service-role en el navegador.
+Consulta `.env.example`. No subas `.env.local`, claves privadas, service-role keys ni tokens al repositorio.
 
-La aplicación requiere un usuario autenticado y una organización seleccionada para operar sobre datos reales. La base del starter incluye el helper para Supabase, pero el selector de organización y el flujo de autenticación completo quedan marcados como siguiente paso, porque deben integrarse con las tablas reales de identidad y membresía existentes, no inventarse.
+## Comandos
 
-## Próxima entrega recomendada
+- `npm run dev`: desarrollo local.
+- `npm run build`: compilación de producción.
+- `npm run lint`: análisis ESLint.
+- `npm run typecheck`: validación TypeScript.
+- `npm run test:prioritization`: pruebas del motor de priorización CRM.
 
-1. Ajustar migración según el esquema real del Supabase existente.
-2. Completar login/logout, resolución segura de organización y autorización de servidor.
-3. Robustecer CSV (mapeo de columnas, importación transaccional e informe de errores).
-4. Conectar IA real para redactar mensajes, con aprobación manual y límites de uso.
-5. Añadir pruebas automatizadas, logs y telemetría.
+## Seguridad y datos
 
-## Criterio de honestidad funcional
+- Las rutas autenticadas obtienen el usuario desde Supabase Auth.
+- Las consultas del usuario deben quedar limitadas por `user_id` y protegidas también por RLS.
+- Nunca aceptar `user_id` desde el cliente como fuente de autorización.
+- Las acciones externas deben requerir una integración autorizada y una confirmación funcional.
+- No registrar secretos ni contenido sensible en logs.
+- Los datos demo deben mantenerse separados de los prospectos reales.
 
-No se incluyen botones que simulen integraciones conectadas. Si Supabase no está configurado o la migración no se aplicó, la interfaz muestra el error y no inventa datos guardados.
+## Base de datos
+
+Las migraciones en `supabase/migrations` representan cambios incrementales. No ejecutes de nuevo la migración inicial `0001_sales_workspace.sql` sobre una base existente sin verificar previamente tablas, columnas, políticas y relaciones. Las migraciones más recientes utilizan un esquema por usuario (`user_id)); la documentación de cada migración debe prevalecer sobre supuestos antiguos del starter.
+
+## Respaldos
+
+- Rama de respaldo pre-auditoría: `backup/pre-audit-2026-11-10`.
+- Rama de estabilización: `feat/platform-stabilization`.
+- Para crear un ZIP de los archivos versionados en el commit actual, ejecuta `./scripts/backup-project.ps1` desde PowerShell.
+- El ZIP del repositorio no incluye la base de datos Supabase, archivos locales no versionados ni secretos. Respaldar Supabase por separado antes de cambios de esquema o producción.
+
+## Documentación
+
+- [Auditoría, arquitectura objetivo y recuperación](docs/PLATFORM_AUDIT_AND_RECOVERY.md)
+- [Plan de implementación](docs/IMPLEMENTATION_PLAN.md)
+
+## Estado de validación
+
+Los cambios de la rama de estabilización requieren ejecución local de build, lint, typecheck y pruebas conversacionales. No considerar la rama lista para producción hasta registrar esos resultados y validar RLS con usuarios separados.
