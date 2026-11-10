@@ -31,7 +31,7 @@ function classifyIntent(message: string) {
   if (/\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido)\b/.test(text)) return "purchase";
   if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing)\b/.test(text)) return "product";
   if (/\b(disponible|stock|disponibilidad|plazo|entrega)\b/.test(text)) return "availability";
-  if (/^(hola|buenas|buenos dias|buenas tardes|buenas noches|hey|hello)[!. ]*$/.test(text)) return "greeting";
+  if (/^(hola( buenas)?( tardes| dias| noches)?|buenas (tardes|noches)|buenos dias|hey|hello)[!. ]*$/.test(text)) return "greeting";
   return "general";
 }
 
