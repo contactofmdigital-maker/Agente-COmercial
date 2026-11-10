@@ -17,19 +17,20 @@ export type OrchestrationResult = {
   actions: string[];
 };
 
-const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9@.+\s]/g, " ").replace(/\s+/g, " ").trim();
-const STOP = new Set(["para","como","desde","donde","cuando","quiero","necesito","tienen","tiene","pueden","puede","ustedes","hola","buenas","gracias","por","favor","una","uno","con","del","las","los","que","esto","esta","este","hay","ser","son","mas","muy","mi","me","el","la","de","en","y","o","a"]);
-const tokens = (value: string) => normalize(value).split(" ").filter((word) => word.length > 2 && !STOP.has(word));
+const normalize = (value: string) => value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/[^a-z0-9@.+\\s]/g, " ").replace(/\\s+/g, " ").trim();
+const STOP = new Set(["para","como","desde","donde","cuando","cuales","cual","sus","son","quiero","necesito","tienen","tiene","pueden","puede","ustedes","hola","buenas","gracias","por","favor","una","uno","con","del","las","los","que","esto","esta","este","hay","ser","mas","muy","mi","me","el","la","de","en","y","o","a"]);
+const stem = (word: string) => word.length > 5 && word.endsWith("es") ? word.slice(0, -2) : word.length > 4 && word.endsWith("s") ? word.slice(0, -1) : word;
+const tokens = (value: string) => normalize(value).split(" ").filter((word) => word.length > 2 && !STOP.has(word)).map(stem);
 
 function classifyIntent(message: string) {
   const text = normalize(message);
-  if (/\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante)\b/.test(text)) return "human_request";
-  if (/\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\b/.test(text)) return "complaint";
-  if (/\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto)\b/.test(text)) return "pricing";
-  if (/\b(horario|abren|cierran|direccion|ubicacion|donde estan|despacho|envio|cobertura)\b/.test(text)) return "business_info";
-  if (/\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido)\b/.test(text)) return "purchase";
-  if (/\b(producto|servicio|catalogo|ofrecen|trabajan|landing|pagina web|marketing)\b/.test(text)) return "product";
-  if (/\b(disponible|stock|disponibilidad|plazo|entrega)\b/.test(text)) return "availability";
+  if (/\\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante)\\b/.test(text)) return "human_request";
+  if (/\\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\\b/.test(text)) return "complaint";
+  if (/\\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto)\\b/.test(text)) return "pricing";
+  if (/\\b(horario|horarios|atencion|abren|cierran|direccion|ubicacion|donde estan|despacho|envio|cobertura)\\b/.test(text)) return "business_info";
+  if (/\\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido)\\b/.test(text)) return "purchase";
+  if (/\\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing)\\b/.test(text)) return "product";
+  if (/\\b(disponible|stock|disponibilidad|plazo|entrega)\\b/.test(text)) return "availability";
   if (/^(hola|buenas|buenos dias|buenas tardes|buenas noches|hey|hello)[!. ]*$/.test(text)) return "greeting";
   return "general";
 }
@@ -38,27 +39,45 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
   const query = new Set(tokens(message));
   if (!query.size) return [];
   return knowledge.map((item) => {
-    const contentTokens = new Set(tokens(item.title + " " + item.content));
-    const overlap = [...query].filter((token) => contentTokens.has(token));
-    const score = overlap.length / Math.max(1, Math.min(query.size, 7));
-    return { item, score, overlap: overlap.length };
-  }).filter((item) => item.overlap > 0 && item.score >= 0.18)
+    const titleTokens = new Set(tokens(item.title));
+    const contentTokens = new Set(tokens(item.content));
+    const overlapTitle = [...query].filter((token) => titleTokens.has(token)).length;
+    const overlapContent = [...query].filter((token) => contentTokens.has(token)).length;
+    const overlap = overlapTitle + overlapContent;
+    const score = (overlapContent + overlapTitle * 2) / Math.max(1, query.size * 2);
+    const category = normalize(item.category);
+    const categoryBoost =
+      (category === "faq" && /horario|atencion|politica|pregunta/.test(normalize(message))) ||
+      (category === "product" && /producto|servicio|landing|pagina|marketing/.test(normalize(message))) ? 0.2 : 0;
+    return { item, score: score + categoryBoost, overlap };
+  }).filter((entry) => entry.overlap > 0 && entry.score >= 0.12)
     .sort((a, b) => b.score - a.score).slice(0, 3);
 }
 
 function extractLeadCapture(messages: ConversationMessage[]) {
-  const text = messages.filter((message) => message.role === "user").map((message) => message.content).join("\n");
-  const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? null;
-  const phone = text.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.trim() ?? null;
-  const name = text.match(/\b(?:me llamo|mi nombre es|soy)\s+([A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}'-]+){0,2})/iu)?.[1] ?? null;
+  const text = messages.filter((message) => message.role === "user").map((message) => message.content).join("\\n");
+  const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i)?.[0] ?? null;
+  const phone = text.match(/(?:\\+?\\d[\\d\\s().-]{7,}\\d)/)?.[0]?.trim() ?? null;
+  const name = text.match(/\\b(?:me llamo|mi nombre es|soy)\\s+([A-ZÁÉÍÓÚÑ][\\p{L}'-]+(?:\\s+[A-ZÁÉÍÓÚÑ][\\p{L}'-]+){0,2})/iu)?.[1] ?? null;
   const need = messages.filter((message) => message.role === "user").map((message) => message.content).at(-1) ?? null;
   return { name, email, phone, need };
 }
 
 function nextQualificationQuestion(config: AgentRuntimeConfig, messages: ConversationMessage[]) {
-  const questions = config.qualification_questions.split(/\r?\n/).map((item) => item.trim()).filter(Boolean);
+  const questions = (config.qualification_questions || "")
+    .split(/\\r?\\n/)
+    .map((item) => item.replace(/^\\s*[-•0-9.)]+\\s*/, "").trim())
+    .filter((item) => item.length >= 8 && item.length <= 180 && item.includes("?") && !/eres |tu funcion|tu función|objetivo principal|debes |debes$|instrucciones/i.test(item));
   const asked = messages.filter((message) => message.role === "assistant").length;
-  return questions.length ? questions[Math.min(asked, questions.length - 1)] : "¿Qué necesitas resolver y para cuándo lo necesitas?";
+  return questions.length ? questions[Math.min(asked, questions.length - 1)] : "¿Qué servicio necesitas y cuál es el objetivo de tu proyecto?";
+}
+
+function safeGreeting(config: AgentRuntimeConfig) {
+  const greeting = (config.greeting || "").trim();
+  if (!greeting || greeting.length > 240 || /eres |tu funcion|tu función|tu objetivo|debes |instrucciones|agente comercial virtual/i.test(greeting)) {
+    return "¡Hola! Soy " + (config.agent_name || "tu asistente") + ", el asistente comercial de UpScale IA. ¿En qué puedo ayudarte?";
+  }
+  return greeting;
 }
 
 export function orchestrateConversation(input: {
@@ -66,33 +85,39 @@ export function orchestrateConversation(input: {
 }): OrchestrationResult {
   const { message, messages, config, knowledge } = input;
   const intent = classifyIntent(message);
-  const matches = rankKnowledge(message, knowledge);
   const lead_capture = extractLeadCapture([...messages, { role: "user", content: message }]);
-  const sources = matches.map(({ item }) => ({ id: item.id, title: item.title, category: item.category }));
   const wantsHuman = intent === "human_request" || intent === "complaint";
-  const unsupportedFact = ["pricing", "business_info", "availability", "product", "purchase"].includes(intent) && matches.length === 0;
+  const sourcesFor = (matches: ReturnType<typeof rankKnowledge>) => matches.map(({ item }) => ({ id: item.id, title: item.title, category: item.category }));
+
+  // Greetings must not be answered with internal instructions or unrelated knowledge entries.
+  if (intent === "greeting") {
+    return { answer: safeGreeting(config), intent, route: "greeting", confidence: "grounded", sources: [], handoff_required: false, lead_capture, actions: ["start_conversation"] };
+  }
 
   if (wantsHuman && config.human_handoff_enabled) {
-    return { answer: config.handoff_message || "Voy a derivar tu consulta a una persona del equipo.", intent, route: "handoff", confidence: "limited", sources, handoff_required: true, lead_capture, actions: ["human_handoff"] };
+    return { answer: config.handoff_message || "Voy a derivar tu consulta a una persona del equipo.", intent, route: "handoff", confidence: "limited", sources: [], handoff_required: true, lead_capture, actions: ["human_handoff"] };
   }
+  if (wantsHuman) {
+    return { answer: "Entiendo que necesitas atención de una persona. La derivación humana está desactivada; no voy a afirmar que se haya contactado al equipo.", intent, route: "clarify", confidence: "none", sources: [], handoff_required: false, lead_capture, actions: ["notify_human_handoff_unavailable"] };
+  }
+
+  const matches = rankKnowledge(message, knowledge);
+  const sources = sourcesFor(matches);
   if (matches.length) {
     const answer = matches.length === 1
       ? matches[0].item.content
-      : matches.map(({ item }) => item.title + ": " + item.content).join("\n\n");
-    const ask = intent === "purchase" ? "\n\n¿Quieres que te ayude a avanzar con el siguiente paso?" : "";
+      : matches.map(({ item }) => item.title + ": " + item.content).join("\\n\\n");
+    const ask = intent === "purchase" ? "\\n\\n¿Quieres que te ayude a avanzar con el siguiente paso?" : "";
     return { answer: answer + ask, intent, route: "answer_from_knowledge", confidence: "grounded", sources, handoff_required: false, lead_capture, actions: intent === "purchase" ? ["capture_purchase_interest"] : ["answer_from_published_knowledge"] };
   }
-  if (wantsHuman) {
-    return { answer: "Entiendo que necesitas atención de una persona. La derivación humana está desactivada en la configuración actual; no voy a afirmar que se haya contactado al equipo.", intent, route: "clarify", confidence: "none", sources, handoff_required: false, lead_capture, actions: ["notify_human_handoff_unavailable"] };
-  }
-  if (intent === "greeting") {
-    return { answer: config.greeting || "¡Hola! ¿En qué puedo ayudarte?", intent, route: "greeting", confidence: "grounded", sources: [], handoff_required: false, lead_capture, actions: ["start_conversation"] };
-  }
-  if (unsupportedFact) {
+
+  const requiresGrounding = ["pricing", "business_info", "availability", "product", "purchase"].includes(intent);
+  if (requiresGrounding) {
     const fallback = config.human_handoff_enabled
-      ? config.handoff_message || "No tengo información publicada suficiente para confirmarlo. Te derivaré con una persona del equipo."
-      : "No tengo información publicada suficiente para confirmarlo. Prefiero no inventar datos. ¿Quieres contarme un poco más para orientarte?";
+      ? config.handoff_message || "No tengo información publicada suficiente para confirmarlo. Puedo derivarte con una persona del equipo."
+      : "No tengo información publicada suficiente para confirmarlo. Prefiero no inventar datos. ¿Quieres contarme un poco más?";
     return { answer: fallback, intent, route: config.human_handoff_enabled ? "handoff" : "clarify", confidence: "none", sources: [], handoff_required: config.human_handoff_enabled, lead_capture, actions: config.human_handoff_enabled ? ["human_handoff"] : ["request_more_information"] };
   }
+
   return { answer: "Claro, puedo orientarte. " + nextQualificationQuestion(config, messages), intent, route: "qualify", confidence: "limited", sources: [], handoff_required: false, lead_capture, actions: ["qualify_lead"] };
 }
