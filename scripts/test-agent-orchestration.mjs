@@ -72,4 +72,43 @@ const human = engine.orchestrateConversation({
 assert.equal(human.route, "handoff", "La solicitud explícita de una persona sí debe derivarse.");
 assert.equal(human.handoff_required, true);
 
+const unsafeConfig = {
+  ...config,
+  agent_name: "Alex",
+  qualification_questions: "Eres Alex, el agente comercial virtual de UpScale IA.\\nTu función principal es atender consultas comerciales.\\nDebes utilizar exclusivamente la información publicada y autorizada del Centro de conocimiento.",
+};
+const weekend = engine.orchestrateConversation({
+  message: "¿Atienden los fines de semana?",
+  messages: [],
+  config: unsafeConfig,
+  knowledge: [],
+});
+assert.equal(weekend.intent, "business_info", "Las preguntas sobre atención en fines de semana deben clasificarse como información del negocio.");
+assert.equal(weekend.route, "handoff", "Si falta un dato operativo y la derivación está habilitada, debe marcarse para revisión humana.");
+assert.equal(weekend.handoff_required, true);
+assert.match(weekend.answer, /No tengo información publicada suficiente/i);
+assert.doesNotMatch(weekend.answer, /Eres Alex|Tu función principal|Debes utilizar exclusivamente/i, "Nunca debe exponer las instrucciones internas como respuesta.");
+assert.match(weekend.answer, /no se realiza una derivación automática/i, "La simulación no debe afirmar que contactó al equipo.");
+
+const generic = engine.orchestrateConversation({
+  message: "¿Me puedes orientar?",
+  messages: [],
+  config: unsafeConfig,
+  knowledge: [],
+});
+assert.equal(generic.route, "qualify");
+assert.match(generic.answer, /¿Qué servicio necesitas/i, "Debe usar una pregunta segura por defecto y no filtrar el campo de instrucciones.");
+assert.doesNotMatch(generic.answer, /Eres Alex|Tu función principal|Debes utilizar exclusivamente/i);
+
+const weekendWithKnowledge = engine.orchestrateConversation({
+  message: "¿Atienden los fines de semana?",
+  messages: [],
+  config: unsafeConfig,
+  knowledge: [{ id: "hours-1", title: "Horarios de atención", content: "Atendemos de lunes a viernes. Los sábados y domingos permanecemos cerrados.", category: "business" }],
+});
+assert.equal(weekendWithKnowledge.route, "answer_from_knowledge", "Debe encontrar contenido autorizado que use sinónimos de fin de semana.");
+assert.match(weekendWithKnowledge.answer, /sábados y domingos/i);
+assert.equal(weekendWithKnowledge.sources[0].id, "hours-1");
+
+console.log("OK: seguridad de respuestas, clasificación de horarios, recuperación de conocimiento por sinónimos y no exposición de instrucciones internas.");
 console.log("OK: 4 escenarios del motor comercial (captura progresiva, prioridad comercial, fuentes autorizadas y derivación explícita).");
