@@ -156,7 +156,7 @@ export function AgentConfigurator() {
         </section>
 
         <details className="agent-config-card agent-config-advanced">
-          <summary><div className="agent-config-card-head"><div><span className="panel-kicker">OPCIONAL · AJUSTES AVANZADOS</span><h3>Personalidad, reglas y derivación</h3><p>Abre esta sección solo si necesitas personalizar el comportamiento.</p></div><Settings2 size={19} /></div></summary>
+          <summary><span className="panel-kicker">OPCIONAL · AJUSTES AVANZADOS</span><strong>Personalidad, reglas y derivación</strong><small>Abre esta sección solo si necesitas personalizar el comportamiento.</small><Settings2 size={19} /></summary>
           <div className="agent-config-advanced-body">
             <div className="agent-field"><label htmlFor="agent-personality">Personalidad e instrucciones</label><textarea id="agent-personality" rows={3} value={config.personality} onChange={e => update("personality", e.target.value)} maxLength={3000} /></div>
             <div className="agent-field"><label htmlFor="agent-questions">Preguntas de calificación (una por línea)</label><textarea id="agent-questions" rows={4} value={config.qualification_questions} onChange={e => update("qualification_questions", e.target.value)} maxLength={2500} /><small>El motor debe preguntar solo por la información que todavía falte.</small></div>
@@ -172,7 +172,7 @@ export function AgentConfigurator() {
         </details>
 
         <details className="agent-config-card agent-config-advanced">
-          <summary><div className="agent-config-card-head"><div><span className="panel-kicker">OPCIONAL · CANALES</span><h3>Preparar WhatsApp</h3><p>Estos datos no conectan ni envían mensajes.</p></div><MessageCircle size={19} /></div></summary>
+          <summary><span className="panel-kicker">OPCIONAL · CANALES</span><strong>Preparar WhatsApp</strong><small>Estos datos no conectan ni envían mensajes.</small><MessageCircle size={19} /></summary>
           <div className="agent-config-advanced-body">
             <label className="agent-toggle"><input type="checkbox" checked={config.whatsapp_enabled} onChange={e => update("whatsapp_enabled", e.target.checked)} /><span><strong>Marcar WhatsApp como canal prioritario</strong><small>Solo registra una preferencia; no significa que esté conectado.</small></span></label>
             <div className="agent-config-grid">
