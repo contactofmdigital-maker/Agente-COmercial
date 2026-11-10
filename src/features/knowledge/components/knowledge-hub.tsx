@@ -66,7 +66,15 @@ export function KnowledgeHub() {
     }
   }, [selectedId]);
 
-  useEffect(() => { void loadEntries(); }, [loadEntries]);
+  useEffect(() => {
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) void loadEntries();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadEntries]);
 
   const visibleEntries = useMemo(() => entries.filter((entry) => {
     const matchesCategory = filter === "all" || entry.category === filter;
