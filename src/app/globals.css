@@ -1,3 +1,4 @@
+@import "./knowledge-hub.css";
 @import "tailwindcss";
 
 :root{--bg:#090c12;--panel:#10151f;--panel2:#131a26;--border:#222c3a;--muted:#8591a4;--text:#eef3fb;--gold:#e6bd72;--gold2:#f2d9a3;--purple:#9d8bff}
