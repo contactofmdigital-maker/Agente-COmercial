@@ -70,33 +70,36 @@ export async function POST(request: Request) {
     const hasContact = Boolean(result.lead_capture.email || result.lead_capture.phone);
     const commercialSignal = ["purchase", "pricing"].includes(result.intent)
       || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar|necesito una landing|necesito una pagina web|necesito una página web)\b/i.test(allUserText);
-    const shouldSaveLead = hasContact && commercialSignal;
-
     let leadSaved = false;
     let leadId: string | null = null;
-    if (shouldSaveLead) {
+
+    if (hasContact && commercialSignal) {
       const capture = result.lead_capture;
-      const { data: savedLead, error: saveError } = await supabase
-        .from("sales_prospects")
-        .upsert({
-          user_id: auth.user.id,
-          conversation_id: parsed.data.conversation_id,
-          full_name: capture.name || "Prospecto sin nombre",
-          company_name: capture.company_name,
-          email: capture.email,
-          phone: capture.phone,
-          website: capture.website,
-          country: capture.country,
-          service_interest: capture.service_interest,
-          project_objective: capture.project_objective,
-          budget: capture.budget,
-          timeline: capture.timeline,
-          notes: capture.need,
-          source: "playground",
-          status: "new",
-        }, { onConflict: "user_id,conversation_id" })
-        .select("id")
-        .single();
+      const { data: existing, error: lookupError } = await supabase.from("sales_prospects")
+        .select("id,full_name,company_name,email,phone,website,country,service_interest,project_objective,budget,timeline,notes")
+        .eq("user_id", auth.user.id).eq("conversation_id", parsed.data.conversation_id).maybeSingle();
+      if (lookupError) {
+        console.error("Agent lead lookup:", lookupError.message);
+        return json({ error: "No se pudo consultar el prospecto existente en el CRM." }, 500);
+      }
+
+      const { data: savedLead, error: saveError } = await supabase.from("sales_prospects").upsert({
+        user_id: auth.user.id,
+        conversation_id: parsed.data.conversation_id,
+        full_name: capture.name || existing?.full_name || "Prospecto sin nombre",
+        company_name: capture.company_name || existing?.company_name || null,
+        email: capture.email || existing?.email || null,
+        phone: capture.phone || existing?.phone || null,
+        website: capture.website || existing?.website || null,
+        country: capture.country || existing?.country || null,
+        service_interest: capture.service_interest || existing?.service_interest || null,
+        project_objective: capture.project_objective || existing?.project_objective || null,
+        budget: capture.budget || existing?.budget || null,
+        timeline: capture.timeline || existing?.timeline || null,
+        notes: capture.need || existing?.notes || null,
+        source: "playground",
+        ...(existing ? {} : { status: "new" }),
+      }, { onConflict: "user_id,conversation_id" }).select("id").single();
 
       if (saveError) {
         console.error("Agent lead capture save:", saveError.message);
