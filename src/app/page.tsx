@@ -17,7 +17,6 @@ import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { filterRealActivities, filterRealOpportunities, filterRealProspects } from "@/features/data-classification/lib/record-classification";
 import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
-import "./knowledge-hub.css";
 
 export const dynamic = "force-dynamic";
 
