@@ -17,20 +17,20 @@ export type OrchestrationResult = {
   actions: string[];
 };
 
-const normalize = (value: string) => value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/[^a-z0-9@.+\\s]/g, " ").replace(/\\s+/g, " ").trim();
+const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9@.+\s]/g, " ").replace(/\s+/g, " ").trim();
 const STOP = new Set(["para","como","desde","donde","cuando","cuales","cual","sus","son","quiero","necesito","tienen","tiene","pueden","puede","ustedes","hola","buenas","gracias","por","favor","una","uno","con","del","las","los","que","esto","esta","este","hay","ser","mas","muy","mi","me","el","la","de","en","y","o","a"]);
 const stem = (word: string) => word.length > 5 && word.endsWith("es") ? word.slice(0, -2) : word.length > 4 && word.endsWith("s") ? word.slice(0, -1) : word;
 const tokens = (value: string) => normalize(value).split(" ").filter((word) => word.length > 2 && !STOP.has(word)).map(stem);
 
 function classifyIntent(message: string) {
   const text = normalize(message);
-  if (/\\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante)\\b/.test(text)) return "human_request";
-  if (/\\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\\b/.test(text)) return "complaint";
-  if (/\\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto)\\b/.test(text)) return "pricing";
-  if (/\\b(horario|horarios|atencion|abren|cierran|direccion|ubicacion|donde estan|despacho|envio|cobertura)\\b/.test(text)) return "business_info";
-  if (/\\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido)\\b/.test(text)) return "purchase";
-  if (/\\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing)\\b/.test(text)) return "product";
-  if (/\\b(disponible|stock|disponibilidad|plazo|entrega)\\b/.test(text)) return "availability";
+  if (/\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante)\b/.test(text)) return "human_request";
+  if (/\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\b/.test(text)) return "complaint";
+  if (/\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto)\b/.test(text)) return "pricing";
+  if (/\b(horario|horarios|atencion|abren|cierran|direccion|ubicacion|donde estan|despacho|envio|cobertura)\b/.test(text)) return "business_info";
+  if (/\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido)\b/.test(text)) return "purchase";
+  if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing)\b/.test(text)) return "product";
+  if (/\b(disponible|stock|disponibilidad|plazo|entrega)\b/.test(text)) return "availability";
   if (/^(hola|buenas|buenos dias|buenas tardes|buenas noches|hey|hello)[!. ]*$/.test(text)) return "greeting";
   return "general";
 }
@@ -55,18 +55,18 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
 }
 
 function extractLeadCapture(messages: ConversationMessage[]) {
-  const text = messages.filter((message) => message.role === "user").map((message) => message.content).join("\\n");
-  const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}/i)?.[0] ?? null;
-  const phone = text.match(/(?:\\+?\\d[\\d\\s().-]{7,}\\d)/)?.[0]?.trim() ?? null;
-  const name = text.match(/\\b(?:me llamo|mi nombre es|soy)\\s+([A-ZÁÉÍÓÚÑ][\\p{L}'-]+(?:\\s+[A-ZÁÉÍÓÚÑ][\\p{L}'-]+){0,2})/iu)?.[1] ?? null;
+  const text = messages.filter((message) => message.role === "user").map((message) => message.content).join("\n");
+  const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? null;
+  const phone = text.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.trim() ?? null;
+  const name = text.match(/\b(?:me llamo|mi nombre es|soy)\s+([A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}'-]+){0,2})/iu)?.[1] ?? null;
   const need = messages.filter((message) => message.role === "user").map((message) => message.content).at(-1) ?? null;
   return { name, email, phone, need };
 }
 
 function nextQualificationQuestion(config: AgentRuntimeConfig, messages: ConversationMessage[]) {
   const questions = (config.qualification_questions || "")
-    .split(/\\r?\\n/)
-    .map((item) => item.replace(/^\\s*[-•0-9.)]+\\s*/, "").trim())
+    .split(/\r?\n/)
+    .map((item) => item.replace(/^\s*[-•0-9.)]+\s*/, "").trim())
     .filter((item) => item.length >= 8 && item.length <= 180 && item.includes("?") && !/eres |tu funcion|tu función|objetivo principal|debes |debes$|instrucciones/i.test(item));
   const asked = messages.filter((message) => message.role === "assistant").length;
   return questions.length ? questions[Math.min(asked, questions.length - 1)] : "¿Qué servicio necesitas y cuál es el objetivo de tu proyecto?";
@@ -106,8 +106,8 @@ export function orchestrateConversation(input: {
   if (matches.length) {
     const answer = matches.length === 1
       ? matches[0].item.content
-      : matches.map(({ item }) => item.title + ": " + item.content).join("\\n\\n");
-    const ask = intent === "purchase" ? "\\n\\n¿Quieres que te ayude a avanzar con el siguiente paso?" : "";
+      : matches.map(({ item }) => item.title + ": " + item.content).join("\n\n");
+    const ask = intent === "purchase" ? "\n\n¿Quieres que te ayude a avanzar con el siguiente paso?" : "";
     return { answer: answer + ask, intent, route: "answer_from_knowledge", confidence: "grounded", sources, handoff_required: false, lead_capture, actions: intent === "purchase" ? ["capture_purchase_interest"] : ["answer_from_published_knowledge"] };
   }
 
