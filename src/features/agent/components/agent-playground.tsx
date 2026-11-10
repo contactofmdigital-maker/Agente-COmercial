@@ -7,7 +7,7 @@ type ChatMessage = { role: "user" | "assistant"; content: string; meta?: string 
 
 export function AgentPlayground() {
   const [messages, setMessages] = useState<ChatMessage[]>([
-    { role: "assistant", content: "Prueba aquí el comportamiento de tu agente. Esta simulación usa reglas y conocimiento publicado; no consume tokens ni envía mensajes externos." }
+    { role: "assistant", content: "Prueba aquí el comportamiento de tu agente. Esta simulación usa reglas y conocimiento publicado; no consume tokens ni envía mensajes externos.", meta: "intro" }
   ]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
