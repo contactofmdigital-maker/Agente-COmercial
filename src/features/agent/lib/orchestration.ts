@@ -93,14 +93,22 @@ function nextQualificationQuestion(capture: LeadCapture) {
 
 function looksLikeInternalInstructions(value: string) {
   return /\b(eres|tu funcion|tu función|tu objetivo|debes|instrucciones|utiliza exclusivamente|no inventes|cuando un cliente|responde de manera|fuentes autorizadas)\b/i.test(value)
-    || value.split("\\n").filter((line) => line.trim()).length > 2;
+    || value.split("\n").filter((line) => line.trim()).length > 2;
 }
 
 function safeQualificationQuestion(config: AgentRuntimeConfig) {
-  const configured = (config.qualification_questions || "").split("\\n")
+  const configured = (config.qualification_questions || "").split("\n")
     .map((line) => line.trim())
     .find((line) => line.length >= 8 && line.length <= 240 && line.includes("?") && !looksLikeInternalInstructions(line));
   return configured || "¿Qué servicio necesitas y cuál es el objetivo de tu proyecto?";
+}
+
+function safeHandoffMessage(config: AgentRuntimeConfig) {
+  const message = (config.handoff_message || "").trim();
+  if (!message || message.length > 400 || looksLikeInternalInstructions(message)) {
+    return "Entiendo. Tu solicitud requiere atención de una persona del equipo. En esta simulación no se realiza una derivación automática.";
+  }
+  return message;
 }
 
 function safeGreeting(config: AgentRuntimeConfig) {
@@ -124,7 +132,7 @@ export function orchestrateConversation(input: {
     return { answer: safeGreeting(config), intent, route: "greeting", confidence: "grounded", sources: [], handoff_required: false, lead_capture, actions: ["start_conversation"] };
   }
   if (wantsHuman && config.human_handoff_enabled) {
-    return { answer: config.handoff_message || "Voy a derivar tu consulta a una persona del equipo.", intent, route: "handoff", confidence: "limited", sources: [], handoff_required: true, lead_capture, actions: ["human_handoff"] };
+    return { answer: safeHandoffMessage(config), intent, route: "handoff", confidence: "limited", sources: [], handoff_required: true, lead_capture, actions: ["human_handoff"] };
   }
   if (wantsHuman) {
     return { answer: "Entiendo que necesitas atención de una persona. La derivación humana está desactivada; no voy a afirmar que se haya contactado al equipo.", intent, route: "clarify", confidence: "none", sources: [], handoff_required: false, lead_capture, actions: ["notify_human_handoff_unavailable"] };
