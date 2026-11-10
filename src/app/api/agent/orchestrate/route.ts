@@ -49,21 +49,23 @@ export async function POST(request: Request) {
     if (!config) return json({ error: "Primero guarda la configuración del agente." }, 409);
 
     const ids = Array.isArray(config.knowledge_entry_ids) ? config.knowledge_entry_ids : [];
-    let knowledgeQuery = supabase
-      .from("agent_knowledge_entries").select("id,title,content,category")
-      .eq("user_id", auth.user.id).eq("status", "published");
-    if (ids.length) knowledgeQuery = knowledgeQuery.in("id", ids);
-    const { data: knowledgeData, error: knowledgeError } = await knowledgeQuery;
-    if (knowledgeError) {
-      console.error("Agent orchestration knowledge query:", knowledgeError.message);
-      return json({ error: "No se pudo cargar el conocimiento publicado del agente." }, 500);
+    let knowledgeData: KnowledgeSource[] = [];
+    if (ids.length) {
+      const { data, error: knowledgeError } = await supabase
+        .from("agent_knowledge_entries").select("id,title,content,category")
+        .eq("user_id", auth.user.id).eq("status", "published").in("id", ids);
+      if (knowledgeError) {
+        console.error("Agent orchestration knowledge query:", knowledgeError.message);
+        return json({ error: "No se pudo cargar el conocimiento publicado del agente." }, 500);
+      }
+      knowledgeData = (data ?? []) as KnowledgeSource[];
     }
 
     const result = orchestrateConversation({
       message: parsed.data.message,
       messages: parsed.data.messages as ConversationMessage[],
       config: config as AgentRuntimeConfig,
-      knowledge: (knowledgeData ?? []) as KnowledgeSource[],
+      knowledge: knowledgeData,
     });
 
     const allUserText = [...parsed.data.messages.filter((item) => item.role === "user").map((item) => item.content), parsed.data.message].join(" ");
