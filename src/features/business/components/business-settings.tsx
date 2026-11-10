@@ -112,12 +112,12 @@ export function BusinessSettings() {
         <div>
           <div className="panel-kicker">WORKSPACE · CONFIGURACIÓN</div>
           <h3>Perfil de negocio</h3>
-          <p>Estos datos personalizan el enfoque comercial de tu espacio de trabajo.</p>
+          <p>Esta es la ficha principal de tu empresa. El agente y el CRM utilizan esta información como contexto común.</p>
         </div>
         <div className="panel-icon"><Building2 size={18} /></div>
       </div>
 
-      {loading ? (
+      <div className="business-settings-source-note"><strong>Una sola fuente de información</strong><span>Administra aquí el tipo de negocio, oferta, público objetivo y meta comercial. No necesitas repetir estos datos en la configuración del agente.</span></div>\n\n      {loading ? (
         <p className="business-settings-loading"><LoaderCircle size={16} /> Cargando configuración...</p>
       ) : (
         <form className="business-settings-form" onSubmit={saveProfile}>
@@ -149,19 +149,19 @@ export function BusinessSettings() {
               </select>
             </div>
             <div className="field business-settings-full">
-              <label htmlFor="business-description">¿A qué se dedica tu negocio?</label>
+              <label htmlFor="business-description">Descripción del negocio</label>
               <textarea id="business-description" rows={2} value={profile.description} onChange={(event) => update("description", event.target.value)} placeholder="Describe brevemente qué hace tu negocio..." maxLength={1200} />
             </div>
             <div className="field business-settings-full">
-              <label htmlFor="business-offer">Productos o servicios principales</label>
+              <label htmlFor="business-offer">Qué vendes o qué servicios ofreces</label>
               <textarea id="business-offer" rows={2} value={profile.products_services} onChange={(event) => update("products_services", event.target.value)} placeholder="Enumera lo que vendes y, si corresponde, tus precios..." maxLength={1600} />
             </div>
             <div className="field business-settings-full">
-              <label htmlFor="business-customer">Cliente ideal</label>
+              <label htmlFor="business-customer">Público objetivo</label>
               <textarea id="business-customer" rows={2} value={profile.ideal_customer} onChange={(event) => update("ideal_customer", event.target.value)} placeholder="¿A quién quieres captar? Sector, ubicación, necesidades..." maxLength={1200} />
             </div>
             <div className="field business-settings-full">
-              <label htmlFor="business-goal">Objetivo comercial</label>
+              <label htmlFor="business-goal">Meta comercial</label>
               <textarea id="business-goal" rows={2} value={profile.sales_goal} onChange={(event) => update("sales_goal", event.target.value)} placeholder="Ej. Conseguir 15 clientes nuevos al mes..." maxLength={800} />
             </div>
           </div>
