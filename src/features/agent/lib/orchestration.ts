@@ -6,6 +6,11 @@ export type AgentRuntimeConfig = {
   restrictions: string; knowledge_entry_ids: string[]; human_handoff_enabled: boolean;
   handoff_triggers: string; handoff_message: string;
 };
+export type LeadCapture = {
+  name: string | null; email: string | null; phone: string | null; need: string | null;
+  company_name: string | null; website: string | null; country: string | null;
+  service_interest: string | null; project_objective: string | null; budget: string | null; timeline: string | null;
+};
 export type OrchestrationResult = {
   answer: string;
   intent: string;
@@ -13,7 +18,7 @@ export type OrchestrationResult = {
   confidence: "grounded" | "limited" | "none";
   sources: Array<{ id: string; title: string; category: string }>;
   handoff_required: boolean;
-  lead_capture: { name: string | null; email: string | null; phone: string | null; need: string | null };
+  lead_capture: LeadCapture;
   actions: string[];
 };
 
@@ -26,7 +31,7 @@ function classifyIntent(message: string) {
   const text = normalize(message);
   if (/\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante)\b/.test(text)) return "human_request";
   if (/\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\b/.test(text)) return "complaint";
-  if (/\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto)\b/.test(text)) return "pricing";
+  if (/\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar)\b/.test(text)) return "pricing";
   if (/\b(horario|horarios|atencion|abren|cierran|direccion|ubicacion|donde estan|despacho|envio|cobertura)\b/.test(text)) return "business_info";
   if (/\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido)\b/.test(text)) return "purchase";
   if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing)\b/.test(text)) return "product";
@@ -54,13 +59,21 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
     .sort((a, b) => b.score - a.score).slice(0, 3);
 }
 
-function extractLeadCapture(messages: ConversationMessage[]) {
-  const text = messages.filter((message) => message.role === "user").map((message) => message.content).join("\n");
+function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
+  const userMessages = messages.filter((message) => message.role === "user").map((message) => message.content);
+  const text = userMessages.join("\n");
   const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? null;
   const phone = text.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.trim() ?? null;
   const name = text.match(/\b(?:me llamo|mi nombre es|soy)\s+([A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}'-]+){0,2})/iu)?.[1] ?? null;
-  const need = messages.filter((message) => message.role === "user").map((message) => message.content).at(-1) ?? null;
-  return { name, email, phone, need };
+  const company = text.match(/\b(?:mi empresa es|la empresa se llama|empresa:)\s*([\p{L}0-9&.' -]{2,60})/iu)?.[1]?.trim() ?? null;
+  const website = text.match(/\b(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.(?:cl|com|net|org|io|es|mx|pe)(?:\/[\w./-]*)?/i)?.[0] ?? null;
+  const country = text.match(/\b(chile|mexico|méxico|espana|españa|peru|perú|argentina|colombia|estados unidos|usa)\b/i)?.[0] ?? null;
+  const service = text.match(/\b(landing page(?:s)?|pagina web|página web|sitio web|seo|google ads|meta ads|publicidad digital|marketing digital|automatizacion|automatización|chatbot|agente ia|agente comercial)\b/i)?.[0] ?? null;
+  const objective = text.match(/\b(?:objetivo es|necesito para|busco|quiero lograr|mi objetivo)\s+([^.!?\n]{5,180})/i)?.[1]?.trim() ?? null;
+  const budget = text.match(/\b(?:presupuesto|budget|inversion|inversión)\s*(?:es|de|:)?\s*(?:\$\s*)?([\d.,]+\s*(?:clp|pesos|usd|dolares|dólares|eur|euros|mxn|soles)?)\b/i)?.[1]?.trim() ?? null;
+  const timeline = text.match(/\b(urgente|lo antes posible|esta semana|este mes|proximo mes|próximo mes|en \d+\s*(?:dias|días|semanas|meses)|para (?:hoy|mañana|manana|diciembre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre))\b/i)?.[0] ?? null;
+  const need = userMessages.at(-1) ?? null;
+  return { name, email, phone, need, company_name: company, website, country, service_interest: service, project_objective: objective, budget, timeline };
 }
 
 function nextQualificationQuestion(config: AgentRuntimeConfig, messages: ConversationMessage[]) {
@@ -89,11 +102,9 @@ export function orchestrateConversation(input: {
   const wantsHuman = intent === "human_request" || intent === "complaint";
   const sourcesFor = (matches: ReturnType<typeof rankKnowledge>) => matches.map(({ item }) => ({ id: item.id, title: item.title, category: item.category }));
 
-  // Greetings must not be answered with internal instructions or unrelated knowledge entries.
   if (intent === "greeting") {
     return { answer: safeGreeting(config), intent, route: "greeting", confidence: "grounded", sources: [], handoff_required: false, lead_capture, actions: ["start_conversation"] };
   }
-
   if (wantsHuman && config.human_handoff_enabled) {
     return { answer: config.handoff_message || "Voy a derivar tu consulta a una persona del equipo.", intent, route: "handoff", confidence: "limited", sources: [], handoff_required: true, lead_capture, actions: ["human_handoff"] };
   }
