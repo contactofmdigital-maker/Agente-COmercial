@@ -2731,3 +2731,16 @@ body {
   .agent-config-advanced-body { padding: 0 15px 16px; }
   .agent-config-advanced > summary::after { margin-left: 15px; }
 }
+
+
+.business-settings-source-note {
+  display: grid;
+  gap: 4px;
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(212, 163, 74, .2);
+  border-radius: 10px;
+  background: rgba(212, 163, 74, .055);
+}
+.business-settings-source-note strong { color: #e8c47f; font-size: 11px; }
+.business-settings-source-note span { color: #9ba8bb; font-size: 11px; line-height: 1.6; }
