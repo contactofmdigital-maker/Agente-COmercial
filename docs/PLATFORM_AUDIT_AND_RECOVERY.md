@@ -76,3 +76,24 @@ El respaldo de Git no incluye filas de la base de datos, usuarios, secretos ni c
 ## Límites de esta auditoría
 
 Los archivos fueron revisados mediante GitHub. No se ejecutó el proyecto local, no se ejecutó `npm run build`, `npm run lint` ni `npm run typecheck`, y no se inspeccionaron datos reales de Supabase. Por tanto, los cambios de esta rama aún requieren validación local antes de considerarse terminados.
+
+
+## Estabilización adicional — configuración y control de IA
+
+- El configurador se reorganizó en tres pasos principales: identidad, objetivo e información autorizada. Personalidad, reglas, derivación y preparación de WhatsApp quedan en secciones opcionales avanzadas.
+- El perfil de negocio es la fuente principal para público objetivo, oferta y metas comerciales. El campo histórico `target_customer` se conserva por compatibilidad, pero se identifica como referencia heredada; no se debe eliminar de la base sin migración.
+- El endpoint de IA CRM requiere ahora `OPENAI_ASSISTANT_ENABLED=true` además de una clave válida. La plantilla mantiene el indicador en `false`; el simulador determinista no necesita ni utiliza ese endpoint.
+- Se añadió una prueba específica del motor comercial para el flujo de tres mensajes, selección vacía de conocimiento y derivación humana explícita.
+
+## Bloqueo de esquema y seguridad que requiere validación Supabase
+
+La migración histórica `supabase/migrations/0001_sales_workspace.sql` define prospectos/actividades por `organization_id` y membresías. En cambio, las migraciones posteriores y el código de la aplicación consultan `user_id`. No se debe ejecutar esa migración histórica ni alterar políticas en una base existente hasta comparar el esquema desplegado y las políticas RLS reales. La compatibilidad no puede confirmarse desde GitHub.
+
+Antes de habilitar multi-cliente o producción se debe:
+1. Obtener el esquema real de Supabase (tablas, columnas, índices, triggers y políticas RLS).
+2. Confirmar que `sales_prospects(user_id, conversation_id)` existe y es único para la operación `upsert`.
+3. Confirmar que todas las tablas CRM filtran por usuario/tenant de forma coherente.
+4. Probar con dos cuentas distintas que ninguna puede leer, actualizar ni borrar datos de la otra.
+5. Preparar respaldo y restauración de base de datos antes de cualquier migración correctiva.
+
+No se han ejecutado pruebas locales ni consultas sobre el proyecto Supabase conectado. Los nuevos casos de prueba quedan preparados para ejecutarse en el entorno local.
