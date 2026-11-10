@@ -55,6 +55,10 @@ export async function POST(request: Request) {
       );
     }
 
+    if (process.env.OPENAI_ASSISTANT_ENABLED !== "true") {
+      return privateJson({ error: "El asistente con IA está desactivado. La plataforma continúa en modo determinista." }, 503);
+    }
+
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return privateJson({ error: "Falta configurar OPENAI_API_KEY en las variables de entorno del servidor." }, 503);
