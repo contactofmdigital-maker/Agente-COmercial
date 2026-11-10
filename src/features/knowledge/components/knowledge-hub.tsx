@@ -42,8 +42,6 @@ export function KnowledgeHub() {
   const [notice, setNotice] = useState("");
 
   const loadEntries = useCallback(async () => {
-    setLoading(true);
-    setError("");
     try {
       const supabase = createClient();
       const { data: auth, error: authError } = await supabase.auth.getUser();
