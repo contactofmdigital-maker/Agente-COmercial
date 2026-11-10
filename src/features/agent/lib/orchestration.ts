@@ -72,17 +72,18 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
   const objective = text.match(/\b(?:objetivo es|necesito para|busco|quiero lograr|mi objetivo)\s+([^.!?\n]{5,180})/i)?.[1]?.trim() ?? null;
   const budget = text.match(/\b(?:presupuesto|budget|inversion|inversión)\s*(?:es|de|:)?\s*(?:\$\s*)?([\d.,]+\s*(?:clp|pesos|usd|dolares|dólares|eur|euros|mxn|soles)?)\b/i)?.[1]?.trim() ?? null;
   const timeline = text.match(/\b(urgente|lo antes posible|esta semana|este mes|proximo mes|próximo mes|en \d+\s*(?:dias|días|semanas|meses)|para (?:hoy|mañana|manana|diciembre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre))\b/i)?.[0] ?? null;
-  const need = userMessages.at(-1) ?? null;
+  const need = userMessages.find((item) => /\b(cotizar|cotizacion|contratar|landing page|pagina web|sitio web|servicio)\b/i.test(normalize(item))) ?? userMessages.at(-1) ?? null;
   return { name, email, phone, need, company_name: company, website, country, service_interest: service, project_objective: objective, budget, timeline };
 }
 
-function nextQualificationQuestion(config: AgentRuntimeConfig, messages: ConversationMessage[]) {
-  const questions = (config.qualification_questions || "")
-    .split(/\r?\n/)
-    .map((item) => item.replace(/^\s*[-•0-9.)]+\s*/, "").trim())
-    .filter((item) => item.length >= 8 && item.length <= 180 && item.includes("?") && !/eres |tu funcion|tu función|objetivo principal|debes |debes$|instrucciones/i.test(item));
-  const asked = messages.filter((message) => message.role === "assistant").length;
-  return questions.length ? questions[Math.min(asked, questions.length - 1)] : "¿Qué servicio necesitas y cuál es el objetivo de tu proyecto?";
+function nextQualificationQuestion(capture: LeadCapture) {
+  if (!capture.name) return "Para comenzar, ¿con quién tengo el gusto de hablar? ¿Cuál es tu nombre?";
+  if (!capture.email && !capture.phone) return "Gracias, " + capture.name.split(" ")[0] + ". ¿Me compartes un correo o teléfono de contacto para continuar con tu cotización?";
+  if (!capture.company_name) return "¿Cómo se llama tu empresa y a qué se dedica?";
+  if (!capture.project_objective) return "¿Qué objetivo buscas conseguir con la landing page: captar clientes, recibir consultas, vender o presentar tus servicios?";
+  if (!capture.budget) return "¿Tienes un presupuesto estimado para este proyecto?";
+  if (!capture.timeline) return "¿En qué plazo te gustaría tener lista la landing page?";
+  return "Ya tengo los datos principales. ¿Hay alguna funcionalidad o requisito especial que debamos considerar?";
 }
 
 function safeGreeting(config: AgentRuntimeConfig) {
@@ -112,6 +113,18 @@ export function orchestrateConversation(input: {
     return { answer: "Entiendo que necesitas atención de una persona. La derivación humana está desactivada; no voy a afirmar que se haya contactado al equipo.", intent, route: "clarify", confidence: "none", sources: [], handoff_required: false, lead_capture, actions: ["notify_human_handoff_unavailable"] };
   }
 
+  const conversationText = [...messages.filter((item) => item.role === "user").map((item) => item.content), message].join(" ");
+  const hasCommercialIntent = ["pricing", "purchase"].includes(intent)
+    || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar|necesito una landing|necesito una pagina web|necesito una página web)\b/i.test(normalize(conversationText));
+  if (hasCommercialIntent) {
+    return {
+      answer: "Perfecto, puedo ayudarte a preparar la cotización de " + (lead_capture.service_interest || "tu proyecto") + ". " + nextQualificationQuestion(lead_capture),
+      intent: intent === "general" || intent === "product" ? "pricing" : intent,
+      route: "qualify", confidence: "limited", sources: [], handoff_required: false,
+      lead_capture, actions: ["capture_purchase_interest", "qualify_lead"],
+    };
+  }
+
   const matches = rankKnowledge(message, knowledge);
   const sources = sourcesFor(matches);
   if (matches.length) {
@@ -130,5 +143,5 @@ export function orchestrateConversation(input: {
     return { answer: fallback, intent, route: config.human_handoff_enabled ? "handoff" : "clarify", confidence: "none", sources: [], handoff_required: config.human_handoff_enabled, lead_capture, actions: config.human_handoff_enabled ? ["human_handoff"] : ["request_more_information"] };
   }
 
-  return { answer: "Claro, puedo orientarte. " + nextQualificationQuestion(config, messages), intent, route: "qualify", confidence: "limited", sources: [], handoff_required: false, lead_capture, actions: ["qualify_lead"] };
+  return { answer: "Claro, puedo orientarte. " + (config.qualification_questions?.trim() || "¿Qué servicio necesitas y cuál es el objetivo de tu proyecto?"), intent, route: "qualify", confidence: "limited", sources: [], handoff_required: false, lead_capture, actions: ["qualify_lead"] };
 }
