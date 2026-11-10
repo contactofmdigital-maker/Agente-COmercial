@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Bot, CheckCircle2, CircleHelp, LoaderCircle, MessageCircle, Save, ShieldCheck, Sparkles, BookOpen, Eye } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { AgentPlayground } from "@/features/agent/components/agent-playground";
 
 type Tone = "professional" | "friendly" | "consultative" | "premium" | "direct";
 type AgentConfig = {
@@ -190,6 +191,7 @@ export function AgentConfigurator() {
         {notice && <div className="notice success" role="status">{notice}</div>}
         <div className="agent-config-footer"><span>{hasConfig ? "Ya existe una configuración guardada para tu usuario." : "Aún no has guardado la configuración del agente."} Se guardará de forma privada en tu cuenta.</span><button type="submit" className="button button-primary" disabled={saving || config.agent_name.trim().length < 2}>{saving ? <LoaderCircle size={15} className="assistant-spin" /> : <Save size={15} />}{saving ? "Guardando..." : "Guardar configuración del agente"}</button></div>
       </form>
+      <AgentPlayground />
     </div>
   );
 }
