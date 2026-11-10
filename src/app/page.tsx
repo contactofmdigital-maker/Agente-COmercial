@@ -230,7 +230,17 @@ export default async function Home({ searchParams }: PageProps) {
               <AssistantChat />
             </ModuleHeader>
           )}
-          {activeSection === "knowledge" && (\n            <ModuleHeader kicker="AGENTE · CONTEXTO Y CONTENIDO" title="Centro de conocimiento" description="Administra la información aprobada que servirá de base para las respuestas del futuro agente comercial." icon={<BookOpen size={18} />}>\n              <KnowledgeHub />\n            </ModuleHeader>\n          )}\n          {activeSection === "organization" && (
+          {activeSection === "knowledge" && (
+            <ModuleHeader
+              kicker="AGENTE · CONTEXTO Y CONTENIDO"
+              title="Centro de conocimiento"
+              description="Administra la información aprobada que servirá de base para las respuestas del futuro agente comercial."
+              icon={<BookOpen size={18} />}
+            >
+              <KnowledgeHub />
+            </ModuleHeader>
+          )}
+          {activeSection === "organization" && (
             <ModuleHeader kicker="SISTEMA · PERFIL DEL NEGOCIO" title="Organización" description="Configura el contexto comercial que utiliza UpScale IA para adaptar sus recomendaciones." icon={<Building2 size={18} />}>
               <BusinessSettings />
             </ModuleHeader>
