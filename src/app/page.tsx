@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import {
-  Activity, ArrowUpRight, BookOpen, Building2, ChartNoAxesCombined, CircleHelp,
+  Activity, ArrowUpRight, BookOpen, Bot, Building2, ChartNoAxesCombined, CircleHelp,
   LayoutDashboard, MessageSquareText, Search, Settings2, ShieldCheck,
   Sparkles, Target, Users,
 } from "lucide-react";
@@ -11,6 +11,7 @@ import { ProspectWorkspace } from "@/features/prospects/components/prospect-work
 import { AssistantChat } from "@/features/assistant/components/assistant-chat";
 import { BusinessSettings } from "@/features/business/components/business-settings";
 import { KnowledgeHub } from "@/features/knowledge/components/knowledge-hub";
+import { AgentConfigurator } from "@/features/agent/components/agent-configurator";
 import { OpportunityPipeline } from "@/features/opportunities/components/opportunity-pipeline";
 import { ActivityWorkspace } from "@/features/activities/components/activity-workspace";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
@@ -20,7 +21,7 @@ import type { User } from "@supabase/supabase-js";
 
 export const dynamic = "force-dynamic";
 
-type Section = "overview" | "prospects" | "opportunities" | "activities" | "assistant" | "knowledge" | "organization" | "settings";
+type Section = "overview" | "prospects" | "opportunities" | "activities" | "assistant" | "knowledge" | "agent" | "organization" | "settings";
 type PageProps = { searchParams: Promise<{ section?: string }> };
 
 const sections: { id: Section; label: string; icon: typeof LayoutDashboard; group: "workspace" | "system"; badge?: string }[] = [
@@ -30,6 +31,7 @@ const sections: { id: Section; label: string; icon: typeof LayoutDashboard; grou
   { id: "activities", label: "Actividades", icon: Activity, group: "workspace" },
   { id: "assistant", label: "Asistente comercial", icon: MessageSquareText, group: "workspace", badge: "IA" },
   { id: "knowledge", label: "Centro de conocimiento", icon: BookOpen, group: "workspace", badge: "BASE" },
+  { id: "agent", label: "Configuración del agente", icon: Bot, group: "workspace", badge: "NUEVO" },
   { id: "organization", label: "Organización", icon: Building2, group: "system" },
   { id: "settings", label: "Configuración", icon: Settings2, group: "system" },
 ];
@@ -238,6 +240,11 @@ export default async function Home({ searchParams }: PageProps) {
               icon={<BookOpen size={18} />}
             >
               <KnowledgeHub />
+            </ModuleHeader>
+          )}
+          {activeSection === "agent" && (
+            <ModuleHeader kicker="AGENTE COMERCIAL · CONFIGURACIÓN" title="Configuración del agente" description="Define la identidad, estrategia, conocimiento autorizado, límites y canales de tu futuro agente comercial." icon={<Bot size={18} />}>
+              <AgentConfigurator />
             </ModuleHeader>
           )}
           {activeSection === "organization" && (
