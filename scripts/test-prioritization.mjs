@@ -398,10 +398,11 @@ assert.ok(
   "La recomendación debe coincidir con el candidato que supera el umbral de evidencia.",
 );
 const extractBackedScores = (answer) => [...answer.matchAll(/(?:Potencial respaldado: |Potencial comercial: )(\d+\/100)/g)].map((match) => match[1]);
+const comparisonPotentialSection = answerCompare.split("\n\nREQUIEREN ATENCIÓN OPERATIVA")[0];
 assert.deepEqual(
   extractBackedScores(answerPotential),
-  extractBackedScores(answerCompare),
-  "El mismo prospecto debe conservar exactamente el mismo puntaje entre ranking y comparación.",
+  extractBackedScores(comparisonPotentialSection),
+  "Los puntajes de la sección de potencial deben coincidir con el ranking; la sección operativa puede repetir prospectos.",
 );
 assert.ok(
   answerCompare.includes("ordenado por puntos ponderados respaldados sobre 100") &&
