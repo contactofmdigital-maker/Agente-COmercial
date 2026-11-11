@@ -65,7 +65,7 @@ assert.match(third.answer, /empresa/i, "Debe preguntar por el siguiente dato fal
 
 
 const directNameReply = engine.orchestrateConversation({
-  message: "Francisco Marin",
+  message: "Francisco Marin.",
   messages: [
     { role: "user", content: "Quiero contratar una landing page." },
     { role: "assistant", content: "Para comenzar, ¿cuál es tu nombre?" },
