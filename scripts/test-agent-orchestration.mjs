@@ -76,6 +76,22 @@ const directNameReply = engine.orchestrateConversation({
 assert.equal(directNameReply.lead_capture.name, "Francisco Marin", "Debe capturar un nombre entregado directamente como respuesta.");
 assert.match(directNameReply.answer, /correo o teléfono/i, "Después de capturar el nombre debe avanzar al siguiente dato, no repetir la pregunta.");
 
+const namePersistsAfterContactReply = engine.orchestrateConversation({
+  message: "contacto.fmdigital@gmail.com 979060279",
+  messages: [
+    { role: "user", content: "Quiero contratar una landing page." },
+    { role: "assistant", content: "Para comenzar, ¿con quién tengo el gusto de hablar? ¿Cuál es tu nombre?" },
+    { role: "user", content: "francisco marin" },
+    { role: "assistant", content: "Gracias, francisco. ¿Me compartes un correo o teléfono de contacto para continuar con tu cotización?" },
+  ],
+  config,
+  knowledge: [],
+});
+assert.equal(namePersistsAfterContactReply.lead_capture.name, "francisco marin", "El nombre debe conservarse después de responder correo o teléfono.");
+assert.equal(namePersistsAfterContactReply.lead_capture.email, "contacto.fmdigital@gmail.com");
+assert.match(namePersistsAfterContactReply.lead_capture.phone ?? "", /979060279/);
+assert.match(namePersistsAfterContactReply.answer, /empresa/i, "Tras capturar contacto debe avanzar a la siguiente pregunta y no volver a pedir el nombre.");
+
 const servicesKnowledge = engine.orchestrateConversation({
   message: "¿Qué servicios ofrecen?",
   messages: [
