@@ -69,7 +69,15 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
   const text = userMessages.join("\n");
   const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? null;
   const phone = text.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.trim() ?? null;
-  const name = text.match(/\b(?:me llamo|mi nombre es|soy)\s+([A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}'-]+){0,2})/iu)?.[1] ?? null;
+  const explicitName = text.match(/\b(?:me llamo|mi nombre es|soy)\s+([A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}'-]+){0,2})/iu)?.[1] ?? null;
+  const lastAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant")?.content ?? "";
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content.trim() ?? "";
+  const directName = /\b(nombre|con quien tengo el gusto|como te llamas)\b/i.test(lastAssistantMessage)
+    && /^[\p{L}][\p{L}'-]*(?:\s+[\p{L}][\p{L}'-]*){1,2}$/u.test(latestUserMessage)
+    && !/^(si|no|hola|buenas|gracias|quiero|necesito|empresa|cliente)$/i.test(latestUserMessage)
+    ? latestUserMessage.replace(/\s+/g, " ")
+    : null;
+  const name = explicitName || directName;
   const company = text.match(/\b(?:mi empresa es|mi empresa se llama|la empresa se llama|trabajo en|empresa:)\s*([\p{L}0-9&.' -]{2,60})/iu)?.[1]?.trim()?.replace(/\s+(?:y mi|y el|y la|mi objetivo|necesito|quiero|con un|con una).*/i, "") ?? null;
   const website = text.match(/\b(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.(?:cl|com|net|org|io|es|mx|pe)(?:\/[\w./-]*)?/i)?.[0] ?? null;
   const country = text.match(/\b(chile|mexico|méxico|espana|españa|peru|perú|argentina|colombia|estados unidos|usa)\b/i)?.[0] ?? null;
@@ -139,9 +147,12 @@ export function orchestrateConversation(input: {
   }
 
   const conversationText = [...messages.filter((item) => item.role === "user").map((item) => item.content), message].join(" ");
-  const hasCommercialIntent = ["pricing", "purchase"].includes(intent)
-    || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar|necesito una landing|necesito una pagina web|necesito una página web)\b/i.test(normalize(conversationText));
-  if (hasCommercialIntent) {
+  const currentMessageHasCommercialIntent = ["pricing", "purchase"].includes(intent)
+    || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar|necesito una landing|necesito una pagina web|necesito una página web)\b/i.test(normalize(message));
+  const previousCommercialIntent = messages.some((item) => item.role === "user"
+    && /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar|necesito una landing|necesito una pagina web)\b/i.test(normalize(item.content)));
+  const isQualificationReply = intent === "general" && previousCommercialIntent;
+  if (currentMessageHasCommercialIntent || isQualificationReply) {
     return {
       answer: "Perfecto, puedo ayudarte a preparar la cotización de " + (lead_capture.service_interest || "tu proyecto") + ". " + nextQualificationQuestion(lead_capture),
       intent: intent === "general" || intent === "product" ? "pricing" : intent,
