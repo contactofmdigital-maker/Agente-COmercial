@@ -63,6 +63,32 @@ assert.equal(third.lead_capture.email, "prueba@empresa.cl");
 assert.match(third.lead_capture.budget ?? "", /150\s*USD/i);
 assert.match(third.answer, /empresa/i, "Debe preguntar por el siguiente dato faltante.");
 
+
+const directNameReply = engine.orchestrateConversation({
+  message: "Francisco Marin",
+  messages: [
+    { role: "user", content: "Quiero contratar una landing page." },
+    { role: "assistant", content: "Para comenzar, ¿cuál es tu nombre?" },
+  ],
+  config,
+  knowledge: [],
+});
+assert.equal(directNameReply.lead_capture.name, "Francisco Marin", "Debe capturar un nombre entregado directamente como respuesta.");
+assert.match(directNameReply.answer, /correo o teléfono/i, "Después de capturar el nombre debe avanzar al siguiente dato, no repetir la pregunta.");
+
+const servicesKnowledge = engine.orchestrateConversation({
+  message: "¿Qué servicios ofrecen?",
+  messages: [
+    { role: "user", content: "Quiero contratar una landing page." },
+    { role: "assistant", content: "Para comenzar, ¿cuál es tu nombre?" },
+  ],
+  config,
+  knowledge: [{ id: "services-1", title: "Servicios", content: "Ofrecemos landing pages, SEO, Google Ads y Meta Ads para empresas.", category: "product" }],
+});
+assert.equal(servicesKnowledge.route, "answer_from_knowledge", "Una pregunta informativa debe recuperar conocimiento aunque exista intención comercial previa.");
+assert.match(servicesKnowledge.answer, /SEO.*Google Ads.*Meta Ads/i);
+assert.equal(servicesKnowledge.sources[0].id, "services-1");
+
 const human = engine.orchestrateConversation({
   message: "Quiero hablar con una persona.",
   messages: [],
