@@ -74,22 +74,22 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
   const latestUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content.trim() ?? "";
   // Recupera una respuesta breve de nombre aunque después el agente ya haya preguntado
   // por correo/teléfono. Así el dato no se pierde en los turnos siguientes.
-  const namePrompt = /\\b(nombre|con quien tengo el gusto|como te llamas)\\b/i;
-  const cleanNameReply = (value: string) => value.replace(/[.!?,;:]+$/g, "").trim().replace(/\\s+/g, " ");
+  const namePrompt = /\b(nombre|con quien tengo el gusto|como te llamas)\b/i;
+  const cleanNameReply = (value: string) => value.replace(/[.!?,;:]+$/g, "").trim().replace(/\s+/g, " ");
   let conversationalName: string | null = null;
   for (let index = 0; index < messages.length - 1; index += 1) {
     const current = messages[index];
     const next = messages[index + 1];
     if (current.role !== "assistant" || !namePrompt.test(current.content) || next.role !== "user") continue;
     const candidate = cleanNameReply(next.content);
-    if (/^[\\p{L}][\\p{L}'-]*(?:\\s+[\\p{L}][\\p{L}'-]*){1,2}$/u.test(candidate)
+    if (/^[\p{L}][\p{L}'-]*(?:\s+[\p{L}][\p{L}'-]*){1,2}$/u.test(candidate)
       && !/^(si|no|hola|buenas|gracias|quiero|necesito|empresa|cliente)$/i.test(candidate)) {
       conversationalName = candidate;
     }
   }
   const directNameCandidate = cleanNameReply(latestUserMessage);
   const directName = namePrompt.test(lastAssistantMessage)
-    && /^[\\p{L}][\\p{L}'-]*(?:\\s+[\\p{L}][\\p{L}'-]*){1,2}$/u.test(directNameCandidate)
+    && /^[\p{L}][\p{L}'-]*(?:\s+[\p{L}][\p{L}'-]*){1,2}$/u.test(directNameCandidate)
     && !/^(si|no|hola|buenas|gracias|quiero|necesito|empresa|cliente)$/i.test(directNameCandidate)
     ? directNameCandidate
     : null;
