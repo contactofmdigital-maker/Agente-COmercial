@@ -92,6 +92,39 @@ assert.equal(namePersistsAfterContactReply.lead_capture.email, "contacto.fmdigit
 assert.match(namePersistsAfterContactReply.lead_capture.phone ?? "", /979060279/);
 assert.match(namePersistsAfterContactReply.answer, /empresa/i, "Tras capturar contacto debe avanzar a la siguiente pregunta y no volver a pedir el nombre.");
 
+
+const contextualCompanyReply = engine.orchestrateConversation({
+  message: "FM Digital servicios B2B de ventas de Landing Page Profesionales",
+  messages: [
+    { role: "user", content: "Quiero contratar una landing page para mi empresa." },
+    { role: "assistant", content: "Para comenzar, ¿cuál es tu nombre?" },
+    { role: "user", content: "Francisco Marin" },
+    { role: "assistant", content: "Gracias, Francisco. ¿Me compartes un correo o teléfono de contacto?" },
+    { role: "user", content: "contacto.fmdigital@gmail.com 979060279" },
+    { role: "assistant", content: "¿Cómo se llama tu empresa y a qué se dedica?" },
+  ],
+  config,
+  knowledge: [{ id: "services-1", title: "Servicios", content: "Ofrecemos landing pages profesionales.", category: "product" }],
+});
+assert.equal(contextualCompanyReply.route, "qualify");
+assert.equal(contextualCompanyReply.lead_capture.company_name, "FM Digital");
+assert.match(contextualCompanyReply.answer, /objetivo buscas/i);
+
+const contextualObjectiveReply = engine.orchestrateConversation({
+  message: "Necesito una landing page para conseguir más clientes y recibir consultas por WhatsApp.",
+  messages: [
+    { role: "user", content: "Quiero contratar una landing page para mi empresa." },
+    { role: "assistant", content: "¿Cómo se llama tu empresa y a qué se dedica?" },
+    { role: "user", content: "FM Digital servicios B2B de ventas de Landing Page Profesionales" },
+    { role: "assistant", content: "¿Qué objetivo buscas conseguir con la landing page?" },
+  ],
+  config,
+  knowledge: [{ id: "services-1", title: "Servicios", content: "Ofrecemos landing pages profesionales.", category: "product" }],
+});
+assert.equal(contextualObjectiveReply.route, "qualify");
+assert.match(contextualObjectiveReply.lead_capture.project_objective ?? "", /conseguir más clientes/i);
+assert.match(contextualObjectiveReply.answer, /presupuesto/i);
+
 const servicesKnowledge = engine.orchestrateConversation({
   message: "¿Qué servicios ofrecen?",
   messages: [
