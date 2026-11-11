@@ -72,14 +72,28 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
   const explicitName = text.match(/\b(?:me llamo|mi nombre es|soy)\s+([A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}'-]+){0,2})/iu)?.[1] ?? null;
   const lastAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant")?.content ?? "";
   const latestUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content.trim() ?? "";
-  // Acepta puntuación final habitual en respuestas de chat, por ejemplo "Francisco Marin."
-  const directNameCandidate = latestUserMessage.replace(/[.!?,;:]+$/g, "").trim();
-  const directName = /\\b(nombre|con quien tengo el gusto|como te llamas)\\b/i.test(lastAssistantMessage)
+  // Recupera una respuesta breve de nombre aunque después el agente ya haya preguntado
+  // por correo/teléfono. Así el dato no se pierde en los turnos siguientes.
+  const namePrompt = /\\b(nombre|con quien tengo el gusto|como te llamas)\\b/i;
+  const cleanNameReply = (value: string) => value.replace(/[.!?,;:]+$/g, "").trim().replace(/\\s+/g, " ");
+  let conversationalName: string | null = null;
+  for (let index = 0; index < messages.length - 1; index += 1) {
+    const current = messages[index];
+    const next = messages[index + 1];
+    if (current.role !== "assistant" || !namePrompt.test(current.content) || next.role !== "user") continue;
+    const candidate = cleanNameReply(next.content);
+    if (/^[\\p{L}][\\p{L}'-]*(?:\\s+[\\p{L}][\\p{L}'-]*){1,2}$/u.test(candidate)
+      && !/^(si|no|hola|buenas|gracias|quiero|necesito|empresa|cliente)$/i.test(candidate)) {
+      conversationalName = candidate;
+    }
+  }
+  const directNameCandidate = cleanNameReply(latestUserMessage);
+  const directName = namePrompt.test(lastAssistantMessage)
     && /^[\\p{L}][\\p{L}'-]*(?:\\s+[\\p{L}][\\p{L}'-]*){1,2}$/u.test(directNameCandidate)
     && !/^(si|no|hola|buenas|gracias|quiero|necesito|empresa|cliente)$/i.test(directNameCandidate)
-    ? directNameCandidate.replace(/\\s+/g, " ")
+    ? directNameCandidate
     : null;
-  const name = explicitName || directName;
+  const name = explicitName || conversationalName || directName;
   const company = text.match(/\b(?:mi empresa es|mi empresa se llama|la empresa se llama|trabajo en|empresa:)\s*([\p{L}0-9&.' -]{2,60})/iu)?.[1]?.trim()?.replace(/\s+(?:y mi|y el|y la|mi objetivo|necesito|quiero|con un|con una).*/i, "") ?? null;
   const website = text.match(/\b(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.(?:cl|com|net|org|io|es|mx|pe)(?:\/[\w./-]*)?/i)?.[0] ?? null;
   const country = text.match(/\b(chile|mexico|méxico|espana|españa|peru|perú|argentina|colombia|estados unidos|usa)\b/i)?.[0] ?? null;
