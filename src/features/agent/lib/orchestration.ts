@@ -146,7 +146,6 @@ export function orchestrateConversation(input: {
     return { answer: "Entiendo que necesitas atención de una persona. La derivación humana está desactivada; no voy a afirmar que se haya contactado al equipo.", intent, route: "clarify", confidence: "none", sources: [], handoff_required: false, lead_capture, actions: ["notify_human_handoff_unavailable"] };
   }
 
-  const conversationText = [...messages.filter((item) => item.role === "user").map((item) => item.content), message].join(" ");
   const currentMessageHasCommercialIntent = ["pricing", "purchase"].includes(intent)
     || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar|necesito una landing|necesito una pagina web|necesito una página web)\b/i.test(normalize(message));
   const previousCommercialIntent = messages.some((item) => item.role === "user"
