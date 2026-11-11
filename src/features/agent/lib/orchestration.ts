@@ -72,10 +72,12 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
   const explicitName = text.match(/\b(?:me llamo|mi nombre es|soy)\s+([A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}'-]+){0,2})/iu)?.[1] ?? null;
   const lastAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant")?.content ?? "";
   const latestUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content.trim() ?? "";
-  const directName = /\b(nombre|con quien tengo el gusto|como te llamas)\b/i.test(lastAssistantMessage)
-    && /^[\p{L}][\p{L}'-]*(?:\s+[\p{L}][\p{L}'-]*){1,2}$/u.test(latestUserMessage)
-    && !/^(si|no|hola|buenas|gracias|quiero|necesito|empresa|cliente)$/i.test(latestUserMessage)
-    ? latestUserMessage.replace(/\s+/g, " ")
+  // Acepta puntuación final habitual en respuestas de chat, por ejemplo "Francisco Marin."
+  const directNameCandidate = latestUserMessage.replace(/[.!?,;:]+$/g, "").trim();
+  const directName = /\\b(nombre|con quien tengo el gusto|como te llamas)\\b/i.test(lastAssistantMessage)
+    && /^[\\p{L}][\\p{L}'-]*(?:\\s+[\\p{L}][\\p{L}'-]*){1,2}$/u.test(directNameCandidate)
+    && !/^(si|no|hola|buenas|gracias|quiero|necesito|empresa|cliente)$/i.test(directNameCandidate)
+    ? directNameCandidate.replace(/\\s+/g, " ")
     : null;
   const name = explicitName || directName;
   const company = text.match(/\b(?:mi empresa es|mi empresa se llama|la empresa se llama|trabajo en|empresa:)\s*([\p{L}0-9&.' -]{2,60})/iu)?.[1]?.trim()?.replace(/\s+(?:y mi|y el|y la|mi objetivo|necesito|quiero|con un|con una).*/i, "") ?? null;
