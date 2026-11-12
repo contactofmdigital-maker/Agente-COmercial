@@ -8,7 +8,7 @@ export type AgentRuntimeConfig = {
 };
 export type LeadCapture = {
   name: string | null; email: string | null; phone: string | null; need: string | null;
-  company_name: string | null; website: string | null; country: string | null;
+  company_name: string | null; company_description: string | null; website: string | null; country: string | null;
   service_interest: string | null; project_objective: string | null; budget: string | null; timeline: string | null;
 };
 export type OrchestrationResult = {
@@ -108,6 +108,7 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
     : null;
   const name = explicitName || conversationalName || directName;
   let conversationalCompany: string | null = null;
+  let conversationalCompanyDescription: string | null = null;
   let conversationalObjective: string | null = null;
   for (let index = 0; index < messages.length - 1; index += 1) {
     const current = messages[index];
@@ -119,6 +120,8 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
       const companyMatch = reply.match(/^(.+?)(?=\\s+(?:servicios?\\b|dedicad[oa]\\b|nos dedicamos\\b|somos\\b|empresa\\b|se dedica\\b))/i);
       const candidate = (companyMatch?.[1] || reply).replace(/^(?:mi empresa es|la empresa es|se llama)\\s+/i, "").trim();
       conversationalCompany = candidate.slice(0, 60);
+      const description = companyMatch ? reply.slice(companyMatch[0].length).replace(/^\\s+/, "").trim() : "";
+      conversationalCompanyDescription = description ? description.slice(0, 240) : null;
     }
     if (/que objetivo buscas|que objetivo quieres|para que necesitas|objetivo de la landing|que necesitas conseguir/.test(prompt)) {
       conversationalObjective = reply.slice(0, 180);
@@ -133,7 +136,7 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
   const budget = text.match(/\b(?:presupuesto|budget|inversion|inversión)\s*(?:(?:estimado|aproximado)\s*)?(?:(?:es\s+)?de\s*|es\s*|:\s*)?(?:\$\s*)?([\d.,]+\s*(?:clp|pesos|usd|dolares|dólares|eur|euros|mxn|soles)?)\b/i)?.[1]?.trim() ?? null;
   const timeline = text.match(/\b(urgente|lo antes posible|esta semana|este mes|proximo mes|próximo mes|en \d+\s*(?:dias|días|semanas|meses)|para (?:hoy|mañana|manana|diciembre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre))\b/i)?.[0] ?? null;
   const need = userMessages.find((item) => /\b(cotizar|cotizacion|contratar|landing page|pagina web|sitio web|servicio)\b/i.test(normalize(item))) ?? userMessages.at(-1) ?? null;
-  return { name, email, phone, need, company_name: company, website, country, service_interest: service, project_objective: objective, budget, timeline };
+  return { name, email, phone, need, company_name: company, company_description: conversationalCompanyDescription, website, country, service_interest: service, project_objective: objective, budget, timeline };
 }
 
 function nextQualificationQuestion(capture: LeadCapture) {
