@@ -195,5 +195,32 @@ assert.equal(weekendWithKnowledge.route, "answer_from_knowledge", "Debe encontra
 assert.match(weekendWithKnowledge.answer, /sábados y domingos/i);
 assert.equal(weekendWithKnowledge.sources[0].id, "hours-1");
 
+const synonymServices = engine.orchestrateConversation({
+  message: "¿A qué se dedican y qué hacen como empresa?",
+  messages: [],
+  config,
+  knowledge: [{ id: "services-synonym", title: "Servicios", content: "Desarrollamos sitios web y landing pages para empresas.", category: "product" }],
+});
+assert.equal(synonymServices.route, "answer_from_knowledge", "Debe reconocer paráfrasis de la pregunta por servicios.");
+assert.equal(synonymServices.sources[0].id, "services-synonym");
+
+const unrelatedKnowledge = engine.orchestrateConversation({
+  message: "¿Cuál es su política de garantía?",
+  messages: [],
+  config,
+  knowledge: [{ id: "hours-only", title: "Horarios", content: "Atendemos de lunes a viernes de 09:00 a 18:00.", category: "business" }],
+});
+assert.notEqual(unrelatedKnowledge.route, "answer_from_knowledge", "No debe responder una pregunta de garantías con una coincidencia débil de otra categoría.");
+
+const bookingIntent = engine.orchestrateConversation({
+  message: "¿Puedo agendar una hora para mañana?",
+  messages: [],
+  config,
+  knowledge: [],
+});
+assert.equal(bookingIntent.intent, "booking", "Las solicitudes de agenda deben tener una intención propia.");
+assert.equal(bookingIntent.confidence, "none", "No debe confirmar una reserva si todavía no existe un módulo de agenda conectado.");
+
+
 console.log("OK: seguridad de respuestas, clasificación de horarios, recuperación de conocimiento por sinónimos y no exposición de instrucciones internas.");
 console.log("OK: 4 escenarios del motor comercial (captura progresiva, prioridad comercial, fuentes autorizadas y derivación explícita).");
