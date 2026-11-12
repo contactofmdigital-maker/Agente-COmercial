@@ -29,39 +29,52 @@ const tokens = (value: string) => normalize(value).split(" ").filter((word) => w
 
 function classifyIntent(message: string) {
   const text = normalize(message);
-  if (/\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante)\b/.test(text)) return "human_request";
-  if (/\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\b/.test(text)) return "complaint";
-  if (/\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar)\b/.test(text)) return "pricing";
-  if (/\b(horario|horarios|atencion|atienden|abren|abierto|abierta|abren|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura)\b/.test(text)) return "business_info";
-  if (/\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido)\b/.test(text)) return "purchase";
-  if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing)\b/.test(text)) return "product";
-  if (/\b(disponible|stock|disponibilidad|plazo|entrega)\b/.test(text)) return "availability";
+  if (/\\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante|alguien del equipo)\\b/.test(text)) return "human_request";
+  if (/\\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\\b/.test(text)) return "complaint";
+  if (/\\b(agendar|agenda|reservar|reserva|hora disponible|tomar una hora|pedir una hora|cita)\\b/.test(text)) return "booking";
+  if (/\\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar|tarifa|cuanto sale)\\b/.test(text)) return "pricing";
+  if (/\\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|como llegar|despacho|envio|cobertura|medios de pago|formas de pago|transferencia)\\b/.test(text)) return "business_info";
+  if (/\\b(comprar|contratar|quiero adquirir|como pago|pagar|pedido|quiero uno|me interesa)\\b/.test(text)) return "purchase";
+  if (/\\b(producto|productos|servicio|servicios|catalogo|ofrecen|a que se dedican|que hacen|trabajan|landing|pagina web|marketing|menu|carta)\\b/.test(text)) return "product";
+  if (/\\b(disponible|stock|disponibilidad|plazo|entrega)\\b/.test(text)) return "availability";
   if (/^(hola( buenas)?( tardes| dias| noches)?|buenas (tardes|noches)|buenos dias|hey|hello)[!. ]*$/.test(text)) return "greeting";
   return "general";
 }
 
 function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
-  const queryTokens = tokens(message);
+  const query = new Set(tokens(message));
   const normalizedMessage = normalize(message);
-  if (/\b(fin de semana|fines de semana|sabado|domingo)\b/.test(normalizedMessage)) {
-    queryTokens.push("horario", "atencion", "sabado", "domingo", "fin", "semana");
-  }
-  const query = new Set(queryTokens);
+  const aliases: Array<[RegExp, string[]]> = [
+    [/\\b(fin de semana|fines de semana|sabado|domingo)\\b/, ["horario", "atencion", "sabado", "domingo"]],
+    [/\\b(servicios?|a que se dedican|que hacen|ofrecen)\\b/, ["servicio", "producto"]],
+    [/\\b(precio|precios|cuanto cuesta|cuanto vale|valor|tarifa|cuanto sale)\\b/, ["precio", "tarifa", "valor", "costo"]],
+    [/\\b(ubicacion|direccion|donde estan|como llegar)\\b/, ["ubicacion", "direccion"]],
+    [/\\b(pago|pagos|transferencia|tarjeta)\\b/, ["pago", "pagos", "transferencia"]],
+    [/\\b(despacho|envio|entrega)\\b/, ["despacho", "envio", "entrega"]],
+    [/\\b(garantia|devolucion|cambio|reembolso)\\b/, ["garantia", "devolucion", "cambio"]],
+  ];
+  for (const [pattern, additions] of aliases) if (pattern.test(normalizedMessage)) additions.forEach((item) => query.add(item));
   if (!query.size) return [];
-  return knowledge.map((item) => {
+  const ranked = knowledge.map((item) => {
     const titleTokens = new Set(tokens(item.title));
     const contentTokens = new Set(tokens(item.content));
-    const overlapTitle = [...query].filter((token) => titleTokens.has(token)).length;
-    const overlapContent = [...query].filter((token) => contentTokens.has(token)).length;
-    const overlap = overlapTitle + overlapContent;
-    const score = (overlapContent + overlapTitle * 2) / Math.max(1, query.size * 2);
+    const titleHits = [...query].filter((token) => titleTokens.has(token)).length;
+    const contentHits = [...query].filter((token) => contentTokens.has(token)).length;
+    const hits = titleHits + contentHits;
+    const coverage = (titleHits * 2 + contentHits) / Math.max(1, query.size * 2);
     const category = normalize(item.category);
-    const categoryBoost =
-      (category === "faq" && /horario|atencion|politica|pregunta/.test(normalize(message))) ||
-      (category === "product" && /producto|servicio|landing|pagina|marketing/.test(normalize(message))) ? 0.2 : 0;
-    return { item, score: score + categoryBoost, overlap };
-  }).filter((entry) => entry.overlap > 0 && entry.score >= 0.12)
-    .sort((a, b) => b.score - a.score).slice(0, 3);
+    const categoryMatch =
+      (category === "faq" && /horario|atencion|politica|pregunta|pago|ubicacion/.test(normalizedMessage)) ||
+      (category === "product" && /producto|servicio|landing|pagina|marketing/.test(normalizedMessage)) ||
+      (category === "business" && /horario|atencion|ubicacion|direccion|despacho|pago/.test(normalizedMessage)) ? 0.08 : 0;
+    return { item, score: coverage + categoryMatch, hits };
+  }).filter((entry) => entry.hits >= 2 && entry.score >= 0.22)
+    .sort((a, b) => b.score - a.score);
+  if (!ranked.length) return [];
+  const best = ranked[0];
+  const runnerUp = ranked[1];
+  if (runnerUp && best.score - runnerUp.score < 0.06 && best.item.category !== runnerUp.item.category) return [];
+  return [best];
 }
 
 function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
@@ -102,11 +115,12 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
     if (current.role !== "assistant" || next.role !== "user") continue;
     const prompt = normalize(current.content);
     const reply = cleanNameReply(next.content);
-    if (/empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa/.test(prompt)) {
-      const companyMatch = reply.match(/^(.+?)(?:\s+(?:servicios?|dedicad[oa]|empresa|nos dedicamos)\b.*)?$/i);
-      conversationalCompany = (companyMatch?.[1] || reply).trim().slice(0, 60);
+    if (/empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|empresa/.test(prompt)) {
+      const companyMatch = reply.match(/^(.+?)(?=\\s+(?:servicios?\\b|dedicad[oa]\\b|nos dedicamos\\b|somos\\b|empresa\\b|se dedica\\b))/i);
+      const candidate = (companyMatch?.[1] || reply).replace(/^(?:mi empresa es|la empresa es|se llama)\\s+/i, "").trim();
+      conversationalCompany = candidate.slice(0, 60);
     }
-    if (/que objetivo buscas|que objetivo quieres|para que necesitas|objetivo de la landing/.test(prompt)) {
+    if (/que objetivo buscas|que objetivo quieres|para que necesitas|objetivo de la landing|que necesitas conseguir/.test(prompt)) {
       conversationalObjective = reply.slice(0, 180);
     }
   }
@@ -155,7 +169,7 @@ function safeHandoffMessage(config: AgentRuntimeConfig) {
 function safeGreeting(config: AgentRuntimeConfig) {
   const greeting = (config.greeting || "").trim();
   if (!greeting || greeting.length > 240 || /eres |tu funcion|tu función|tu objetivo|debes |instrucciones|agente comercial virtual/i.test(greeting)) {
-    return "¡Hola! Soy " + (config.agent_name || "tu asistente") + ", el asistente comercial de UpScale IA. ¿En qué puedo ayudarte?";
+    return "¡Hola! Soy " + (config.agent_name || "tu asistente") + ", el asistente virtual del negocio. ¿En qué puedo ayudarte?";
   }
   return greeting;
 }
@@ -184,8 +198,9 @@ export function orchestrateConversation(input: {
   const previousCommercialIntent = messages.some((item) => item.role === "user"
     && /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar|necesito una landing|necesito una pagina web)\b/i.test(normalize(item.content)));
   const lastAssistantPrompt = [...messages].reverse().find((item) => item.role === "assistant")?.content ?? "";
-  const awaitingQualificationReply = /empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistantPrompt));
-  const isQualificationReply = previousCommercialIntent && (intent === "general" || awaitingQualificationReply);
+  const awaitingQualificationReply = /empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|para que necesitas|objetivo de la landing|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistantPrompt));
+  const looksLikeQuestion = /^\\s*[¿?]/.test(message.trim()) || /\\?$/.test(message.trim());
+  const isQualificationReply = previousCommercialIntent && (intent === "general" || (awaitingQualificationReply && !looksLikeQuestion));
   if (currentMessageHasCommercialIntent || isQualificationReply) {
     return {
       answer: "Perfecto, puedo ayudarte a preparar la cotización de " + (lead_capture.service_interest || "tu proyecto") + ". " + nextQualificationQuestion(lead_capture),
@@ -205,7 +220,7 @@ export function orchestrateConversation(input: {
     return { answer: answer + ask, intent, route: "answer_from_knowledge", confidence: "grounded", sources, handoff_required: false, lead_capture, actions: intent === "purchase" ? ["capture_purchase_interest"] : ["answer_from_published_knowledge"] };
   }
 
-  const requiresGrounding = ["pricing", "business_info", "availability", "product", "purchase"].includes(intent);
+  const requiresGrounding = ["pricing", "business_info", "availability", "product", "purchase", "booking"].includes(intent);
   if (requiresGrounding) {
     const fallback = config.human_handoff_enabled
       ? "No tengo información publicada suficiente para confirmar ese dato. Esta consulta requiere confirmación del equipo; en esta simulación no se realiza una derivación automática."
