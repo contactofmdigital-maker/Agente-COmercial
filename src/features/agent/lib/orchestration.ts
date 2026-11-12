@@ -68,7 +68,7 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
       (category === "product" && /producto|servicio|landing|pagina|marketing/.test(normalizedMessage)) ||
       (category === "business" && /horario|atencion|ubicacion|direccion|despacho|pago/.test(normalizedMessage)) ? 0.08 : 0;
     return { item, score: coverage + categoryMatch, hits };
-  }).filter((entry) => entry.hits >= 2 && entry.score >= 0.22)
+  }).filter((entry) => entry.hits >= 1 && entry.score >= 0.22)
     .sort((a, b) => b.score - a.score);
   if (!ranked.length) return [];
   const best = ranked[0];
