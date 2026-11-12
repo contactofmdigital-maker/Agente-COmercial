@@ -101,7 +101,7 @@ export async function POST(request: Request) {
         project_objective: capture.project_objective || existing?.project_objective || null,
         budget: capture.budget || existing?.budget || null,
         timeline: capture.timeline || existing?.timeline || null,
-        notes: capture.need || existing?.notes || null,
+        notes: [capture.need, capture.company_description ? "Descripción de empresa: " + capture.company_description : null, existing?.notes].filter(Boolean).join("\\n\\n") || null,
         source: "playground",
         ...(existing ? {} : { status: "new" }),
       }, { onConflict: "user_id,conversation_id" }).select("id").single();
