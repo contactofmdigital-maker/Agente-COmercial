@@ -118,7 +118,7 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
     const reply = cleanNameReply(next.content);
     if (/empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|empresa/.test(prompt)) {
       const companyMatch = reply.match(/^(.+?)(?=\s+(?:servicios?\b|dedicad[oa]\b|nos dedicamos\b|somos\b|empresa\b|se dedica\b))/i);
-      const candidate = (companyMatch?.[1] || reply).replace(/^(?:mi empresa es|la empresa es|se llama)\s+/i, "").trim();
+      const candidate = (companyMatch?.[1] || reply).replace(/^(?:mi empresa es|la empresa es|se llama)\s+/i, "").replace(/[,:;.-]+$/g, "").trim();
       conversationalCompany = candidate.slice(0, 60);
       const description = companyMatch ? reply.slice(companyMatch[0].length).replace(/^\s+/, "").trim() : "";
       conversationalCompanyDescription = description ? description.slice(0, 240) : null;
