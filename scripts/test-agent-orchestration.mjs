@@ -108,6 +108,7 @@ const contextualCompanyReply = engine.orchestrateConversation({
 });
 assert.equal(contextualCompanyReply.route, "qualify");
 assert.equal(contextualCompanyReply.lead_capture.company_name, "FM Digital");
+assert.match(contextualCompanyReply.lead_capture.company_description ?? "", /servicios B2B de ventas de Landing Page Profesionales/i, "Debe conservar la descripción de la empresa además de su nombre.");
 assert.match(contextualCompanyReply.answer, /objetivo buscas/i);
 
 const contextualObjectiveReply = engine.orchestrateConversation({
