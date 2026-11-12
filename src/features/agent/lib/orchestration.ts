@@ -29,14 +29,14 @@ const tokens = (value: string) => normalize(value).split(" ").filter((word) => w
 
 function classifyIntent(message: string) {
   const text = normalize(message);
-  if (/\\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante|alguien del equipo)\\b/.test(text)) return "human_request";
-  if (/\\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\\b/.test(text)) return "complaint";
-  if (/\\b(agendar|agenda|reservar|reserva|hora disponible|tomar una hora|pedir una hora|cita)\\b/.test(text)) return "booking";
-  if (/\\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar|tarifa|cuanto sale)\\b/.test(text)) return "pricing";
-  if (/\\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|como llegar|despacho|envio|cobertura|medios de pago|formas de pago|transferencia)\\b/.test(text)) return "business_info";
-  if (/\\b(comprar|contratar|quiero adquirir|como pago|pagar|pedido|quiero uno|me interesa)\\b/.test(text)) return "purchase";
-  if (/\\b(producto|productos|servicio|servicios|catalogo|ofrecen|a que se dedican|que hacen|trabajan|landing|pagina web|marketing|menu|carta)\\b/.test(text)) return "product";
-  if (/\\b(disponible|stock|disponibilidad|plazo|entrega)\\b/.test(text)) return "availability";
+  if (/\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante|alguien del equipo)\b/.test(text)) return "human_request";
+  if (/\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\b/.test(text)) return "complaint";
+  if (/\b(agendar|agenda|reservar|reserva|hora disponible|tomar una hora|pedir una hora|cita)\b/.test(text)) return "booking";
+  if (/\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar|tarifa|cuanto sale)\b/.test(text)) return "pricing";
+  if (/\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|como llegar|despacho|envio|cobertura|medios de pago|formas de pago|transferencia)\b/.test(text)) return "business_info";
+  if (/\b(comprar|contratar|quiero adquirir|como pago|pagar|pedido|quiero uno|me interesa)\b/.test(text)) return "purchase";
+  if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|a que se dedican|que hacen|trabajan|landing|pagina web|marketing|menu|carta)\b/.test(text)) return "product";
+  if (/\b(disponible|stock|disponibilidad|plazo|entrega)\b/.test(text)) return "availability";
   if (/^(hola( buenas)?( tardes| dias| noches)?|buenas (tardes|noches)|buenos dias|hey|hello)[!. ]*$/.test(text)) return "greeting";
   return "general";
 }
@@ -45,13 +45,13 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
   const query = new Set(tokens(message));
   const normalizedMessage = normalize(message);
   const aliases: Array<[RegExp, string[]]> = [
-    [/\\b(fin de semana|fines de semana|sabado|domingo)\\b/, ["horario", "atencion", "sabado", "domingo"]],
-    [/\\b(servicios?|a que se dedican|que hacen|ofrecen)\\b/, ["servicio", "producto"]],
-    [/\\b(precio|precios|cuanto cuesta|cuanto vale|valor|tarifa|cuanto sale)\\b/, ["precio", "tarifa", "valor", "costo"]],
-    [/\\b(ubicacion|direccion|donde estan|como llegar)\\b/, ["ubicacion", "direccion"]],
-    [/\\b(pago|pagos|transferencia|tarjeta)\\b/, ["pago", "pagos", "transferencia"]],
-    [/\\b(despacho|envio|entrega)\\b/, ["despacho", "envio", "entrega"]],
-    [/\\b(garantia|devolucion|cambio|reembolso)\\b/, ["garantia", "devolucion", "cambio"]],
+    [/\b(fin de semana|fines de semana|sabado|domingo)\b/, ["horario", "atencion", "sabado", "domingo"]],
+    [/\b(servicios?|a que se dedican|que hacen|ofrecen)\b/, ["servicio", "producto"]],
+    [/\b(precio|precios|cuanto cuesta|cuanto vale|valor|tarifa|cuanto sale)\b/, ["precio", "tarifa", "valor", "costo"]],
+    [/\b(ubicacion|direccion|donde estan|como llegar)\b/, ["ubicacion", "direccion"]],
+    [/\b(pago|pagos|transferencia|tarjeta)\b/, ["pago", "pagos", "transferencia"]],
+    [/\b(despacho|envio|entrega)\b/, ["despacho", "envio", "entrega"]],
+    [/\b(garantia|devolucion|cambio|reembolso)\b/, ["garantia", "devolucion", "cambio"]],
   ];
   for (const [pattern, additions] of aliases) if (pattern.test(normalizedMessage)) additions.forEach((item) => query.add(item));
   if (!query.size) return [];
@@ -117,10 +117,10 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
     const prompt = normalize(current.content);
     const reply = cleanNameReply(next.content);
     if (/empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|empresa/.test(prompt)) {
-      const companyMatch = reply.match(/^(.+?)(?=\\s+(?:servicios?\\b|dedicad[oa]\\b|nos dedicamos\\b|somos\\b|empresa\\b|se dedica\\b))/i);
-      const candidate = (companyMatch?.[1] || reply).replace(/^(?:mi empresa es|la empresa es|se llama)\\s+/i, "").trim();
+      const companyMatch = reply.match(/^(.+?)(?=\s+(?:servicios?\b|dedicad[oa]\b|nos dedicamos\b|somos\b|empresa\b|se dedica\b))/i);
+      const candidate = (companyMatch?.[1] || reply).replace(/^(?:mi empresa es|la empresa es|se llama)\s+/i, "").trim();
       conversationalCompany = candidate.slice(0, 60);
-      const description = companyMatch ? reply.slice(companyMatch[0].length).replace(/^\\s+/, "").trim() : "";
+      const description = companyMatch ? reply.slice(companyMatch[0].length).replace(/^\s+/, "").trim() : "";
       conversationalCompanyDescription = description ? description.slice(0, 240) : null;
     }
     if (/que objetivo buscas|que objetivo quieres|para que necesitas|objetivo de la landing|que necesitas conseguir/.test(prompt)) {
@@ -202,7 +202,7 @@ export function orchestrateConversation(input: {
     && /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar|necesito una landing|necesito una pagina web)\b/i.test(normalize(item.content)));
   const lastAssistantPrompt = [...messages].reverse().find((item) => item.role === "assistant")?.content ?? "";
   const awaitingQualificationReply = /empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|para que necesitas|objetivo de la landing|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistantPrompt));
-  const looksLikeQuestion = /^\\s*[¿?]/.test(message.trim()) || /\\?$/.test(message.trim());
+  const looksLikeQuestion = /^\s*[¿?]/.test(message.trim()) || /\\?$/.test(message.trim());
   const isQualificationReply = previousCommercialIntent && (intent === "general" || (awaitingQualificationReply && !looksLikeQuestion));
   if (currentMessageHasCommercialIntent || isQualificationReply) {
     return {
