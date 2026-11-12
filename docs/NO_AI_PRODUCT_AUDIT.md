@@ -117,3 +117,17 @@ Para una barbería:
 ## 10. Alcance de esta auditoría
 
 La revisión se realizó sobre el código versionado de GitHub en la rama indicada. No se ejecutó build/tests en un entorno local en esta sesión ni se inspeccionó la base de datos conectada de Supabase. Por ello, los hallazgos de código se distinguen de las validaciones de ejecución pendientes. No se borró código ni se modificó el esquema de Supabase.
+
+
+## 11. Cambios aplicados en la rama sin IA (2026-11-12)
+
+- El clasificador determinista amplía expresiones para servicios, ubicación, pagos, despachos, reservas y solicitudes de asesor.
+- La recuperación de conocimiento agrega alias por intención, pondera el título, evita concatenar respuestas múltiples y devuelve fallback cuando hay empate ambiguo entre categorías.
+- La continuidad de calificación distingue una respuesta a la pregunta anterior de una nueva pregunta informativa. Una FAQ durante una calificación puede resolverse desde conocimiento autorizado sin reiniciar el flujo.
+- La captura contextual conserva nombre de empresa y descripción separadamente. La descripción también se agrega a las notas del prospecto cuando se guarda.
+- La intención de agendamiento se reconoce como `booking`, pero no confirma citas: hasta implementar el módulo de agenda debe pedir confirmación humana o informar que no puede reservar.
+- El endpoint ahora aplica política explícita: cero fuentes seleccionadas equivale a cero fuentes cargadas. El cliente puede seleccionar todas o quitar la selección desde el configurador.
+- Los valores recomendados del agente priorizan responder primero, no presionar para vender y no calificar consultas meramente informativas.
+- Se ampliaron las pruebas para paráfrasis de servicios, coincidencias débiles, intención de agenda y conservación de la descripción empresarial.
+
+**Validación pendiente:** estos cambios están guardados en GitHub, pero todavía requieren ejecución local de `npm run test:agent`, `npm run test:prioritization`, `npm run typecheck`, `npm run lint` y `npm run build`. No se afirma que hayan pasado hasta recibir esos resultados.
