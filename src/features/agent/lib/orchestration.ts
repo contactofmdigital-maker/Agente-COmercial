@@ -202,7 +202,7 @@ export function orchestrateConversation(input: {
     && /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar|necesito una landing|necesito una pagina web)\b/i.test(normalize(item.content)));
   const lastAssistantPrompt = [...messages].reverse().find((item) => item.role === "assistant")?.content ?? "";
   const awaitingQualificationReply = /empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|para que necesitas|objetivo de la landing|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistantPrompt));
-  const looksLikeQuestion = /^\s*[¿?]/.test(message.trim()) || /\\?$/.test(message.trim());
+  const looksLikeQuestion = /^\s*[¿?]/.test(message.trim()) || /\?$/.test(message.trim());
   const isQualificationReply = previousCommercialIntent && (intent === "general" || (awaitingQualificationReply && !looksLikeQuestion));
   if (currentMessageHasCommercialIntent || isQualificationReply) {
     return {
