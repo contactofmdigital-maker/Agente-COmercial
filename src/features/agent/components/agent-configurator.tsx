@@ -17,11 +17,11 @@ type KnowledgeEntry = { id: string; title: string; category: string; content: st
 
 const defaults: AgentConfig = {
   agent_name: "Asistente comercial", enabled: false,
-  objective: "Atender consultas, orientar a potenciales clientes y convertir oportunidades comerciales.",
-  tone: "professional", personality: "Cercano, resolutivo y orientado a ayudar. No presiona al cliente.",
+  objective: "Responder preguntas frecuentes con información autorizada, orientar clientes y derivar consultas que no pueda confirmar.",
+  tone: "professional", personality: "Cercano, claro y resolutivo. Responde primero la consulta; no presiona ni intenta vender si el cliente solo busca información.",
   greeting: "¡Hola! Gracias por comunicarte. ¿En qué puedo ayudarte?",
   language: "es", response_style: "clear", target_customer: "",
-  qualification_questions: "¿Qué producto o servicio te interesa?\n¿Para cuándo lo necesitas?\n¿En qué ciudad o zona te encuentras?",
+  qualification_questions: "Pregunta solo si el cliente solicita cotizar o contratar. No califiques consultas informativas. Solicita únicamente los datos necesarios para el siguiente paso.",
   restrictions: "No inventar precios, disponibilidad, características ni condiciones. Si falta información, reconocerlo y ofrecer derivación humana.",
   knowledge_entry_ids: [], human_handoff_enabled: true,
   handoff_triggers: "Cuando el cliente solicite una persona, presente una reclamación, negocie condiciones especiales o la respuesta no esté respaldada por información publicada.",
@@ -103,7 +103,7 @@ export function AgentConfigurator() {
       const { error: saveError } = await supabase.from("agent_configurations").upsert(payload, { onConflict: "user_id" });
       if (saveError) throw saveError;
       setHasConfig(true);
-      setNotice("Configuración guardada. La simulación sigue funcionando sin IA ni conexiones externas.");
+      setNotice("Configuración guardada. El motor local utiliza reglas y las fuentes publicadas que autorizaste; no consume tokens de IA.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo guardar la configuración.");
     } finally { setSaving(false); }
@@ -151,8 +151,8 @@ export function AgentConfigurator() {
 
         <section className="agent-config-card">
           <div className="agent-config-card-head"><div><span className="panel-kicker">PASO 3 · INFORMACIÓN</span><h3>Qué información puede utilizar</h3><p>Autoriza únicamente contenidos publicados en tu Centro de conocimiento.</p></div><BookOpen size={19} /></div>
-          {knowledge.length ? <div className="agent-knowledge-list">{knowledge.map(item => <label key={item.id} className="agent-knowledge-item"><input type="checkbox" checked={config.knowledge_entry_ids.includes(item.id)} onChange={() => toggleKnowledge(item.id)} /><span><strong>{item.title}</strong><small>{item.category === "faq" ? "Pregunta frecuente" : item.category === "product" ? "Producto o servicio" : item.category === "policy" ? "Política comercial" : item.category === "business" ? "Información del negocio" : "Instrucción"} · Publicado</small></span><CheckCircle2 size={16} /></label>)}</div> : <div className="agent-config-empty"><CircleHelp size={17} /> Aún no hay contenidos publicados. Publica información en el Centro de conocimiento para seleccionarla aquí.</div>}
-          <div className="agent-config-note"><ShieldCheck size={16} /><span>Si no seleccionas fuentes, el agente no utilizará contenido del Centro de conocimiento. Así evitamos respuestas basadas en información no autorizada.</span></div>
+          {knowledge.length ? <><div className="agent-knowledge-actions"><button type="button" className="agent-preview-button" onClick={() => update("knowledge_entry_ids", knowledge.map(item => item.id))}>Seleccionar todos</button><button type="button" className="agent-preview-button" onClick={() => update("knowledge_entry_ids", [])}>Quitar selección</button><span>{selectedKnowledge.length} de {knowledge.length} fuentes autorizadas</span></div><div className="agent-knowledge-list">{knowledge.map(item => <label key={item.id} className="agent-knowledge-item"><input type="checkbox" checked={config.knowledge_entry_ids.includes(item.id)} onChange={() => toggleKnowledge(item.id)} /><span><strong>{item.title}</strong><small>{item.category === "faq" ? "Pregunta frecuente" : item.category === "product" ? "Producto o servicio" : item.category === "policy" ? "Política comercial" : item.category === "business" ? "Información del negocio" : "Instrucción"} · Publicado</small></span><CheckCircle2 size={16} /></label>)}</div></> : <div className="agent-config-empty"><CircleHelp size={17} /> Aún no hay contenidos publicados. Publica información en el Centro de conocimiento para seleccionarla aquí.</div>}
+          <div className="agent-config-note"><ShieldCheck size={16} /><span><strong>Permisos explícitos:</strong> el agente solo responderá usando las fuentes marcadas. Si no seleccionas ninguna, no utilizará contenido del Centro de conocimiento y pedirá más información o derivará la consulta.</span></div>
         </section>
 
         <details className="agent-config-card agent-config-advanced">
