@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     let leadSaved = false;
     let leadId: string | null = null;
 
-    if (hasContact && commercialSignal) {
+    if (hasContact && (commercialSignal || realEstateSellerSignal)) {
       const capture = result.lead_capture;
       const { data: existing, error: lookupError } = await supabase.from("sales_prospects")
         .select("id,full_name,company_name,email,phone,website,country,service_interest,project_objective,budget,timeline,notes")
@@ -99,7 +99,12 @@ export async function POST(request: Request) {
         project_objective: capture.project_objective || existing?.project_objective || null,
         budget: capture.budget || existing?.budget || null,
         timeline: capture.timeline || existing?.timeline || null,
-        notes: capture.need || existing?.notes || null,
+        notes: [
+          capture.need,
+          capture.property_type ? "Tipo de propiedad: " + capture.property_type : null,
+          capture.property_area ? "Comuna/sector: " + capture.property_area : null,
+          capture.property_operation ? "Operación: " + capture.property_operation : null,
+        ].filter(Boolean).join("\\n") || existing?.notes || null,
         source: "playground",
         ...(existing ? {} : { status: "new" }),
       }, { onConflict: "user_id,conversation_id" }).select("id").single();
