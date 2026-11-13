@@ -198,8 +198,16 @@ export function orchestrateConversation(input: {
   const normalizedLastPrompt = normalize([...messages].reverse().find((item) => item.role === "assistant")?.content ?? "");
   const previousSellIntent = messages.some((item) => item.role === "user"
     && /\\b(quiero vender|vender mi propiedad|poner mi propiedad en venta|publicar mi propiedad|quiero publicar|necesito vender|deseo vender)\\b/.test(normalize(item.content)));
-  const awaitingSellReply = /tipo de propiedad quieres vender|publicar tu propiedad|comuna o sector.*propiedad|venderla o ponerla en arriendo|telefono o correo.*contactarte/.test(normalizedLastPrompt);
-  const isSellFollowUp = previousSellIntent && awaitingSellReply && !/^\\s*[¿?]/.test(message.trim()) && !/\\?$/.test(message.trim());
+  const assistantTurns = messages.filter((item) => item.role === "assistant");
+  const lastSellQuestion = [...assistantTurns].reverse().find((item) =>
+    /tipo de propiedad quieres vender|publicar tu propiedad|comuna o sector.*propiedad|venderla o ponerla en arriendo|telefono o correo.*contactarte/i.test(normalize(item.content))
+  )?.content ?? "";
+  const awaitingSellReply = Boolean(lastSellQuestion) && assistantTurns.at(-1)?.content === lastSellQuestion;
+  const lastSellerQuestionIsAnswered = messages.length >= 2
+    && messages.at(-1)?.role === "assistant"
+    && /tipo de propiedad quieres vender|publicar tu propiedad|comuna o sector.*propiedad|venderla o ponerla en arriendo|telefono o correo.*contactarte/i.test(normalize(messages.at(-1)?.content ?? ""));
+  const isSellFollowUp = previousSellIntent && awaitingSellReply
+    && !/^\\s*[¿?]/.test(message.trim()) && !/\\?$/.test(message.trim());
 
 
   if (intent === "greeting") {
