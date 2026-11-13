@@ -75,6 +75,8 @@ export async function POST(request: Request) {
       || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar|necesito una landing|necesito una pagina web|necesito una página web)\b/i.test(allUserText);
     const realEstateSellerSignal = result.intent === "real_estate_sell"
       || /\b(quiero vender|vender mi propiedad|poner mi propiedad en venta|publicar mi propiedad|quiero publicar|necesito vender|deseo vender)\b/i.test(allUserText);
+    const realEstateSellerSignal = result.intent === "real_estate_sell"
+      || /\b(quiero vender|vender mi propiedad|poner mi propiedad en venta|publicar mi propiedad|quiero publicar|necesito vender|deseo vender)\b/i.test(allUserText);
     let leadSaved = false;
     let leadId: string | null = null;
 
