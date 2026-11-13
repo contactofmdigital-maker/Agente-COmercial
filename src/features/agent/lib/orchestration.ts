@@ -68,6 +68,8 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
 function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
   const userMessages = messages.filter((message) => message.role === "user").map((message) => message.content);
   const text = userMessages.join("\n");
+  const normalizedTranscript = normalize(text);
+  const isPropertyLead = /\\b(quiero vender|vender mi propiedad|poner mi propiedad en venta|publicar mi propiedad|quiero publicar|necesito vender|deseo vender)\\b/.test(normalizedTranscript);
   const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? null;
   const phone = text.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.trim() ?? null;
   const explicitName = text.match(/\b(?:me llamo|mi nombre es|soy)\s+([A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}'-]+){0,2})/iu)?.[1] ?? null;
