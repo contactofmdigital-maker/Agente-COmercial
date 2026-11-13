@@ -138,7 +138,6 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
 function nextRealEstateQualificationQuestion(capture: LeadCapture) {
   if (!capture.property_type) return "¿Qué tipo de propiedad quieres vender o publicar: casa, departamento, terreno u otra?";
   if (!capture.property_area) return "¿En qué comuna o sector está ubicada la propiedad?";
-  if (!capture.property_operation) return "¿Quieres venderla o ponerla en arriendo?";
   if (!capture.name) return "Gracias. ¿Cuál es tu nombre?";
   if (!capture.phone && !capture.email) return "¿Me compartes un teléfono o correo para que Danae pueda contactarte?";
   return "Gracias. Ya tengo los datos principales para evaluar la captación. ¿Hay algún detalle importante de la propiedad que quieras agregar?";
