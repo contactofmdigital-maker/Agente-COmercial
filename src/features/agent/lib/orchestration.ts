@@ -117,6 +117,20 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
   const country = text.match(/\b(chile|mexico|méxico|espana|españa|peru|perú|argentina|colombia|estados unidos|usa)\b/i)?.[0] ?? null;
   const service = text.match(/\b(landing page(?:s)?|pagina web|página web|sitio web|seo|google ads|meta ads|publicidad digital|marketing digital|automatizacion|automatización|chatbot|agente ia|agente comercial)\b/i)?.[0] ?? null;
   const objective = conversationalObjective || text.match(/\b(?:objetivo es|necesito para|busco|quiero lograr|mi objetivo)\s+([^.!?\n]{5,180})/i)?.[1]?.trim() ?? null;
+  const propertyType = text.match(/\b(casa|departamento|departamentos|terreno|terrenos|parcela|parcelas|local comercial|oficina)\b/i)?.[1]?.toLowerCase() ?? null;
+  const propertyArea = text.match(/\b(?:en|comuna|sector)\s+([a-z]+(?:\s+[a-z]+){0,2})/i)?.[1]?.trim() ?? null;
+  const propertyOperation = /\b(arriendo|arrendar|alquiler)\b/i.test(text) ? "arriendo" : /\b(venta|vender)\b/i.test(text) ? "venta" : null;
+  let propertyTypeFromReply: string | null = null;
+  let propertyAreaFromReply: string | null = null;
+  for (let index = 0; index < messages.length - 1; index += 1) {
+    const current = messages[index];
+    const next = messages[index + 1];
+    if (current.role !== "assistant" || next.role !== "user") continue;
+    if (/tipo de propiedad quieres vender|publicar tu propiedad/.test(normalize(current.content))) {
+      propertyTypeFromReply = next.content.match(/\b(casa|departamento|departamentos|terreno|terrenos|parcela|parcelas|local comercial|oficina)\b/i)?.[1]?.toLowerCase() ?? null;
+      propertyAreaFromReply = next.content.match(/\b(?:en|comuna|sector)\s+([a-z]+(?:\s+[a-z]+){0,2})/i)?.[1]?.trim() ?? null;
+    }
+  }
   const budget = text.match(/\b(?:presupuesto|budget|inversion|inversión)\s*(?:(?:estimado|aproximado)\s*)?(?:(?:es\s+)?de\s*|es\s*|:\s*)?(?:\$\s*)?([\d.,]+\s*(?:clp|pesos|usd|dolares|dólares|eur|euros|mxn|soles)?)\b/i)?.[1]?.trim() ?? null;
   const timeline = text.match(/\b(urgente|lo antes posible|esta semana|este mes|proximo mes|próximo mes|en \d+\s*(?:dias|días|semanas|meses)|para (?:hoy|mañana|manana|diciembre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre))\b/i)?.[0] ?? null;
   const need = userMessages.find((item) => /\b(cotizar|cotizacion|contratar|landing page|pagina web|sitio web|servicio)\b/i.test(normalize(item))) ?? userMessages.at(-1) ?? null;
