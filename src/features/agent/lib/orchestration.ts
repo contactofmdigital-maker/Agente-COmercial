@@ -70,72 +70,22 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
   const userMessages = messages.filter((message) => message.role === "user").map((message) => message.content);
   const text = userMessages.join("\n");
   const normalizedTranscript = normalize(text);
-  const isPropertyLead = /\\b(quiero vender|vender mi propiedad|poner mi propiedad en venta|publicar mi propiedad|quiero publicar|necesito vender|deseo vender)\\b/.test(normalizedTranscript);
-  const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? null;
-  const phone = text.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.trim() ?? null;
-  const explicitName = text.match(/\b(?:me llamo|mi nombre es|soy)\s+([A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}'-]+){0,2})/iu)?.[1] ?? null;
-  const lastAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant")?.content ?? "";
-  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content.trim() ?? "";
-  // Recupera una respuesta breve de nombre aunque después el agente ya haya preguntado
-  // por correo/teléfono. Así el dato no se pierde en los turnos siguientes.
-  const namePrompt = /\b(nombre|con quien tengo el gusto|como te llamas)\b/i;
-  const cleanNameReply = (value: string) => value.replace(/[.!?,;:]+$/g, "").trim().replace(/\s+/g, " ");
-  let conversationalName: string | null = null;
-  for (let index = 0; index < messages.length - 1; index += 1) {
-    const current = messages[index];
-    const next = messages[index + 1];
-    if (current.role !== "assistant" || !namePrompt.test(current.content) || next.role !== "user") continue;
-    const candidate = cleanNameReply(next.content);
-    if (/^[\p{L}][\p{L}'-]*(?:\s+[\p{L}][\p{L}'-]*){1,2}$/u.test(candidate)
-      && !/^(si|no|hola|buenas|gracias|quiero|necesito|empresa|cliente)$/i.test(candidate)) {
-      conversationalName = candidate;
-    }
-  }
-  const directNameCandidate = cleanNameReply(latestUserMessage);
-  const directName = namePrompt.test(lastAssistantMessage)
-    && /^[\p{L}][\p{L}'-]*(?:\s+[\p{L}][\p{L}'-]*){1,2}$/u.test(directNameCandidate)
-    && !/^(si|no|hola|buenas|gracias|quiero|necesito|empresa|cliente)$/i.test(directNameCandidate)
-    ? directNameCandidate
-    : null;
-  const name = explicitName || conversationalName || directName;
-  let conversationalCompany: string | null = null;
-  let conversationalObjective: string | null = null;
-  for (let index = 0; index < messages.length - 1; index += 1) {
-    const current = messages[index];
-    const next = messages[index + 1];
-    if (current.role !== "assistant" || next.role !== "user") continue;
-    const prompt = normalize(current.content);
-    const reply = cleanNameReply(next.content);
-    if (/empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa/.test(prompt)) {
-      const companyMatch = reply.match(/^(.+?)(?:\s+(?:servicios?|dedicad[oa]|empresa|nos dedicamos)\b.*)?$/i);
-      conversationalCompany = (companyMatch?.[1] || reply).trim().slice(0, 60);
-    }
-    if (/que objetivo buscas|que objetivo quieres|para que necesitas|objetivo de la landing/.test(prompt)) {
-      conversationalObjective = reply.slice(0, 180);
-    }
-  }
-  const explicitCompany = text.match(/\b(?:mi empresa es|mi empresa se llama|la empresa se llama|trabajo en|empresa:)\s*([\p{L}0-9&.' -]{2,60})/iu)?.[1]?.trim()?.replace(/\s+(?:y mi|y el|y la|mi objetivo|necesito|quiero|con un|con una).*/i, "") ?? null;
-  const company = explicitCompany || conversationalCompany;
-  const website = text.match(/\b(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.(?:cl|com|net|org|io|es|mx|pe)(?:\/[\w./-]*)?/i)?.[0] ?? null;
-  const country = text.match(/\b(chile|mexico|méxico|espana|españa|peru|perú|argentina|colombia|estados unidos|usa)\b/i)?.[0] ?? null;
-  const service = text.match(/\b(landing page(?:s)?|pagina web|página web|sitio web|seo|google ads|meta ads|publicidad digital|marketing digital|automatizacion|automatización|chatbot|agente ia|agente comercial)\b/i)?.[0] ?? null;
-  const objective = conversationalObjective || text.match(/\b(?:objetivo es|necesito para|busco|quiero lograr|mi objetivo)\s+([^.!?\n]{5,180})/i)?.[1]?.trim() ?? null;
-  const propertyLeadStarted = /\\b(quiero vender|vender mi propiedad|poner mi propiedad en venta|publicar mi propiedad|quiero publicar|necesito vender|deseo vender)\\b/.test(normalize(text));
+  const propertyLeadStarted = /\b(quiero vender|vender mi propiedad|poner mi propiedad en venta|publicar mi propiedad|quiero publicar|necesito vender|deseo vender)\b/.test(normalizedTranscript);
   const propertyReplies = userMessages.slice(1);
   const propertyType = propertyLeadStarted
-    ? propertyReplies.map((reply) => reply.match(/\\b(casa|departamento|departamentos|terreno|terrenos|parcela|parcelas|local comercial|oficina)\\b/i)?.[1]?.toLowerCase()).find(Boolean) ?? null
+    ? propertyReplies.map((reply) => reply.match(/\b(casa|departamento|departamentos|terreno|terrenos|parcela|parcelas|local comercial|oficina)\b/i)?.[1]?.toLowerCase()).find(Boolean) ?? null
     : null;
   const propertyArea = propertyLeadStarted
-    ? propertyReplies.map((reply) => reply.match(/\\b(?:en|comuna|sector)\\s+([a-z]+(?:\\s+[a-z]+){0,2})/i)?.[1]?.trim()).find(Boolean) ?? null
+    ? propertyReplies.map((reply) => reply.match(/\b(?:en|comuna|sector)\s+([a-z]+(?:\s+[a-z]+){0,2})/i)?.[1]?.trim()).find(Boolean) ?? null
     : null;
   const propertyOperation = propertyLeadStarted
-    ? (/\\b(arriendo|arrendar|alquiler)\\b/i.test(text) ? "arriendo" : /\\b(venta|vender)\\b/i.test(text) ? "venta" : null)
+    ? (/\b(arriendo|arrendar|alquiler)\b/i.test(text) ? "arriendo" : /\b(venta|vender)\b/i.test(text) ? "venta" : null)
     : null;
   const budget = text.match(/\b(?:presupuesto|budget|inversion|inversión)\s*(?:(?:estimado|aproximado)\s*)?(?:(?:es\s+)?de\s*|es\s*|:\s*)?(?:\$\s*)?([\d.,]+\s*(?:clp|pesos|usd|dolares|dólares|eur|euros|mxn|soles)?)\b/i)?.[1]?.trim() ?? null;
   const timeline = text.match(/\b(urgente|lo antes posible|esta semana|este mes|proximo mes|próximo mes|en \d+\s*(?:dias|días|semanas|meses)|para (?:hoy|mañana|manana|diciembre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre))\b/i)?.[0] ?? null;
   const need = userMessages.find((item) => /\b(cotizar|cotizacion|contratar|landing page|pagina web|sitio web|servicio)\b/i.test(normalize(item))) ?? userMessages.at(-1) ?? null;
   return { name, email, phone, need, company_name: company, website, country, service_interest: service, project_objective: objective, budget, timeline,
-    property_type: propertyTypeFromReply || propertyType, property_area: propertyAreaFromReply || propertyArea, property_operation: propertyOperation };
+    property_type: propertyType, property_area: propertyArea, property_operation: propertyOperation };
 }
 
 function nextRealEstateQualificationQuestion(capture: LeadCapture) {
@@ -193,17 +143,13 @@ export function orchestrateConversation(input: {
   const lead_capture = extractLeadCapture([...messages, { role: "user", content: message }]);
   const wantsHuman = intent === "human_request" || intent === "complaint";
   const sourcesFor = (matches: ReturnType<typeof rankKnowledge>) => matches.map(({ item }) => ({ id: item.id, title: item.title, category: item.category }));
-  const normalizedLastPrompt = normalize([...messages].reverse().find((item) => item.role === "assistant")?.content ?? "");
-  const previousSellIntent = messages.some((item) => item.role === "user"
-    && /\\b(quiero vender|vender mi propiedad|poner mi propiedad en venta|publicar mi propiedad|quiero publicar|necesito vender|deseo vender)\\b/.test(normalize(item.content)));
   const assistantTurns = messages.filter((item) => item.role === "assistant");
-  const lastSellQuestion = [...assistantTurns].reverse().find((item) =>
-    /tipo de propiedad quieres vender|publicar tu propiedad|comuna o sector.*propiedad|venderla o ponerla en arriendo|telefono o correo.*contactarte/i.test(normalize(item.content))
-  )?.content ?? "";
-  const awaitingSellReply = Boolean(lastSellQuestion) && assistantTurns.at(-1)?.content === lastSellQuestion;
+  const lastAssistantPrompt = normalize(assistantTurns.at(-1)?.content ?? "");
+  const previousSellIntent = messages.some((item) => item.role === "user"
+    && /\b(quiero vender|vender mi propiedad|poner mi propiedad en venta|publicar mi propiedad|quiero publicar|necesito vender|deseo vender)\b/.test(normalize(item.content)));
+  const awaitingSellReply = /tipo de propiedad quieres vender|publicar tu propiedad|comuna o sector.*propiedad|venderla o ponerla en arriendo|telefono o correo.*contactarte|cual es tu nombre/.test(lastAssistantPrompt);
   const isSellFollowUp = previousSellIntent && awaitingSellReply
-    && !/^\\s*[¿?]/.test(message.trim()) && !/\\?$/.test(message.trim());
-
+    && !/^\s*[¿?]/.test(message.trim()) && !/\?$/.test(message.trim());
 
   if (intent === "greeting") {
     return { answer: safeGreeting(config), intent, route: "greeting", confidence: "grounded", sources: [], handoff_required: false, lead_capture, actions: ["start_conversation"] };
