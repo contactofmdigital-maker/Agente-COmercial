@@ -10,6 +10,7 @@ export type LeadCapture = {
   name: string | null; email: string | null; phone: string | null; need: string | null;
   company_name: string | null; website: string | null; country: string | null;
   service_interest: string | null; project_objective: string | null; budget: string | null; timeline: string | null;
+  property_type: string | null; property_area: string | null; property_operation: string | null;
 };
 export type OrchestrationResult = {
   answer: string;
@@ -119,7 +120,17 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
   const budget = text.match(/\b(?:presupuesto|budget|inversion|inversión)\s*(?:(?:estimado|aproximado)\s*)?(?:(?:es\s+)?de\s*|es\s*|:\s*)?(?:\$\s*)?([\d.,]+\s*(?:clp|pesos|usd|dolares|dólares|eur|euros|mxn|soles)?)\b/i)?.[1]?.trim() ?? null;
   const timeline = text.match(/\b(urgente|lo antes posible|esta semana|este mes|proximo mes|próximo mes|en \d+\s*(?:dias|días|semanas|meses)|para (?:hoy|mañana|manana|diciembre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre))\b/i)?.[0] ?? null;
   const need = userMessages.find((item) => /\b(cotizar|cotizacion|contratar|landing page|pagina web|sitio web|servicio)\b/i.test(normalize(item))) ?? userMessages.at(-1) ?? null;
-  return { name, email, phone, need, company_name: company, website, country, service_interest: service, project_objective: objective, budget, timeline };
+  return { name, email, phone, need, company_name: company, website, country, service_interest: service, project_objective: objective, budget, timeline,
+    property_type: propertyTypeFromReply || propertyType, property_area: propertyAreaFromReply || propertyArea, property_operation: propertyOperation };
+}
+
+function nextRealEstateQualificationQuestion(capture: LeadCapture) {
+  if (!capture.property_type) return "¿Qué tipo de propiedad quieres vender o publicar: casa, departamento, terreno u otra?";
+  if (!capture.property_area) return "¿En qué comuna o sector está ubicada la propiedad?";
+  if (!capture.property_operation) return "¿Quieres venderla o ponerla en arriendo?";
+  if (!capture.name) return "Gracias. ¿Cuál es tu nombre?";
+  if (!capture.phone && !capture.email) return "¿Me compartes un teléfono o correo para que Danae pueda contactarte?";
+  return "Gracias. Ya tengo los datos principales para evaluar la captación. ¿Hay algún detalle importante de la propiedad que quieras agregar?";
 }
 
 function nextQualificationQuestion(capture: LeadCapture) {
@@ -168,6 +179,12 @@ export function orchestrateConversation(input: {
   const lead_capture = extractLeadCapture([...messages, { role: "user", content: message }]);
   const wantsHuman = intent === "human_request" || intent === "complaint";
   const sourcesFor = (matches: ReturnType<typeof rankKnowledge>) => matches.map(({ item }) => ({ id: item.id, title: item.title, category: item.category }));
+  const normalizedLastPrompt = normalize([...messages].reverse().find((item) => item.role === "assistant")?.content ?? "");
+  const previousSellIntent = messages.some((item) => item.role === "user"
+    && /\\b(quiero vender|vender mi propiedad|poner mi propiedad en venta|publicar mi propiedad|quiero publicar|necesito vender|deseo vender)\\b/.test(normalize(item.content)));
+  const awaitingSellReply = /tipo de propiedad quieres vender|publicar tu propiedad|comuna o sector.*propiedad|venderla o ponerla en arriendo|telefono o correo.*contactarte/.test(normalizedLastPrompt);
+  const isSellFollowUp = previousSellIntent && awaitingSellReply && !/^\\s*[¿?]/.test(message.trim()) && !/\\?$/.test(message.trim());
+
 
   if (intent === "greeting") {
     return { answer: safeGreeting(config), intent, route: "greeting", confidence: "grounded", sources: [], handoff_required: false, lead_capture, actions: ["start_conversation"] };
@@ -177,6 +194,15 @@ export function orchestrateConversation(input: {
   }
   if (wantsHuman) {
     return { answer: "Entiendo que necesitas atención de una persona. La derivación humana está desactivada; no voy a afirmar que se haya contactado al equipo.", intent, route: "clarify", confidence: "none", sources: [], handoff_required: false, lead_capture, actions: ["notify_human_handoff_unavailable"] };
+  }
+
+  if (intent === "real_estate_sell" || isSellFollowUp) {
+    return {
+      answer: nextRealEstateQualificationQuestion(lead_capture),
+      intent: "real_estate_sell",
+      route: "qualify", confidence: "limited", sources: [], handoff_required: false,
+      lead_capture, actions: ["capture_real_estate_seller", "qualify_lead"],
+    };
   }
 
   const currentMessageHasCommercialIntent = ["pricing", "purchase"].includes(intent)
