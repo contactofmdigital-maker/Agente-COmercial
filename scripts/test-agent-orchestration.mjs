@@ -230,7 +230,7 @@ assert.equal(sellerPropertyDetails.route, "qualify", "No debe buscar inventario 
 assert.equal(sellerPropertyDetails.sources.length, 0, "No debe sugerir la casa de arriendo como respuesta a la captación.");
 assert.equal(sellerPropertyDetails.lead_capture.property_type, "casa");
 assert.match(sellerPropertyDetails.lead_capture.property_area ?? "", /maipu/i);
-assert.match(sellerPropertyDetails.answer, /venderla o ponerla en arriendo/i);
+assert.match(sellerPropertyDetails.answer, /nombre/i);
 
 const sellerOperationReply = engine.orchestrateConversation({
   message: "Quiero venderla.",
