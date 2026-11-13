@@ -73,10 +73,12 @@ export async function POST(request: Request) {
     const hasContact = Boolean(result.lead_capture.email || result.lead_capture.phone);
     const commercialSignal = ["purchase", "pricing"].includes(result.intent)
       || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar|necesito una landing|necesito una pagina web|necesito una página web)\b/i.test(allUserText);
+    const realEstateSellerSignal = result.intent === "real_estate_sell"
+      || /\b(quiero vender|vender mi propiedad|poner mi propiedad en venta|publicar mi propiedad|quiero publicar|necesito vender|deseo vender)\b/i.test(allUserText);
     let leadSaved = false;
     let leadId: string | null = null;
 
-    if (hasContact && commercialSignal) {
+    if (hasContact && (commercialSignal || realEstateSellerSignal)) {
       const capture = result.lead_capture;
       const { data: existing, error: lookupError } = await supabase.from("sales_prospects")
         .select("id,full_name,company_name,email,phone,website,country,service_interest,project_objective,budget,timeline,notes")
@@ -99,7 +101,12 @@ export async function POST(request: Request) {
         project_objective: capture.project_objective || existing?.project_objective || null,
         budget: capture.budget || existing?.budget || null,
         timeline: capture.timeline || existing?.timeline || null,
-        notes: capture.need || existing?.notes || null,
+        notes: [
+          capture.need,
+          capture.property_type ? "Tipo de propiedad: " + capture.property_type : null,
+          capture.property_area ? "Comuna/sector: " + capture.property_area : null,
+          capture.property_operation ? "Operación: " + capture.property_operation : null,
+        ].filter(Boolean).join("\n") || existing?.notes || null,
         source: "playground",
         ...(existing ? {} : { status: "new" }),
       }, { onConflict: "user_id,conversation_id" }).select("id").single();
