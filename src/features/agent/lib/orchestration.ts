@@ -203,9 +203,6 @@ export function orchestrateConversation(input: {
     /tipo de propiedad quieres vender|publicar tu propiedad|comuna o sector.*propiedad|venderla o ponerla en arriendo|telefono o correo.*contactarte/i.test(normalize(item.content))
   )?.content ?? "";
   const awaitingSellReply = Boolean(lastSellQuestion) && assistantTurns.at(-1)?.content === lastSellQuestion;
-  const lastSellerQuestionIsAnswered = messages.length >= 2
-    && messages.at(-1)?.role === "assistant"
-    && /tipo de propiedad quieres vender|publicar tu propiedad|comuna o sector.*propiedad|venderla o ponerla en arriendo|telefono o correo.*contactarte/i.test(normalize(messages.at(-1)?.content ?? ""));
   const isSellFollowUp = previousSellIntent && awaitingSellReply
     && !/^\\s*[¿?]/.test(message.trim()) && !/\\?$/.test(message.trim());
 
