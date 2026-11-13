@@ -195,5 +195,56 @@ assert.equal(weekendWithKnowledge.route, "answer_from_knowledge", "Debe encontra
 assert.match(weekendWithKnowledge.answer, /sábados y domingos/i);
 assert.equal(weekendWithKnowledge.sources[0].id, "hours-1");
 
+
+const realEstateConfig = {
+  ...config,
+  agent_name: "Danae Urzúa",
+  objective: "Captar, asesorar y acompañar propietarios que desean vender o arrendar su propiedad.",
+};
+const sellerStart = engine.orchestrateConversation({
+  message: "Quiero vender mi propiedad.",
+  messages: [],
+  config: realEstateConfig,
+  knowledge: [],
+});
+assert.equal(sellerStart.intent, "real_estate_sell");
+assert.equal(sellerStart.route, "qualify");
+assert.match(sellerStart.answer, /tipo de propiedad/i);
+
+const sellerPropertyDetails = engine.orchestrateConversation({
+  message: "Es una casa ubicada en Maipú.",
+  messages: [
+    { role: "user", content: "Quiero vender mi propiedad." },
+    { role: "assistant", content: sellerStart.answer },
+  ],
+  config: realEstateConfig,
+  knowledge: [{
+    id: "rental-maipu",
+    title: "Casa en arriendo - Maipú",
+    content: "Casa en arriendo en Maipú. 3 dormitorios, valor 650.000 CLP.",
+    category: "real_estate",
+  }],
+});
+assert.equal(sellerPropertyDetails.intent, "real_estate_sell", "La respuesta de captación debe conservar la intención inmobiliaria.");
+assert.equal(sellerPropertyDetails.route, "qualify", "No debe buscar inventario mientras se califica una captación.");
+assert.equal(sellerPropertyDetails.sources.length, 0, "No debe sugerir la casa de arriendo como respuesta a la captación.");
+assert.equal(sellerPropertyDetails.lead_capture.property_type, "casa");
+assert.match(sellerPropertyDetails.lead_capture.property_area ?? "", /maipu/i);
+assert.match(sellerPropertyDetails.answer, /venderla o ponerla en arriendo/i);
+
+const sellerOperationReply = engine.orchestrateConversation({
+  message: "Quiero venderla.",
+  messages: [
+    { role: "user", content: "Quiero vender mi propiedad." },
+    { role: "assistant", content: sellerStart.answer },
+    { role: "user", content: "Es una casa ubicada en Maipú." },
+    { role: "assistant", content: sellerPropertyDetails.answer },
+  ],
+  config: realEstateConfig,
+  knowledge: [],
+});
+assert.equal(sellerOperationReply.route, "qualify");
+assert.match(sellerOperationReply.answer, /nombre/i);
+
 console.log("OK: seguridad de respuestas, clasificación de horarios, recuperación de conocimiento por sinónimos y no exposición de instrucciones internas.");
 console.log("OK: 4 escenarios del motor comercial (captura progresiva, prioridad comercial, fuentes autorizadas y derivación explícita).");
