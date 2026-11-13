@@ -106,7 +106,7 @@ export async function POST(request: Request) {
           capture.property_type ? "Tipo de propiedad: " + capture.property_type : null,
           capture.property_area ? "Comuna/sector: " + capture.property_area : null,
           capture.property_operation ? "Operación: " + capture.property_operation : null,
-        ].filter(Boolean).join("\\n") || existing?.notes || null,
+        ].filter(Boolean).join("\n") || existing?.notes || null,
         source: "playground",
         ...(existing ? {} : { status: "new" }),
       }, { onConflict: "user_id,conversation_id" }).select("id").single();
