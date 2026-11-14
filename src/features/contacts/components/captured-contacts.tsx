@@ -28,11 +28,7 @@ export function CapturedContacts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadContacts = useCallback(async (showLoading = false) => {
-    if (showLoading) {
-      setLoading(true);
-      setError("");
-    }
+  const loadContacts = useCallback(async () => {
     try {
       const supabase = createClient();
       const { data: auth, error: authError } = await supabase.auth.getUser();
@@ -48,6 +44,7 @@ export function CapturedContacts() {
       if (queryError) throw queryError;
 
       setContacts(filterRealProspects((data ?? []) as Contact[]));
+      setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudieron cargar los contactos.");
     } finally {
@@ -66,7 +63,16 @@ export function CapturedContacts() {
           <strong>Contactos registrados</strong>
           <p>Los contactos se guardan cuando el agente identifica una oportunidad y obtiene datos suficientes.</p>
         </div>
-        <button className="button button-secondary" type="button" onClick={() => void loadContacts(true)} disabled={loading}>
+        <button
+          className="button button-secondary"
+          type="button"
+          onClick={() => {
+            setLoading(true);
+            setError("");
+            void loadContacts();
+          }}
+          disabled={loading}
+        >
           <RefreshCw size={14} /> Actualizar
         </button>
       </div>
