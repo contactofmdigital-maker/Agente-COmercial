@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { LoaderCircle, RefreshCw, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { filterRealProspects } from "@/features/data-classification/lib/record-classification";
@@ -28,7 +28,7 @@ export function CapturedContacts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  async function loadContacts() {
+  const loadContacts = useCallback(async () => {
     setLoading(true);
     setError("");
     try {
@@ -51,11 +51,11 @@ export function CapturedContacts() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
   useEffect(() => {
     void loadContacts();
-  }, []);
+  }, [loadContacts]);
 
   return (
     <section className="captured-contacts">
