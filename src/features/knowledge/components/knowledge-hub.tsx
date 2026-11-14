@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BookOpen, Check, CircleHelp, FileText, LoaderCircle, Plus, Save, Search, ShieldCheck, Trash2, X } from "lucide-react";
+import { BookOpen, Check, CircleHelp, FileText, LoaderCircle, Plus, Save, Search, ShieldCheck, Sparkles, Trash2, X } from "lucide-react";
+import { businessTemplates, type BusinessTemplateKey } from "@/features/knowledge/lib/business-templates";
 import { createClient } from "@/lib/supabase/client";
 
 type Category = "product" | "faq" | "policy" | "business" | "instruction";
@@ -40,6 +41,8 @@ export function KnowledgeHub() {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [templateKey, setTemplateKey] = useState<BusinessTemplateKey>("digital_services");
+  const [applyingTemplate, setApplyingTemplate] = useState(false);
 
   const loadEntries = useCallback(async () => {
     try {
@@ -153,6 +156,63 @@ export function KnowledgeHub() {
     }
   }
 
+  async function applyBusinessTemplate() {
+    setApplyingTemplate(true);
+    setError("");
+    setNotice("");
+    try {
+      const supabase = createClient();
+      const { data: auth, error: authError } = await supabase.auth.getUser();
+      if (authError) throw authError;
+      if (!auth.user) throw new Error("Tu sesión no está activa. Inicia sesión nuevamente.");
+
+      const template = businessTemplates[templateKey];
+      const existingTitles = new Set(entries.map((entry) => entry.title.trim().toLocaleLowerCase()));
+      const missing = template.entries.filter((entry) => !existingTitles.has(entry.title.trim().toLocaleLowerCase()));
+      if (!missing.length) {
+        setNotice("Esta plantilla ya está incorporada. Puedes editar sus contenidos desde la biblioteca.");
+        return;
+      }
+
+      const payload = missing.map((entry, index) => ({
+        user_id: auth.user.id,
+        category: entry.category,
+        title: entry.title,
+        content: entry.content,
+        status: "published" as const,
+        sort_order: entries.length + index,
+      }));
+      const { data: created, error: insertError } = await supabase
+        .from("agent_knowledge_entries")
+        .insert(payload)
+        .select("id");
+      if (insertError) throw insertError;
+
+      const createdIds = (created ?? []).map((item) => item.id as string);
+      const { data: savedConfig, error: configReadError } = await supabase
+        .from("agent_configurations")
+        .select("knowledge_entry_ids")
+        .eq("user_id", auth.user.id)
+        .maybeSingle();
+      if (configReadError) throw configReadError;
+      const currentIds = Array.isArray(savedConfig?.knowledge_entry_ids) ? savedConfig.knowledge_entry_ids as string[] : [];
+      const { error: configError } = await supabase.from("agent_configurations").upsert({
+        user_id: auth.user.id,
+        knowledge_entry_ids: [...new Set([...currentIds, ...createdIds])],
+      }, { onConflict: "user_id" });
+      if (configError) throw configError;
+
+      setSelectedId(null);
+      setDraft(emptyDraft);
+      setNotice(`Plantilla aplicada: se añadieron ${createdIds.length} conocimientos publicados y se autorizaron en la configuración del agente. Revisa y personaliza los datos de tu negocio.`);
+      await loadEntries();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo aplicar la configuración rápida.");
+    } finally {
+      setApplyingTemplate(false);
+    }
+  }
+
   const selectedCategory = categories.find((item) => item.value === draft.category)!;
 
   return (
@@ -161,6 +221,23 @@ export function KnowledgeHub() {
         <div className="knowledge-intro-icon"><BookOpen size={21} /></div>
         <div><strong>La fuente de información de tu futuro agente</strong><p>Organiza contenido aprobado para que el agente pueda responder con contexto. Esta versión funciona sin conectar IA y no consume tokens.</p></div>
       </div>
+
+      <section className="knowledge-quickstart">
+        <div className="knowledge-quickstart-copy">
+          <span className="panel-kicker">CONFIGURACIÓN RÁPIDA</span>
+          <strong>Prepara conocimientos iniciales en un solo paso</strong>
+          <p>Elige el rubro y UpScale añadirá respuestas base sin precios ni condiciones inventadas. Los contenidos se publican y autorizan para el agente; puedes editarlos después.</p>
+        </div>
+        <div className="knowledge-quickstart-actions">
+          <select aria-label="Rubro del negocio" value={templateKey} onChange={(event) => setTemplateKey(event.target.value as BusinessTemplateKey)}>
+            {Object.entries(businessTemplates).map(([key, template]) => <option key={key} value={key}>{template.label}</option>)}
+          </select>
+          <button type="button" className="button button-primary" onClick={() => void applyBusinessTemplate()} disabled={applyingTemplate || loading}>
+            {applyingTemplate ? <LoaderCircle size={15} className="assistant-spin" /> : <Sparkles size={15} />}
+            {applyingTemplate ? "Preparando..." : "Aplicar plantilla"}
+          </button>
+        </div>
+      </section>
 
       <div className="knowledge-stats">
         <div><span>CONTENIDOS</span><strong>{entries.length}</strong></div>
