@@ -23,38 +23,60 @@ const statusLabels: Record<string, string> = {
   lost: "Cerrado",
 };
 
+async function fetchCapturedContacts(): Promise<Contact[]> {
+  const supabase = createClient();
+  const { data: auth, error: authError } = await supabase.auth.getUser();
+  if (authError) throw authError;
+  if (!auth.user) throw new Error("Tu sesión no está activa. Inicia sesión nuevamente.");
+
+  const { data, error: queryError } = await supabase
+    .from("sales_prospects")
+    .select("id,full_name,company_name,email,status,created_at")
+    .eq("user_id", auth.user.id)
+    .order("created_at", { ascending: false })
+    .limit(100);
+  if (queryError) throw queryError;
+
+  return filterRealProspects((data ?? []) as Contact[]);
+}
+
 export function CapturedContacts() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadContacts = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false;
+
+    fetchCapturedContacts()
+      .then((nextContacts) => {
+        if (cancelled) return;
+        setContacts(nextContacts);
+        setError("");
+        setLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        setError(err instanceof Error ? err.message : "No se pudieron cargar los contactos.");
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const refreshContacts = async () => {
+    setLoading(true);
+    setError("");
     try {
-      const supabase = createClient();
-      const { data: auth, error: authError } = await supabase.auth.getUser();
-      if (authError) throw authError;
-      if (!auth.user) throw new Error("Tu sesión no está activa. Inicia sesión nuevamente.");
-
-      const { data, error: queryError } = await supabase
-        .from("sales_prospects")
-        .select("id,full_name,company_name,email,status,created_at")
-        .eq("user_id", auth.user.id)
-        .order("created_at", { ascending: false })
-        .limit(100);
-      if (queryError) throw queryError;
-
-      setContacts(filterRealProspects((data ?? []) as Contact[]));
-      setError("");
+      setContacts(await fetchCapturedContacts());
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudieron cargar los contactos.");
     } finally {
       setLoading(false);
     }
-  }, []);
-
-  useEffect(() => {
-    void loadContacts();
-  }, [loadContacts]);
+  };
 
   return (
     <section className="captured-contacts">
@@ -67,9 +89,7 @@ export function CapturedContacts() {
           className="button button-secondary"
           type="button"
           onClick={() => {
-            setLoading(true);
-            setError("");
-            void loadContacts();
+            void refreshContacts();
           }}
           disabled={loading}
         >
