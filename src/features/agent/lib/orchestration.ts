@@ -93,7 +93,7 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
   const text = userMessages.join("\n");
   const email = text.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)?.[0] ?? null;
   const phone = text.match(/(?:\+?\d[\d\s().-]{7,}\d)/)?.[0]?.trim() ?? null;
-  const explicitName = text.match(/\b(?:me llamo|mi nombre es|soy)\s+([A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+[A-ZÁÉÍÓÚÑ][\p{L}'-]+){0,2})/iu)?.[1] ?? null;
+  const explicitName = text.match(/\b(?:me llamo|mi nombre es|soy)\s+([A-ZÁÉÍÓÚÑ][\p{L}'-]+(?:\s+[\p{L}][\p{L}'-]*){0,2})/iu)?.[1] ?? null;
   const lastAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant")?.content ?? "";
   const latestUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content.trim() ?? "";
   // Recupera una respuesta breve de nombre aunque después el agente ya haya preguntado
@@ -106,15 +106,15 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
     const next = messages[index + 1];
     if (current.role !== "assistant" || !namePrompt.test(current.content) || next.role !== "user") continue;
     const candidate = cleanNameReply(next.content);
-    if (/^[\p{L}][\p{L}'-]*(?:\s+[\p{L}][\p{L}'-]*){1,2}$/u.test(candidate)
-      && !/^(si|no|hola|buenas|gracias|quiero|necesito|empresa|cliente)$/i.test(candidate)) {
+    if (/^[\p{L}][\p{L}'-]*(?:\s+[\p{L}][\p{L}'-]*){0,2}$/u.test(candidate)
+      && !/^(si|no|ok|okay|hola|buenas|gracias|quiero|necesito|empresa|cliente|ninguno|ninguna)$/i.test(candidate)) {
       conversationalName = candidate;
     }
   }
   const directNameCandidate = cleanNameReply(latestUserMessage);
   const directName = namePrompt.test(lastAssistantMessage)
-    && /^[\p{L}][\p{L}'-]*(?:\s+[\p{L}][\p{L}'-]*){1,2}$/u.test(directNameCandidate)
-    && !/^(si|no|hola|buenas|gracias|quiero|necesito|empresa|cliente)$/i.test(directNameCandidate)
+    && /^[\p{L}][\p{L}'-]*(?:\s+[\p{L}][\p{L}'-]*){0,2}$/u.test(directNameCandidate)
+    && !/^(si|no|ok|okay|hola|buenas|gracias|quiero|necesito|empresa|cliente|ninguno|ninguna)$/i.test(directNameCandidate)
     ? directNameCandidate
     : null;
   const name = explicitName || conversationalName || directName;
@@ -204,8 +204,10 @@ export function orchestrateConversation(input: {
 
   const currentMessageHasCommercialIntent = ["pricing", "purchase"].includes(intent)
     || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar)\b/i.test(normalize(message));
-  const previousCommercialIntent = messages.some((item) => item.role === "user"
-    && /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar)\b/i.test(normalize(item.content)));
+  const previousCommercialIntent = messages.some((item) => item.role === "user" && (
+    ["pricing", "purchase"].includes(classifyIntent(item.content))
+    || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar)\b/i.test(normalize(item.content))
+  ));
   const lastAssistantPrompt = [...messages].reverse().find((item) => item.role === "assistant")?.content ?? "";
   const awaitingQualificationReply = /nombre|correo o telefono|empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistantPrompt));
   const isQualificationReply = previousCommercialIntent && awaitingQualificationReply;
