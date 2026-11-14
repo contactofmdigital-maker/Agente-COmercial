@@ -77,6 +77,30 @@ assert.equal(second.route, "qualify");
 assert.match(second.answer, /correo o teléfono/i);
 assert.equal(second.lead_capture.name, "Francisco Marín");
 
+const singleNameReply = engine.orchestrateConversation({
+  message: "Francisco",
+  messages: [
+    { role: "user", content: "Quiero cotizar una landing page." },
+    { role: "assistant", content: "Para comenzar, ¿cuál es tu nombre?" },
+  ],
+  config,
+  knowledge: [],
+});
+assert.equal(singleNameReply.lead_capture.name, "Francisco", "Debe capturar nombres de una sola palabra.");
+assert.match(singleNameReply.answer, /correo o teléfono/i, "Debe avanzar después de capturar un nombre de una sola palabra.");
+
+const priceIntentFollowUp = engine.orchestrateConversation({
+  message: "Francisco",
+  messages: [
+    { role: "user", content: "¿Cuánto cuesta una landing page?" },
+    { role: "assistant", content: "Para comenzar, ¿con quién tengo el gusto de hablar? ¿Cuál es tu nombre?" },
+  ],
+  config,
+  knowledge: [],
+});
+assert.equal(priceIntentFollowUp.lead_capture.name, "Francisco", "Una consulta de precio debe conservar el contexto de calificación.");
+assert.match(priceIntentFollowUp.answer, /correo o teléfono/i, "Debe continuar la calificación iniciada por una consulta de precio.");
+
 const third = engine.orchestrateConversation({
   message: "Mi correo es prueba@empresa.cl y mi presupuesto es de 150 USD.",
   messages: [
