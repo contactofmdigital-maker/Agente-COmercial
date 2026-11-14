@@ -140,7 +140,7 @@ const contextualCompanyReply = engine.orchestrateConversation({
 });
 assert.equal(contextualCompanyReply.route, "qualify");
 assert.equal(contextualCompanyReply.lead_capture.company_name, "FM Digital");
-assert.match(contextualCompanyReply.answer, /objetivo buscas/i);
+assert.match(contextualCompanyReply.answer, /qué necesitas resolver/i);
 
 const contextualObjectiveReply = engine.orchestrateConversation({
   message: "Necesito una landing page para conseguir más clientes y recibir consultas por WhatsApp.",
@@ -155,7 +155,8 @@ const contextualObjectiveReply = engine.orchestrateConversation({
 });
 assert.equal(contextualObjectiveReply.route, "qualify");
 assert.match(contextualObjectiveReply.lead_capture.project_objective ?? "", /conseguir más clientes/i);
-assert.match(contextualObjectiveReply.answer, /presupuesto/i);
+assert.match(contextualObjectiveReply.answer, /para cuándo lo necesitas/i);
+assert.doesNotMatch(contextualObjectiveReply.answer, /landing page/i, "La calificación debe servir para cualquier rubro.");
 
 const servicesKnowledge = engine.orchestrateConversation({
   message: "¿Qué servicios ofrecen?",
