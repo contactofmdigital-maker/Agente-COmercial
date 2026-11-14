@@ -29,11 +29,43 @@ const first = engine.orchestrateConversation({
   message: "Quiero cotizar una landing page para mi empresa.",
   messages: [],
   config,
-  knowledge: [{ id: "unselected", title: "Landing page", content: "Precio: 100 USD", category: "product" }],
+  knowledge: [],
 });
-assert.equal(first.route, "qualify", "El interés comercial debe priorizarse sobre una coincidencia de conocimiento.");
+assert.equal(first.route, "qualify", "Sin una respuesta publicada debe iniciar la calificación comercial.");
 assert.match(first.answer, /nombre/i);
-assert.equal(first.sources.length, 0, "No debe usar conocimiento no autorizado.");
+assert.equal(first.sources.length, 0, "No debe atribuir fuentes cuando no hay conocimiento autorizado.");
+
+const publishedPrice = engine.orchestrateConversation({
+  message: "¿Cuánto cuesta una landing page?",
+  messages: [],
+  config,
+  knowledge: [{ id: "price-1", title: "Precio landing page", content: "El precio publicado es $120.000 CLP.", category: "product" }],
+});
+assert.equal(publishedPrice.route, "answer_from_knowledge", "Debe responder el precio publicado antes de iniciar la calificación.");
+assert.match(publishedPrice.answer, /120\.000 CLP/);
+assert.equal(publishedPrice.sources[0].id, "price-1");
+
+const landingDefinition = engine.orchestrateConversation({
+  message: "¿Qué es una landing page?",
+  messages: [],
+  config,
+  knowledge: [
+    { id: "definition", title: "¿Qué es una landing page?", content: "Es una página enfocada en una acción concreta.", category: "faq" },
+    { id: "real-estate", title: "Casas en venta", content: "Propiedades disponibles en Maipú.", category: "product" },
+  ],
+});
+assert.equal(landingDefinition.route, "answer_from_knowledge");
+assert.match(landingDefinition.answer, /acción concreta/);
+assert.equal(landingDefinition.sources.length, 1, "Debe devolver una respuesta principal, no concatenar conocimientos ajenos.");
+
+const furnitureQuestion = engine.orchestrateConversation({
+  message: "¿También venden muebles infantiles?",
+  messages: [],
+  config,
+  knowledge: [{ id: "properties", title: "Propiedades en Maipú", content: "Casas y departamentos en venta.", category: "product" }],
+});
+assert.equal(furnitureQuestion.confidence, "none", "No debe usar un contenido inmobiliario para responder sobre muebles.");
+assert.doesNotMatch(furnitureQuestion.answer, /propiedades|Maipú/i);
 
 const second = engine.orchestrateConversation({
   message: "Mi nombre es Francisco Marín.",
