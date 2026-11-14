@@ -3,7 +3,7 @@ import Link from "next/link";
 import { BookOpen, Bot, Users, ShieldCheck, CircleHelp } from "lucide-react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { ProspectWorkspace } from "@/features/prospects/components/prospect-workspace";
+import { CapturedContacts } from "@/features/contacts/components/captured-contacts";
 import { KnowledgeHub } from "@/features/knowledge/components/knowledge-hub";
 import { AgentConfigurator } from "@/features/agent/components/agent-configurator";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
@@ -15,10 +15,10 @@ export const dynamic = "force-dynamic";
 type Section = "agent" | "knowledge" | "contacts";
 type PageProps = { searchParams: Promise<{ section?: string }> };
 
-const sections: { id: Section; label: string; icon: typeof Bot; description: string; optional?: boolean }[] = [
-  { id: "agent", label: "Agente IA", icon: Bot, description: "Configura y prueba el comportamiento de tu agente comercial." },
-  { id: "knowledge", label: "Conocimiento", icon: BookOpen, description: "Administra la información autorizada que utiliza el agente." },
-  { id: "contacts", label: "Contactos capturados", icon: Users, description: "Revisa los datos de las personas que el agente haya conseguido.", optional: true },
+const sections: { id: Section; label: string; icon: typeof Bot; optional?: boolean }[] = [
+  { id: "agent", label: "Agente IA", icon: Bot },
+  { id: "knowledge", label: "Conocimiento", icon: BookOpen },
+  { id: "contacts", label: "Contactos capturados", icon: Users, optional: true },
 ];
 
 export default async function Home({ searchParams }: PageProps) {
@@ -99,8 +99,8 @@ export default async function Home({ searchParams }: PageProps) {
           )}
 
           {activeSection === "contacts" && (
-            <ModuleHeader kicker="RESULTADO DEL AGENTE · OPCIONAL" title="Contactos capturados" description="Consulta los contactos registrados durante las conversaciones. Esta bandeja es complementaria: UpScale IA no pretende sustituir un CRM." icon={<Users size={19} />}>
-              <ProspectWorkspace />
+            <ModuleHeader kicker="RESULTADO DEL AGENTE · OPCIONAL" title="Contactos capturados" description="Consulta los contactos registrados durante las conversaciones. Esta bandeja es complementaria y no pretende sustituir un CRM." icon={<Users size={19} />}>
+              <CapturedContacts />
             </ModuleHeader>
           )}
 
