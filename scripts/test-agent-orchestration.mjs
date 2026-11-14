@@ -146,6 +146,10 @@ const contextualObjectiveReply = engine.orchestrateConversation({
   message: "Necesito una landing page para conseguir más clientes y recibir consultas por WhatsApp.",
   messages: [
     { role: "user", content: "Quiero contratar una landing page para mi empresa." },
+    { role: "assistant", content: "Para comenzar, ¿cuál es tu nombre?" },
+    { role: "user", content: "Francisco Marin" },
+    { role: "assistant", content: "Gracias, Francisco. ¿Me compartes un correo o teléfono de contacto?" },
+    { role: "user", content: "contacto.fmdigital@gmail.com 979060279" },
     { role: "assistant", content: "¿Cómo se llama tu empresa y a qué se dedica?" },
     { role: "user", content: "FM Digital servicios B2B de ventas de Landing Page Profesionales" },
     { role: "assistant", content: "¿Qué objetivo buscas conseguir con la landing page?" },
