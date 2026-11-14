@@ -149,7 +149,7 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
 function nextQualificationQuestion(capture: LeadCapture) {
   if (!capture.name) return "Para comenzar, ¿con quién tengo el gusto de hablar? ¿Cuál es tu nombre?";
   if (!capture.email && !capture.phone) return "Gracias, " + capture.name.split(" ")[0] + ". ¿Me compartes un correo o teléfono de contacto para continuar?";
-  if (!capture.company_name) return "¿Cómo se llama tu negocio y qué productos o servicios ofrece?";
+  if (!capture.company_name) return "¿Cómo se llama tu empresa y qué productos o servicios ofrece?";
   if (!capture.project_objective) return "¿Qué necesitas resolver o conseguir con este producto o servicio?";
   if (!capture.timeline) return "¿Para cuándo lo necesitas?";
   return "Gracias. ¿Hay algún detalle adicional que debamos tener en cuenta para ayudarte?";
