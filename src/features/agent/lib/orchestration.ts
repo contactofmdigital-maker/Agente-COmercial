@@ -130,7 +130,7 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
       const companyMatch = reply.match(/^(.+?)(?:\s+(?:servicios?|dedicad[oa]|empresa|nos dedicamos)\b.*)?$/i);
       conversationalCompany = (companyMatch?.[1] || reply).trim().slice(0, 60);
     }
-    if (/que objetivo buscas|que objetivo quieres|para que necesitas|objetivo de la landing/.test(prompt)) {
+    if (/que objetivo buscas|que objetivo quieres|para que necesitas|objetivo de la landing|que necesitas resolver o conseguir/.test(prompt)) {
       conversationalObjective = reply.slice(0, 180);
     }
   }
@@ -209,7 +209,7 @@ export function orchestrateConversation(input: {
     || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar)\b/i.test(normalize(item.content))
   ));
   const lastAssistantPrompt = [...messages].reverse().find((item) => item.role === "assistant")?.content ?? "";
-  const awaitingQualificationReply = /nombre|correo o telefono|empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistantPrompt));
+  const awaitingQualificationReply = /nombre|correo o telefono|empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|que necesitas resolver o conseguir|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistantPrompt));
   const isQualificationReply = previousCommercialIntent && awaitingQualificationReply;
 
   // Si el agente está esperando un dato de calificación, una respuesta breve del
