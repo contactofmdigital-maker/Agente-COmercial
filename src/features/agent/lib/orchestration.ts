@@ -40,28 +40,54 @@ function classifyIntent(message: string) {
   return "general";
 }
 
+function expandQueryTokens(message: string) {
+  const base = tokens(message);
+  const normalized = normalize(message);
+  const aliases: Array<[RegExp, string[]]> = [
+    [/\b(que es|para que sirve|significa)\b/, ["definicion", "utilidad", "explicacion"]],
+    [/\b(servicios|ofrecen|hacen|trabajan)\b/, ["servicio", "producto", "catalogo"]],
+    [/\b(muebles|mueble|mesitas|mesita|sillas|silla|vanitys|vanity)\b/, ["mueble", "infantil", "producto", "catalogo"]],
+    [/\b(ninos|ninas|infantil|infantiles)\b/, ["infantil", "nino", "nina"]],
+    [/\b(casas|casa|propiedades|propiedad|terreno|departamento)\b/, ["inmueble", "venta", "arriendo"]],
+    [/\b(precio|precios|cuanto cuesta|cuanto vale|valor)\b/, ["precio", "valor", "tarifa", "costo"]],
+    [/\b(envio|despacho|entrega)\b/, ["envio", "despacho", "entrega"]],
+    [/\b(horario|horarios|atienden|abren|cierran)\b/, ["horario", "atencion"]],
+  ];
+  for (const [pattern, words] of aliases) if (pattern.test(normalized)) base.push(...words);
+  return [...new Set(base)];
+}
+
 function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
-  const queryTokens = tokens(message);
-  const normalizedMessage = normalize(message);
-  if (/\b(fin de semana|fines de semana|sabado|domingo)\b/.test(normalizedMessage)) {
-    queryTokens.push("horario", "atencion", "sabado", "domingo", "fin", "semana");
-  }
+  const queryTokens = expandQueryTokens(message);
+  if (!queryTokens.length) return [];
   const query = new Set(queryTokens);
-  if (!query.size) return [];
-  return knowledge.map((item) => {
+  const intent = classifyIntent(message);
+  const ranked = knowledge.map((item) => {
     const titleTokens = new Set(tokens(item.title));
     const contentTokens = new Set(tokens(item.content));
-    const overlapTitle = [...query].filter((token) => titleTokens.has(token)).length;
-    const overlapContent = [...query].filter((token) => contentTokens.has(token)).length;
-    const overlap = overlapTitle + overlapContent;
-    const score = (overlapContent + overlapTitle * 2) / Math.max(1, query.size * 2);
+    const titleHits = [...query].filter((token) => titleTokens.has(token)).length;
+    const contentHits = [...query].filter((token) => contentTokens.has(token)).length;
+    const overlap = titleHits + contentHits;
+    const titleCoverage = titleHits / Math.max(1, query.size);
+    const contentCoverage = contentHits / Math.max(1, query.size);
     const category = normalize(item.category);
-    const categoryBoost =
-      (category === "faq" && /horario|atencion|politica|pregunta/.test(normalize(message))) ||
-      (category === "product" && /producto|servicio|landing|pagina|marketing/.test(normalize(message))) ? 0.2 : 0;
-    return { item, score: score + categoryBoost, overlap };
-  }).filter((entry) => entry.overlap > 0 && entry.score >= 0.12)
-    .sort((a, b) => b.score - a.score).slice(0, 3);
+    const categoryFit =
+      (intent === "product" && category === "product" ? 0.18 : 0) +
+      (intent === "pricing" && ["product", "policy"].includes(category) ? 0.12 : 0) +
+      (intent === "business_info" && category === "business" ? 0.18 : 0) +
+      (intent === "availability" && ["product", "business"].includes(category) ? 0.12 : 0) +
+      (category === "faq" && intent === "general" ? 0.06 : 0);
+    const score = titleCoverage * 0.72 + contentCoverage * 0.28 + categoryFit + (titleHits > 0 ? 0.08 : 0);
+    return { item, score, overlap, titleHits, contentHits };
+  }).filter((entry) => entry.overlap > 0 && entry.score >= 0.24)
+    .sort((a, b) => b.score - a.score || b.titleHits - a.titleHits || b.contentHits - a.contentHits);
+
+  if (!ranked.length) return [];
+  const best = ranked[0];
+  const selected = [best];
+  const second = ranked[1];
+  if (second && second.titleHits > 0 && second.score >= best.score * 0.82 && second.item.id !== best.item.id) selected.push(second);
+  return selected;
 }
 
 function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
@@ -180,29 +206,32 @@ export function orchestrateConversation(input: {
   }
 
   const currentMessageHasCommercialIntent = ["pricing", "purchase"].includes(intent)
-    || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar|necesito una landing|necesito una pagina web|necesito una página web)\b/i.test(normalize(message));
+    || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar)\b/i.test(normalize(message));
   const previousCommercialIntent = messages.some((item) => item.role === "user"
-    && /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar|necesito una landing|necesito una pagina web)\b/i.test(normalize(item.content)));
+    && /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar)\b/i.test(normalize(item.content)));
   const lastAssistantPrompt = [...messages].reverse().find((item) => item.role === "assistant")?.content ?? "";
-  const awaitingQualificationReply = /empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistantPrompt));
-  const isQualificationReply = previousCommercialIntent && (intent === "general" || awaitingQualificationReply);
-  if (currentMessageHasCommercialIntent || isQualificationReply) {
-    return {
-      answer: "Perfecto, puedo ayudarte a preparar la cotización de " + (lead_capture.service_interest || "tu proyecto") + ". " + nextQualificationQuestion(lead_capture),
-      intent: intent === "general" || intent === "product" ? "pricing" : intent,
-      route: "qualify", confidence: "limited", sources: [], handoff_required: false,
-      lead_capture, actions: ["capture_purchase_interest", "qualify_lead"],
-    };
-  }
+  const awaitingQualificationReply = /nombre|correo o telefono|empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistantPrompt));
+  const isQualificationReply = previousCommercialIntent && awaitingQualificationReply && intent === "general";
 
+  // Primero intenta contestar con datos autorizados. La intención comercial no debe
+  // bloquear una respuesta que ya existe (por ejemplo, precio o catálogo publicado).
   const matches = rankKnowledge(message, knowledge);
   const sources = sourcesFor(matches);
   if (matches.length) {
-    const answer = matches.length === 1
-      ? matches[0].item.content
-      : matches.map(({ item }) => item.title + ": " + item.content).join("\n\n");
-    const ask = intent === "purchase" ? "\n\n¿Quieres que te ayude a avanzar con el siguiente paso?" : "";
-    return { answer: answer + ask, intent, route: "answer_from_knowledge", confidence: "grounded", sources, handoff_required: false, lead_capture, actions: intent === "purchase" ? ["capture_purchase_interest"] : ["answer_from_published_knowledge"] };
+    const answer = matches.map(({ item }) => item.content).join("\n\n");
+    const ask = intent === "purchase" || currentMessageHasCommercialIntent
+      ? "\n\n¿Quieres que te ayude a avanzar con tu consulta?"
+      : "";
+    return { answer: answer + ask, intent, route: "answer_from_knowledge", confidence: "grounded", sources, handoff_required: false, lead_capture, actions: currentMessageHasCommercialIntent ? ["answer_from_published_knowledge", "capture_purchase_interest"] : ["answer_from_published_knowledge"] };
+  }
+
+  if (currentMessageHasCommercialIntent || isQualificationReply) {
+    return {
+      answer: "Claro, puedo ayudarte a avanzar con tu consulta. " + nextQualificationQuestion(lead_capture),
+      intent: intent === "general" ? "purchase" : intent,
+      route: "qualify", confidence: "limited", sources: [], handoff_required: false,
+      lead_capture, actions: ["capture_purchase_interest", "qualify_lead"],
+    };
   }
 
   const requiresGrounding = ["pricing", "business_info", "availability", "product", "purchase"].includes(intent);
