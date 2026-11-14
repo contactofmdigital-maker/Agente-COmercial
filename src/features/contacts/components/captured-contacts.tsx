@@ -28,9 +28,11 @@ export function CapturedContacts() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const loadContacts = useCallback(async () => {
-    setLoading(true);
-    setError("");
+  const loadContacts = useCallback(async (showLoading = false) => {
+    if (showLoading) {
+      setLoading(true);
+      setError("");
+    }
     try {
       const supabase = createClient();
       const { data: auth, error: authError } = await supabase.auth.getUser();
@@ -64,7 +66,7 @@ export function CapturedContacts() {
           <strong>Contactos registrados</strong>
           <p>Los contactos se guardan cuando el agente identifica una oportunidad y obtiene datos suficientes.</p>
         </div>
-        <button className="button button-secondary" type="button" onClick={() => void loadContacts()} disabled={loading}>
+        <button className="button button-secondary" type="button" onClick={() => void loadContacts(true)} disabled={loading}>
           <RefreshCw size={14} /> Actualizar
         </button>
       </div>
