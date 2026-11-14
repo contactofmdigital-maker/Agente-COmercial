@@ -210,7 +210,7 @@ export function orchestrateConversation(input: {
     && /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar)\b/i.test(normalize(item.content)));
   const lastAssistantPrompt = [...messages].reverse().find((item) => item.role === "assistant")?.content ?? "";
   const awaitingQualificationReply = /nombre|correo o telefono|empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistantPrompt));
-  const isQualificationReply = previousCommercialIntent && awaitingQualificationReply && intent === "general";
+  const isQualificationReply = previousCommercialIntent && awaitingQualificationReply;
 
   // Primero intenta contestar con datos autorizados. La intención comercial no debe
   // bloquear una respuesta que ya existe (por ejemplo, precio o catálogo publicado).
