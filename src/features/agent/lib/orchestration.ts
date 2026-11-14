@@ -34,7 +34,7 @@ function classifyIntent(message: string) {
   if (/\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar)\b/.test(text)) return "pricing";
   if (/\b(horario|horarios|atencion|atienden|abren|abierto|abierta|abren|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura)\b/.test(text)) return "business_info";
   if (/\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido)\b/.test(text)) return "purchase";
-  if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing)\b/.test(text)) return "product";
+  if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento)\b/.test(text)) return "product";
   if (/\b(disponible|stock|disponibilidad|plazo|entrega)\b/.test(text)) return "availability";
   if (/^(hola( buenas)?( tardes| dias| noches)?|buenas (tardes|noches)|buenos dias|hey|hello)[!. ]*$/.test(text)) return "greeting";
   return "general";
@@ -140,7 +140,7 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
   const company = explicitCompany || conversationalCompany;
   const website = text.match(/\b(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+\.(?:cl|com|net|org|io|es|mx|pe)(?:\/[\w./-]*)?/i)?.[0] ?? null;
   const country = text.match(/\b(chile|mexico|méxico|espana|españa|peru|perú|argentina|colombia|estados unidos|usa)\b/i)?.[0] ?? null;
-  const service = text.match(/\b(landing page(?:s)?|pagina web|página web|sitio web|seo|google ads|meta ads|publicidad digital|marketing digital|automatizacion|automatización|chatbot|agente ia|agente comercial)\b/i)?.[0] ?? null;
+  const service = text.match(/\b(landing page(?:s)?|pagina web|página web|sitio web|seo|google ads|meta ads|publicidad digital|marketing digital|automatizacion|automatización|chatbot|agente ia|agente comercial|muebles?|mesitas?|sillas?|vanitys?|casas?|propiedades?|terrenos?|departamentos?)\b/i)?.[0] ?? null;
   const objective = conversationalObjective || text.match(/\b(?:objetivo es|necesito para|busco|quiero lograr|mi objetivo)\s+([^.!?\n]{5,180})/i)?.[1]?.trim() ?? null;
   const budget = text.match(/\b(?:presupuesto|budget|inversion|inversión)\s*(?:(?:estimado|aproximado)\s*)?(?:(?:es\s+)?de\s*|es\s*|:\s*)?(?:\$\s*)?([\d.,]+\s*(?:clp|pesos|usd|dolares|dólares|eur|euros|mxn|soles)?)\b/i)?.[1]?.trim() ?? null;
   const timeline = text.match(/\b(urgente|lo antes posible|esta semana|este mes|proximo mes|próximo mes|en \d+\s*(?:dias|días|semanas|meses)|para (?:hoy|mañana|manana|diciembre|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre))\b/i)?.[0] ?? null;
@@ -150,12 +150,11 @@ function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
 
 function nextQualificationQuestion(capture: LeadCapture) {
   if (!capture.name) return "Para comenzar, ¿con quién tengo el gusto de hablar? ¿Cuál es tu nombre?";
-  if (!capture.email && !capture.phone) return "Gracias, " + capture.name.split(" ")[0] + ". ¿Me compartes un correo o teléfono de contacto para continuar con tu cotización?";
-  if (!capture.company_name) return "¿Cómo se llama tu empresa y a qué se dedica?";
-  if (!capture.project_objective) return "¿Qué objetivo buscas conseguir con la landing page: captar clientes, recibir consultas, vender o presentar tus servicios?";
-  if (!capture.budget) return "¿Tienes un presupuesto estimado para este proyecto?";
-  if (!capture.timeline) return "¿En qué plazo te gustaría tener lista la landing page?";
-  return "Ya tengo los datos principales. ¿Hay alguna funcionalidad o requisito especial que debamos considerar?";
+  if (!capture.email && !capture.phone) return "Gracias, " + capture.name.split(" ")[0] + ". ¿Me compartes un correo o teléfono de contacto para continuar?";
+  if (!capture.company_name) return "¿Cómo se llama tu negocio y qué productos o servicios ofrece?";
+  if (!capture.project_objective) return "¿Qué necesitas resolver o conseguir con este producto o servicio?";
+  if (!capture.timeline) return "¿Para cuándo lo necesitas?";
+  return "Gracias. ¿Hay algún detalle adicional que debamos tener en cuenta para ayudarte?";
 }
 
 function looksLikeInternalInstructions(value: string) {
