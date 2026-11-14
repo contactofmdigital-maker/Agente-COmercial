@@ -186,6 +186,24 @@ assert.match(contextualObjectiveReply.lead_capture.project_objective ?? "", /con
 assert.match(contextualObjectiveReply.answer, /para cuándo lo necesitas/i);
 assert.doesNotMatch(contextualObjectiveReply.answer, /landing page/i, "La calificación debe servir para cualquier rubro.");
 
+const objectiveWithActualPrompt = engine.orchestrateConversation({
+  message: "Conseguir más clientes y recibir consultas por WhatsApp.",
+  messages: [
+    { role: "user", content: "Quiero contratar una landing page." },
+    { role: "assistant", content: "Para comenzar, ¿con quién tengo el gusto de hablar? ¿Cuál es tu nombre?" },
+    { role: "user", content: "Francisco" },
+    { role: "assistant", content: "Gracias, Francisco. ¿Me compartes un correo o teléfono de contacto para continuar?" },
+    { role: "user", content: "francisco@empresa.cl" },
+    { role: "assistant", content: "¿Cómo se llama tu empresa y qué productos o servicios ofrece?" },
+    { role: "user", content: "FM Digital" },
+    { role: "assistant", content: "¿Qué necesitas resolver o conseguir con este producto o servicio?" },
+  ],
+  config,
+  knowledge: [],
+});
+assert.match(objectiveWithActualPrompt.lead_capture.project_objective ?? "", /Conseguir más clientes/i, "Debe guardar la respuesta al texto exacto de la pregunta de objetivo.");
+assert.match(objectiveWithActualPrompt.answer, /para cuándo lo necesitas/i, "Después del objetivo debe avanzar al plazo.");
+
 const servicesKnowledge = engine.orchestrateConversation({
   message: "¿Qué servicios ofrecen?",
   messages: [
