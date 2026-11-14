@@ -83,11 +83,9 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
     .sort((a, b) => b.score - a.score || b.titleHits - a.titleHits || b.contentHits - a.contentHits);
 
   if (!ranked.length) return [];
-  const best = ranked[0];
-  const selected = [best];
-  const second = ranked[1];
-  if (second && second.titleHits > 0 && second.score >= best.score * 0.82 && second.item.id !== best.item.id) selected.push(second);
-  return selected;
+  // Una sola fuente principal evita respuestas largas por concatenación de registros
+  // parcialmente relacionados o duplicados.
+  return [ranked[0]];
 }
 
 function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
