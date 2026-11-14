@@ -210,6 +210,19 @@ export function orchestrateConversation(input: {
   const awaitingQualificationReply = /nombre|correo o telefono|empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistantPrompt));
   const isQualificationReply = previousCommercialIntent && awaitingQualificationReply;
 
+  // Si el agente está esperando un dato de calificación, una respuesta breve del
+  // usuario debe completar ese dato antes de intentar recuperar conocimiento.
+  // Las preguntas informativas explícitas siguen teniendo prioridad sobre la calificación.
+  const isDirectQualificationAnswer = isQualificationReply && !message.includes("?");
+  if (isDirectQualificationAnswer && !currentMessageHasCommercialIntent) {
+    return {
+      answer: "Claro, gracias por la información. " + nextQualificationQuestion(lead_capture),
+      intent: "purchase",
+      route: "qualify", confidence: "limited", sources: [], handoff_required: false,
+      lead_capture, actions: ["capture_purchase_interest", "qualify_lead"],
+    };
+  }
+
   // Primero intenta contestar con datos autorizados. La intención comercial no debe
   // bloquear una respuesta que ya existe (por ejemplo, precio o catálogo publicado).
   const matches = rankKnowledge(message, knowledge);
