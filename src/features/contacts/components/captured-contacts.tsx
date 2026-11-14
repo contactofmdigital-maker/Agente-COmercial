@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { LoaderCircle, RefreshCw, Users } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { filterRealProspects } from "@/features/data-classification/lib/record-classification";
