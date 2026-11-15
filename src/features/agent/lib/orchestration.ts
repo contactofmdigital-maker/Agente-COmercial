@@ -65,6 +65,7 @@ function expandQueryTokens(message: string) {
     [/\b(precio|precios|cuanto cuesta|cuanto vale|valor)\b/, ["precio", "valor", "tarifa", "costo"]],
     [/\b(envio|despacho|entrega)\b/, ["envio", "despacho", "entrega"]],
     [/\b(horario|horarios|atienden|abren|cierran)\b/, ["horario", "atencion"]],
+    [/\b(fin de semana|fines de semana|sabado|domingo)\b/, ["horario", "atencion", "sabado", "domingo"]],
     [/\b(visitar|visita|visitas|agendar|agenda)\b/, ["visita", "disponibilidad", "agenda"]],
     [/\b(direccion|ubicacion|donde estan|comuna|ciudad)\b/, ["direccion", "ubicacion", "localizacion", "lugar"]],
     [/\b(visitar|visita|visitas|agendar|agenda)\b/, ["visita", "disponibilidad", "agenda"]],
