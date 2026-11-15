@@ -97,7 +97,7 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
   return ranked.length ? [ranked[0]] : [];
 }
 function splitCustomerQuestions(message: string) {
-  return message.split(/\?+/).map((part) => part.trim()).filter(Boolean);
+  return message.split(/\?+/).flatMap((part) => part.split(/\s+y\s+(?=(?:se puede|puedo|podemos|tienen|hay|cual|cuanto|donde|que precio|que valor|disponibilidad|stock|horario|atienden|abren|visitar|agendar)\b)/i)).map((part) => part.trim()).filter(Boolean);
 }
 
 function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
@@ -223,7 +223,7 @@ export function orchestrateConversation(input: {
   ));
   const lastAssistant = [...messages].reverse().find((item) => item.role === "assistant")?.content ?? "";
   const awaiting = /nombre|correo o telefono|empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|que necesitas resolver o conseguir|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistant));
-  const qualificationReply = previousCommercial && awaiting && !message.includes("?") && detectedIntents.length === 0;
+  const qualificationReply = previousCommercial && awaiting && !message.includes("?");
 
   // Respuesta corta a una pregunta pendiente: captura el dato antes de continuar.
   if (qualificationReply && !currentCommercial) {
