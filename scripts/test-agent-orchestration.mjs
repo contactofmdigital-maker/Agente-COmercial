@@ -324,7 +324,7 @@ assert.match(compoundThreeIntents.answer, /lunes a viernes/);
 assert.equal(compoundThreeIntents.sources.length, 3);
 
 const companyReplyWithProductWords = engine.orchestrateConversation({
-  message: "FM Digital ofrece servicios de landing pages profesionales.",
+  message: "FM Digital servicios B2B de landing pages profesionales.",
   messages: [
     { role: "user", content: "Quiero contratar una landing page." },
     { role: "assistant", content: "¿Cómo se llama tu empresa y qué productos o servicios ofrece?" },
