@@ -65,6 +65,7 @@ function expandQueryTokens(message: string) {
     [/\b(precio|precios|cuanto cuesta|cuanto vale|valor)\b/, ["precio", "valor", "tarifa", "costo"]],
     [/\b(envio|despacho|entrega)\b/, ["envio", "despacho", "entrega"]],
     [/\b(horario|horarios|atienden|abren|cierran)\b/, ["horario", "atencion"]],
+    [/\b(visitar|visita|visitas|agendar|agenda)\b/, ["visita", "disponibilidad", "agenda"]],
   ];
   for (const [pattern, words] of aliases) if (pattern.test(normalized)) base.push(...words);
   return [...new Set(base)];
@@ -97,7 +98,11 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
   return ranked.length ? [ranked[0]] : [];
 }
 function splitCustomerQuestions(message: string) {
-  return message.split(/\?+/).flatMap((part) => part.split(/\s+y\s+(?=(?:se puede|puedo|podemos|tienen|hay|cual|cuanto|donde|que precio|que valor|disponibilidad|stock|horario|atienden|abren|visitar|agendar)\b)/i)).map((part) => part.trim()).filter(Boolean);
+  return message
+    .split(/\?+/)
+    .flatMap((part) => part.split(/,\s*(?=(?:donde|cual|cuanto|que|puedo|se puede|hay|tienen|como)\b)/i))
+    .flatMap((part) => part.split(/\s+y\s+(?=(?:se puede|puedo|podemos|tienen|hay|cual|cuanto|donde|que precio|que valor|disponibilidad|stock|horario|atienden|abren|visitar|agendar)\b)/i))
+    .map((part) => part.trim()).filter(Boolean);
 }
 
 function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
