@@ -28,16 +28,29 @@ const stem = (word: string) => word.length > 5 && word.endsWith("es") ? word.sli
 const tokens = (value: string) => normalize(value).split(" ").filter((word) => word.length > 2 && !STOP.has(word)).map(stem);
 
 function classifyIntent(message: string) {
-  const text = normalize(message);
-  if (/\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante)\b/.test(text)) return "human_request";
-  if (/\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\b/.test(text)) return "complaint";
-  if (/\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar)\b/.test(text)) return "pricing";
-  if (/\b(horario|horarios|atencion|atienden|abren|abierto|abierta|abren|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura)\b/.test(text)) return "business_info";
-  if (/\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido)\b/.test(text)) return "purchase";
-  if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento)\b/.test(text)) return "product";
-  if (/\b(disponible|stock|disponibilidad|plazo|entrega)\b/.test(text)) return "availability";
-  if (/^(hola( buenas)?( tardes| dias| noches)?|buenas (tardes|noches)|buenos dias|hey|hello)[!. ]*$/.test(text)) return "greeting";
+  const t = normalize(message);
+  if (/\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante)\b/.test(t)) return "human_request";
+  if (/\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\b/.test(t)) return "complaint";
+  if (/\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar|cuanto sale|que precio)\b/.test(t)) return "pricing";
+  if (/\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura|comuna|ciudad)\b/.test(t)) return "business_info";
+  if (/\b(disponible|stock|disponibilidad|plazo|entrega|visitar|visita|agendar|agenda)\b/.test(t)) return "availability";
+  if (/\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido|me interesa)\b/.test(t)) return "purchase";
+  if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|caracteristicas|incluye|medidas)\b/.test(t)) return "product";
+  if (/^(hola( buenas)?( tardes| dias| noches)?|buenas (tardes|noches)|buenos dias|hey|hello)[!. ]*$/.test(t)) return "greeting";
   return "general";
+}
+function detectIntents(message: string) {
+  const t = normalize(message);
+  const rules: Array<[string, RegExp]> = [
+    ["human_request", /\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante)\b/],
+    ["complaint", /\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\b/],
+    ["pricing", /\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar|cuanto sale|que precio)\b/],
+    ["business_info", /\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura|comuna|ciudad)\b/],
+    ["availability", /\b(disponible|stock|disponibilidad|plazo|entrega|visitar|visita|agendar|agenda)\b/],
+    ["purchase", /\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido|me interesa)\b/],
+    ["product", /\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|caracteristicas|incluye|medidas)\b/],
+  ];
+  return rules.filter(([, re]) => re.test(t)).map(([name]) => name);
 }
 
 function expandQueryTokens(message: string) {
@@ -72,20 +85,19 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
     const contentCoverage = contentHits / Math.max(1, query.size);
     const category = normalize(item.category);
     const categoryFit =
-      (intent === "product" && category === "product" ? 0.18 : 0) +
-      (intent === "pricing" && ["product", "policy"].includes(category) ? 0.12 : 0) +
-      (intent === "business_info" && category === "business" ? 0.18 : 0) +
-      (intent === "availability" && ["product", "business"].includes(category) ? 0.12 : 0) +
-      (category === "faq" && intent === "general" ? 0.06 : 0);
-    const score = titleCoverage * 0.72 + contentCoverage * 0.28 + categoryFit + (titleHits > 0 ? 0.08 : 0);
+      (intent === "product" && category === "product" ? 0.12 : 0) +
+      (intent === "pricing" && ["product", "policy", "faq"].includes(category) ? 0.14 : 0) +
+      (intent === "business_info" && category === "business" ? 0.14 : 0) +
+      (intent === "availability" && ["product", "business"].includes(category) ? 0.10 : 0) +
+      (category === "faq" ? 0.04 : 0);
+    const score = titleCoverage * 0.68 + contentCoverage * 0.32 + categoryFit + (titleHits > 0 ? 0.08 : 0);
     return { item, score, overlap, titleHits, contentHits };
-  }).filter((entry) => entry.overlap > 0 && entry.score >= 0.24)
+  }).filter((entry) => entry.overlap > 0 && entry.score >= 0.22)
     .sort((a, b) => b.score - a.score || b.titleHits - a.titleHits || b.contentHits - a.contentHits);
-
-  if (!ranked.length) return [];
-  // Una sola fuente principal evita respuestas largas por concatenación de registros
-  // parcialmente relacionados o duplicados.
-  return [ranked[0]];
+  return ranked.length ? [ranked[0]] : [];
+}
+function splitCustomerQuestions(message: string) {
+  return message.split(/\?+/).map((part) => part.trim()).filter(Boolean);
 }
 
 function extractLeadCapture(messages: ConversationMessage[]): LeadCapture {
@@ -188,70 +200,74 @@ export function orchestrateConversation(input: {
 }): OrchestrationResult {
   const { message, messages, config, knowledge } = input;
   const intent = classifyIntent(message);
+  const detectedIntents = detectIntents(message);
   const lead_capture = extractLeadCapture([...messages, { role: "user", content: message }]);
-  const wantsHuman = intent === "human_request" || intent === "complaint";
-  const sourcesFor = (matches: ReturnType<typeof rankKnowledge>) => matches.map(({ item }) => ({ id: item.id, title: item.title, category: item.category }));
+  const wantsHuman = detectedIntents.includes("human_request") || detectedIntents.includes("complaint");
 
-  if (intent === "greeting") {
+  if (intent === "greeting" && detectedIntents.length === 0) {
     return { answer: safeGreeting(config), intent, route: "greeting", confidence: "grounded", sources: [], handoff_required: false, lead_capture, actions: ["start_conversation"] };
   }
   if (wantsHuman && config.human_handoff_enabled) {
-    return { answer: safeHandoffMessage(config), intent, route: "handoff", confidence: "limited", sources: [], handoff_required: true, lead_capture, actions: ["human_handoff"] };
+    return { answer: safeHandoffMessage(config), intent: detectedIntents.includes("complaint") ? "complaint" : "human_request", route: "handoff", confidence: "limited", sources: [], handoff_required: true, lead_capture, actions: ["human_handoff"] };
   }
   if (wantsHuman) {
     return { answer: "Entiendo que necesitas atención de una persona. La derivación humana está desactivada; no voy a afirmar que se haya contactado al equipo.", intent, route: "clarify", confidence: "none", sources: [], handoff_required: false, lead_capture, actions: ["notify_human_handoff_unavailable"] };
   }
 
-  const currentMessageHasCommercialIntent = ["pricing", "purchase"].includes(intent)
-    || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar)\b/i.test(normalize(message));
-  const previousCommercialIntent = messages.some((item) => item.role === "user" && (
+  const normalizedMessage = normalize(message);
+  const currentCommercial = detectedIntents.includes("pricing") || detectedIntents.includes("purchase")
+    || /\b(cotizar|cotizacion|contratar|quiero comprar|me interesa contratar)\b/.test(normalizedMessage);
+  const previousCommercial = messages.some((item) => item.role === "user" && (
     ["pricing", "purchase"].includes(classifyIntent(item.content))
-    || /\b(cotizar|cotizacion|contratar|quiero contratar|me interesa contratar|quiero comprar)\b/i.test(normalize(item.content))
+    || /\b(cotizar|cotizacion|contratar|quiero comprar|me interesa contratar)\b/.test(normalize(item.content))
   ));
-  const lastAssistantPrompt = [...messages].reverse().find((item) => item.role === "assistant")?.content ?? "";
-  const awaitingQualificationReply = /nombre|correo o telefono|empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|que necesitas resolver o conseguir|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistantPrompt));
-  const isQualificationReply = previousCommercialIntent && awaitingQualificationReply;
+  const lastAssistant = [...messages].reverse().find((item) => item.role === "assistant")?.content ?? "";
+  const awaiting = /nombre|correo o telefono|empresa y a que se dedica|nombre de tu empresa|como se llama tu empresa|que objetivo buscas|que objetivo quieres|que necesitas resolver o conseguir|presupuesto estimado|que presupuesto|en que plazo|cuando necesitas/i.test(normalize(lastAssistant));
+  const qualificationReply = previousCommercial && awaiting && !message.includes("?") && detectedIntents.length === 0;
 
-  // Si el agente está esperando un dato de calificación, una respuesta breve del
-  // usuario debe completar ese dato antes de intentar recuperar conocimiento.
-  // Las preguntas informativas explícitas siguen teniendo prioridad sobre la calificación.
-  const isDirectQualificationAnswer = isQualificationReply && !message.includes("?");
-  if (isDirectQualificationAnswer && !currentMessageHasCommercialIntent) {
+  // Respuesta corta a una pregunta pendiente: captura el dato antes de continuar.
+  if (qualificationReply && !currentCommercial) {
+    return { answer: "Gracias por la información. " + nextQualificationQuestion(lead_capture), intent: "purchase", route: "qualify", confidence: "limited", sources: [], handoff_required: false, lead_capture, actions: ["capture_purchase_interest", "qualify_lead"] };
+  }
+
+  // Cada pregunta se consulta por separado: una respuesta encontrada no tapa las demás.
+  const questions = splitCustomerQuestions(message);
+  const answered: string[] = [];
+  const unanswered: string[] = [];
+  const sourceMap = new Map<string, { id: string; title: string; category: string }>();
+  for (const question of questions) {
+    const matches = rankKnowledge(question, knowledge);
+    if (matches.length) {
+      const item = matches[0].item;
+      if (!answered.includes(item.content)) answered.push(item.content);
+      sourceMap.set(item.id, { id: item.id, title: item.title, category: item.category });
+    } else unanswered.push(question);
+  }
+
+  if (answered.length) {
+    let answer = answered.join("\n\n");
+    if (unanswered.length) {
+      answer += "\n\nNo tengo información publicada suficiente para confirmar: " + unanswered.join("; ") + ". Prefiero no inventar ese dato.";
+      if (currentCommercial || previousCommercial) answer += " " + nextQualificationQuestion(lead_capture);
+    } else if (currentCommercial) answer += "\n\n¿Quieres que te ayude a avanzar con tu consulta?";
     return {
-      answer: "Claro, gracias por la información. " + nextQualificationQuestion(lead_capture),
-      intent: "purchase",
-      route: "qualify", confidence: "limited", sources: [], handoff_required: false,
-      lead_capture, actions: ["capture_purchase_interest", "qualify_lead"],
+      answer, intent: detectedIntents.length > 1 ? detectedIntents.join("+") : intent,
+      route: "answer_from_knowledge", confidence: unanswered.length ? "limited" : "grounded",
+      sources: [...sourceMap.values()], handoff_required: false, lead_capture,
+      actions: unanswered.length ? ["answer_from_published_knowledge", "request_confirmation", ...(currentCommercial ? ["qualify_lead"] : [])] : ["answer_from_published_knowledge", ...(currentCommercial ? ["capture_purchase_interest"] : [])],
     };
   }
 
-  // Primero intenta contestar con datos autorizados. La intención comercial no debe
-  // bloquear una respuesta que ya existe (por ejemplo, precio o catálogo publicado).
-  const matches = rankKnowledge(message, knowledge);
-  const sources = sourcesFor(matches);
-  if (matches.length) {
-    const answer = matches.map(({ item }) => item.content).join("\n\n");
-    const ask = intent === "purchase" || currentMessageHasCommercialIntent
-      ? "\n\n¿Quieres que te ayude a avanzar con tu consulta?"
-      : "";
-    return { answer: answer + ask, intent, route: "answer_from_knowledge", confidence: "grounded", sources, handoff_required: false, lead_capture, actions: currentMessageHasCommercialIntent ? ["answer_from_published_knowledge", "capture_purchase_interest"] : ["answer_from_published_knowledge"] };
+  if (currentCommercial || (previousCommercial && awaiting)) {
+    return { answer: "Claro, puedo ayudarte a avanzar con tu consulta. " + nextQualificationQuestion(lead_capture), intent: intent === "general" ? "purchase" : intent, route: "qualify", confidence: "limited", sources: [], handoff_required: false, lead_capture, actions: ["capture_purchase_interest", "qualify_lead"] };
   }
 
-  if (currentMessageHasCommercialIntent || isQualificationReply) {
-    return {
-      answer: "Claro, puedo ayudarte a avanzar con tu consulta. " + nextQualificationQuestion(lead_capture),
-      intent: intent === "general" ? "purchase" : intent,
-      route: "qualify", confidence: "limited", sources: [], handoff_required: false,
-      lead_capture, actions: ["capture_purchase_interest", "qualify_lead"],
-    };
-  }
-
-  const requiresGrounding = ["pricing", "business_info", "availability", "product", "purchase"].includes(intent);
+  const requiresGrounding = ["pricing", "business_info", "availability", "product", "purchase"].includes(intent) || detectedIntents.length > 0;
   if (requiresGrounding) {
     const fallback = config.human_handoff_enabled
       ? "No tengo información publicada suficiente para confirmar ese dato. Esta consulta requiere confirmación del equipo; en esta simulación no se realiza una derivación automática."
       : "No tengo información publicada suficiente para confirmar ese dato. Prefiero no inventar información. ¿Hay algo más en lo que pueda orientarte?";
-    return { answer: fallback, intent, route: config.human_handoff_enabled ? "handoff" : "clarify", confidence: "none", sources: [], handoff_required: config.human_handoff_enabled, lead_capture, actions: config.human_handoff_enabled ? ["human_handoff"] : ["request_more_information"] };
+    return { answer: fallback, intent: detectedIntents.length > 1 ? detectedIntents.join("+") : intent, route: config.human_handoff_enabled ? "handoff" : "clarify", confidence: "none", sources: [], handoff_required: config.human_handoff_enabled, lead_capture, actions: config.human_handoff_enabled ? ["human_handoff"] : ["request_more_information"] };
   }
 
   return { answer: "Claro, puedo orientarte. " + safeQualificationQuestion(config), intent, route: "qualify", confidence: "limited", sources: [], handoff_required: false, lead_capture, actions: ["qualify_lead"] };
