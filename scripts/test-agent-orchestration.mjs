@@ -327,12 +327,18 @@ const companyReplyWithProductWords = engine.orchestrateConversation({
   message: "FM Digital servicios B2B de landing pages profesionales.",
   messages: [
     { role: "user", content: "Quiero contratar una landing page." },
+    { role: "assistant", content: "Para comenzar, ¿con quién tengo el gusto de hablar? ¿Cuál es tu nombre?" },
+    { role: "user", content: "Francisco Marin" },
+    { role: "assistant", content: "Gracias, Francisco. ¿Me compartes un correo o teléfono de contacto para continuar?" },
+    { role: "user", content: "francisco@empresa.cl" },
     { role: "assistant", content: "¿Cómo se llama tu empresa y qué productos o servicios ofrece?" },
   ],
   config,
   knowledge: [{ id: "irrelevant-service", title: "Servicios generales", content: "Ofrecemos asesoría administrativa.", category: "product" }],
 });
 assert.equal(companyReplyWithProductWords.route, "qualify", "Una respuesta a la pregunta de empresa debe completar la captura aunque mencione servicios.");
+assert.equal(companyReplyWithProductWords.lead_capture.name, "Francisco Marin");
+assert.equal(companyReplyWithProductWords.lead_capture.email, "francisco@empresa.cl");
 assert.equal(companyReplyWithProductWords.lead_capture.company_name, "FM Digital");
 assert.match(companyReplyWithProductWords.answer, /qué necesitas resolver/i);
 
