@@ -103,7 +103,7 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
 function splitCustomerQuestions(message: string) {
   return message
     .split(/\?+/)
-    .flatMap((part) => part.split(/,\s*(?=(?:donde|cual|cuanto|que|puedo|se puede|hay|tienen|como)\b)/i))
+    .flatMap((part) => part.split(/,\s*(?=(?:d[oó]nde|cu[aá]l|cu[aá]nto|qu[eé]|puedo|se puede|hay|tienen|c[oó]mo)\b)/i))
     .flatMap((part) => part.split(/\s+y\s+(?=(?:se puede|puedo|podemos|tienen|hay|cual|cuanto|donde|que precio|que valor|disponibilidad|stock|horario|atienden|abren|visitar|agendar)\b)/i))
     .map((part) => part.trim()).filter(Boolean);
 }
