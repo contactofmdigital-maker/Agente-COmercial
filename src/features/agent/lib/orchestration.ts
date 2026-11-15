@@ -66,6 +66,8 @@ function expandQueryTokens(message: string) {
     [/\b(envio|despacho|entrega)\b/, ["envio", "despacho", "entrega"]],
     [/\b(horario|horarios|atienden|abren|cierran)\b/, ["horario", "atencion"]],
     [/\b(visitar|visita|visitas|agendar|agenda)\b/, ["visita", "disponibilidad", "agenda"]],
+    [/\b(direccion|ubicacion|donde estan|comuna|ciudad)\b/, ["direccion", "ubicacion", "localizacion", "lugar"]],
+    [/\b(visitar|visita|visitas|agendar|agenda)\b/, ["visita", "disponibilidad", "agenda"]],
   ];
   for (const [pattern, words] of aliases) if (pattern.test(normalized)) base.push(...words);
   return [...new Set(base)];
