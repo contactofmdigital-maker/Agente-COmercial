@@ -276,3 +276,87 @@ assert.equal(weekendWithKnowledge.sources[0].id, "hours-1");
 
 console.log("OK: seguridad de respuestas, clasificación de horarios, recuperación de conocimiento por sinónimos y no exposición de instrucciones internas.");
 console.log("OK: 4 escenarios del motor comercial (captura progresiva, prioridad comercial, fuentes autorizadas y derivación explícita).");
+
+
+// Consulta compuesta: responde cada pregunta desde su fuente autorizada.
+const compoundQuestion = engine.orchestrateConversation({
+  message: "¿Cuánto cuesta y se puede visitar?",
+  messages: [],
+  config,
+  knowledge: [
+    { id: "price-compound", title: "Precio y valor", content: "El valor publicado es $180.000 CLP.", category: "product" },
+    { id: "visit-compound", title: "Visitas y disponibilidad", content: "Sí, se puede visitar coordinando una cita previa.", category: "business" },
+  ],
+});
+assert.equal(compoundQuestion.route, "answer_from_knowledge");
+assert.match(compoundQuestion.answer, /180\.000 CLP/);
+assert.match(compoundQuestion.answer, /cita previa/i);
+assert.equal(compoundQuestion.sources.length, 2, "Debe citar ambas fuentes al resolver dos preguntas.");
+
+const mixedKnownUnknown = engine.orchestrateConversation({
+  message: "¿Cuánto cuesta y tienen estacionamiento?",
+  messages: [],
+  config,
+  knowledge: [
+    { id: "known-price", title: "Precio del servicio", content: "El precio publicado es $90.000 CLP.", category: "product" },
+  ],
+});
+assert.equal(mixedKnownUnknown.route, "answer_from_knowledge");
+assert.match(mixedKnownUnknown.answer, /90\.000 CLP/);
+assert.match(mixedKnownUnknown.answer, /No tengo información publicada suficiente/i);
+assert.doesNotMatch(mixedKnownUnknown.answer, /sí, tenemos estacionamiento/i);
+assert.equal(mixedKnownUnknown.confidence, "limited");
+
+const compoundThreeIntents = engine.orchestrateConversation({
+  message: "¿Qué valor tiene, dónde están y puedo agendar una visita?",
+  messages: [],
+  config,
+  knowledge: [
+    { id: "price-three", title: "Precios", content: "El valor es $250.000 CLP.", category: "product" },
+    { id: "location-three", title: "Dirección y ubicación", content: "Estamos ubicados en Avenida Central 123, Maipú.", category: "business" },
+    { id: "visit-three", title: "Agendar visitas", content: "Puedes agendar una visita de lunes a viernes.", category: "business" },
+  ],
+});
+assert.equal(compoundThreeIntents.route, "answer_from_knowledge");
+assert.match(compoundThreeIntents.answer, /250\.000 CLP/);
+assert.match(compoundThreeIntents.answer, /Avenida Central 123/);
+assert.match(compoundThreeIntents.answer, /lunes a viernes/);
+assert.equal(compoundThreeIntents.sources.length, 3);
+
+const companyReplyWithProductWords = engine.orchestrateConversation({
+  message: "FM Digital ofrece servicios de landing pages profesionales.",
+  messages: [
+    { role: "user", content: "Quiero contratar una landing page." },
+    { role: "assistant", content: "¿Cómo se llama tu empresa y qué productos o servicios ofrece?" },
+  ],
+  config,
+  knowledge: [{ id: "irrelevant-service", title: "Servicios generales", content: "Ofrecemos asesoría administrativa.", category: "product" }],
+});
+assert.equal(companyReplyWithProductWords.route, "qualify", "Una respuesta a la pregunta de empresa debe completar la captura aunque mencione servicios.");
+assert.equal(companyReplyWithProductWords.lead_capture.company_name, "FM Digital");
+assert.match(companyReplyWithProductWords.answer, /qué necesitas resolver/i);
+
+const previousNameQuestionStillQualifies = engine.orchestrateConversation({
+  message: "Francisco",
+  messages: [
+    { role: "user", content: "Quiero cotizar una landing page." },
+    { role: "assistant", content: "¿Cuál es tu nombre?" },
+  ],
+  config,
+  knowledge: [],
+});
+assert.equal(previousNameQuestionStillQualifies.lead_capture.name, "Francisco");
+assert.match(previousNameQuestionStillQualifies.answer, /correo o teléfono/i);
+
+const noCrossTopicLeakage = engine.orchestrateConversation({
+  message: "¿Tienen muebles infantiles?",
+  messages: [],
+  config,
+  knowledge: [
+    { id: "wrong-topic", title: "Propiedades en Maipú", content: "Casas y departamentos disponibles para visitar.", category: "product" },
+  ],
+});
+assert.equal(noCrossTopicLeakage.confidence, "none");
+assert.doesNotMatch(noCrossTopicLeakage.answer, /casas|departamentos/i);
+
+console.log("OK: preguntas compuestas, respuestas parciales seguras, múltiples fuentes y continuidad de calificación.");
