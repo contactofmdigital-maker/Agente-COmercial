@@ -9,7 +9,7 @@ import {
   Eye, EyeOff, LoaderCircle, ArrowLeft, Clock3,
   MessageSquareText, Target, TrendingUp, Users, ShieldCheck,
   ArrowRight, Building2, Bot, CheckCircle2, Sparkles,
-  BrainCircuit, Workflow, ChevronRight
+  BrainCircuit, Workflow, ChevronRight, LogOut
 } from "lucide-react";
 
 type Mode = "login" | "register" | "recover";
@@ -103,6 +103,8 @@ export default function LoginPage() {
   const [success, setSuccess] = useState("");
   const [messageIndex, setMessageIndex] = useState(0);
   const [typing, setTyping] = useState(false);
+  const [activeEmail, setActiveEmail] = useState<string | null>(null);
+  const [signingOut, setSigningOut] = useState(false);
 
   const scenarioIndex = Math.floor(messageIndex / 4) % scenarios.length;
   const currentMessageIndex = messageIndex % 4;
@@ -111,6 +113,31 @@ export default function LoginPage() {
     () => scenario.messages.slice(0, currentMessageIndex + (typing ? 0 : 1)),
     [scenario, currentMessageIndex, typing]
   );
+
+  useEffect(() => {
+    let mounted = true;
+    createClient().auth.getUser().then(({ data }) => {
+      if (mounted) setActiveEmail(data.user?.email ?? null);
+    });
+    return () => { mounted = false; };
+  }, []);
+
+  async function handlePreviousSessionSignOut() {
+    setSigningOut(true);
+    setError("");
+    try {
+      const { error: signOutError } = await createClient().auth.signOut();
+      if (signOutError) throw signOutError;
+      setActiveEmail(null);
+      setEmail("");
+      setPassword("");
+      setSuccess("Sesión anterior cerrada. Ya puedes acceder con otra cuenta.");
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "No se pudo cerrar la sesión anterior.");
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   useEffect(() => {
     let timeoutId: number | undefined;
@@ -309,6 +336,13 @@ export default function LoginPage() {
 
           {error && <div className="login-message login-error" role="alert">{error}</div>}
           {success && <div className="login-message login-success" role="status">{success}</div>}
+
+          {activeEmail && <div className="login-message" role="status">
+            Hay una sesión anterior abierta como <strong>{activeEmail}</strong>.
+            <button type="button" className="login-text-button" onClick={handlePreviousSessionSignOut} disabled={signingOut}>
+              {signingOut ? <LoaderCircle size={14} className="animate-spin" /> : <LogOut size={14} />} Cerrar esa sesión para usar otra cuenta
+            </button>
+          </div>}
 
           <form onSubmit={handleSubmit} className="login-form">
             <label htmlFor="email">Correo electrónico</label>
