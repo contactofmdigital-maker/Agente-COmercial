@@ -366,3 +366,51 @@ assert.equal(noCrossTopicLeakage.confidence, "none");
 assert.doesNotMatch(noCrossTopicLeakage.answer, /casas|departamentos/i);
 
 console.log("OK: preguntas compuestas, respuestas parciales seguras, múltiples fuentes y continuidad de calificación.");
+
+// Regresiones: consultas desconocidas no deben activar cualificación ni recuperar otro rubro.
+const unknownOffice = engine.orchestrateConversation({
+  message: "¿Tienen oficinas en Madrid?",
+  messages: [],
+  config,
+  knowledge: [{ id: "digital-services", title: "Servicios digitales", content: "Diseño y desarrollo de landing pages para empresas.", category: "product" }],
+});
+assert.equal(unknownOffice.intent, "business_info");
+assert.equal(unknownOffice.confidence, "none");
+assert.match(unknownOffice.answer, /No tengo información publicada suficiente/i);
+assert.doesNotMatch(unknownOffice.answer, /¿Qué servicio necesitas/i);
+
+const unknownInstallments = engine.orchestrateConversation({
+  message: "¿Puedo pagar en 12 cuotas sin intereses?",
+  messages: [],
+  config,
+  knowledge: [{ id: "furniture-payment", title: "¿Qué medios de pago aceptan?", content: "Los medios de pago deben confirmarse. No supongas que se acepta transferencia, tarjeta, efectivo o cuotas.", category: "policy" }],
+});
+assert.equal(unknownInstallments.confidence, "none");
+assert.match(unknownInstallments.answer, /No tengo información publicada suficiente/i);
+assert.doesNotMatch(unknownInstallments.answer, /diseño y desarrollo|publicidad/i);
+
+const compoundLandingRequirements = engine.orchestrateConversation({
+  message: "¿Qué incluye la landing page, se adapta a móviles y permite contactar por WhatsApp?",
+  messages: [],
+  config,
+  knowledge: [
+    { id: "landing-includes", title: "¿Qué incluye una landing page?", content: "El alcance se define por proyecto y puede contemplar diseño, contenidos y funcionalidades.", category: "faq" },
+    { id: "mobile", title: "¿La landing page se adapta a móviles?", content: "La adaptación a móviles debe confirmarse en la propuesta.", category: "faq" },
+    { id: "whatsapp", title: "¿Puede incluir WhatsApp?", content: "Se pueden evaluar botones de contacto por WhatsApp según el alcance.", category: "faq" },
+  ],
+});
+assert.match(compoundLandingRequirements.answer, /alcance se define/i);
+assert.match(compoundLandingRequirements.answer, /móviles/i);
+assert.match(compoundLandingRequirements.answer, /WhatsApp/i);
+assert.equal(compoundLandingRequirements.sources.length, 3);
+
+const explicitQuoteStillQualifies = engine.orchestrateConversation({
+  message: "Quiero cotizar una landing page para mi empresa.",
+  messages: [],
+  config,
+  knowledge: [],
+});
+assert.equal(explicitQuoteStillQualifies.route, "qualify");
+assert.match(explicitQuoteStillQualifies.answer, /nombre/i);
+
+console.log("OK: consultas desconocidas, cuotas sin respaldo, preguntas compuestas y cualificación solo ante intención explícita.");
