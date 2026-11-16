@@ -32,7 +32,7 @@ function classifyIntent(message: string) {
   if (/\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante)\b/.test(t)) return "human_request";
   if (/\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\b/.test(t)) return "complaint";
   if (/\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar|cuanto sale|que precio)\b/.test(t)) return "pricing";
-  if (/\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura|comuna|ciudad)\b/.test(t)) return "business_info";
+  if (/\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura|comuna|ciudad|oficina|oficinas|sucursal|sucursales|sede|sedes|presencia)\b/.test(t)) return "business_info";
   if (/\b(disponible|stock|disponibilidad|plazo|entrega|visitar|visita|agendar|agenda)\b/.test(t)) return "availability";
   if (/\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido|me interesa)\b/.test(t)) return "purchase";
   if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|caracteristicas|incluye|medidas)\b/.test(t)) return "product";
@@ -45,7 +45,7 @@ function detectIntents(message: string) {
     ["human_request", /\b(hablar con (una )?persona|asesor|vendedor|humano|agente real|representante)\b/],
     ["complaint", /\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\b/],
     ["pricing", /\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar|cuanto sale|que precio)\b/],
-    ["business_info", /\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura|comuna|ciudad)\b/],
+    ["business_info", /\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura|comuna|ciudad|oficina|oficinas|sucursal|sucursales|sede|sedes|presencia)\b/],
     ["availability", /\b(disponible|stock|disponibilidad|plazo|entrega|visitar|visita|agendar|agenda)\b/],
     ["purchase", /\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido|me interesa)\b/],
     ["product", /\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|caracteristicas|incluye|medidas)\b/],
@@ -79,12 +79,21 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
   if (!queryTokens.length) return [];
   const query = new Set(queryTokens);
   const intent = classifyIntent(message);
+  const intentAnchors: Record<string, string[]> = {
+    pricing: ["precio", "precios", "cuanto", "cuesta", "vale", "valor", "cotizacion", "presupuesto", "tarifa", "costo"],
+    business_info: ["horario", "atencion", "direccion", "ubicacion", "oficina", "oficinas", "sucursal", "sede", "comuna", "ciudad", "cobertura", "envio", "despacho"],
+    availability: ["disponible", "stock", "disponibilidad", "plazo", "entrega", "visita", "agenda"],
+    purchase: ["comprar", "contratar", "pagar", "pago", "cuotas", "pedido", "reservar"],
+    product: ["producto", "productos", "servicio", "servicios", "catalogo", "ofrecen", "landing", "pagina", "web", "mueble", "propiedad"],
+  };
+  const anchors = intentAnchors[intent] || [];
   const ranked = knowledge.map((item) => {
     const titleTokens = new Set(tokens(item.title));
     const contentTokens = new Set(tokens(item.content));
     const titleHits = [...query].filter((token) => titleTokens.has(token)).length;
     const contentHits = [...query].filter((token) => contentTokens.has(token)).length;
     const overlap = titleHits + contentHits;
+    const anchorHits = anchors.filter((token) => query.has(stem(token)) && (titleTokens.has(stem(token)) || contentTokens.has(stem(token)))).length;
     const titleCoverage = titleHits / Math.max(1, query.size);
     const contentCoverage = contentHits / Math.max(1, query.size);
     const category = normalize(item.category);
@@ -95,16 +104,20 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
       (intent === "availability" && ["product", "business"].includes(category) ? 0.10 : 0) +
       (category === "faq" ? 0.04 : 0);
     const score = titleCoverage * 0.68 + contentCoverage * 0.32 + categoryFit + (titleHits > 0 ? 0.08 : 0);
-    return { item, score, overlap, titleHits, contentHits };
-  }).filter((entry) => entry.overlap > 0 && entry.score >= 0.22)
-    .sort((a, b) => b.score - a.score || b.titleHits - a.titleHits || b.contentHits - a.contentHits);
+    return { item, score, overlap, titleHits, contentHits, anchorHits };
+  }).filter((entry) => {
+    // Exige una coincidencia específica: evita recuperar respuestas solo por palabras genéricas.
+    if (entry.overlap === 0 || entry.score < 0.30) return false;
+    if (anchors.length && entry.anchorHits === 0) return false;
+    return entry.titleHits > 0 || entry.contentHits >= 2 || entry.anchorHits >= 2;
+  }).sort((a, b) => b.score - a.score || b.titleHits - a.titleHits || b.anchorHits - a.anchorHits || b.contentHits - a.contentHits);
   return ranked.length ? [ranked[0]] : [];
 }
 function splitCustomerQuestions(message: string) {
   return message
     .split(/\?+/)
-    .flatMap((part) => part.split(/,\s*(?=(?:d[oó]nde|cu[aá]l|cu[aá]nto|qu[eé]|puedo|se puede|hay|tienen|c[oó]mo)\b)/i))
-    .flatMap((part) => part.split(/\s+y\s+(?=(?:se puede|puedo|podemos|tienen|hay|cual|cuanto|donde|que precio|que valor|disponibilidad|stock|horario|atienden|abren|visitar|agendar)\b)/i))
+    .flatMap((part) => part.split(/,\s*(?=(?:d[oó]nde|cu[aá]l|cu[aá]nto|qu[eé]|puedo|se puede|hay|tienen|c[oó]mo|se adapta|permite|incluye|tarda|tardan)\b)/i))
+    .flatMap((part) => part.split(/\s+y\s+(?=(?:se puede|puedo|podemos|tienen|hay|cual|cuanto|donde|que precio|que valor|disponibilidad|stock|horario|atienden|abren|visitar|agendar|que necesitan|que incluye|permite|se adapta|tardan|tarda)\b)/i))
     .map((part) => part.trim()).filter(Boolean);
 }
 
@@ -266,10 +279,9 @@ export function orchestrateConversation(input: {
     };
   }
 
-  if (currentCommercial || (previousCommercial && awaiting)) {
-    return { answer: "Claro, puedo ayudarte a avanzar con tu consulta. " + nextQualificationQuestion(lead_capture), intent: intent === "general" ? "purchase" : intent, route: "qualify", confidence: "limited", sources: [], handoff_required: false, lead_capture, actions: ["capture_purchase_interest", "qualify_lead"] };
-  }
-
+  // Una pregunta comercial sin fuente pertinente no debe convertirse en captura de datos.
+  // Primero se reconoce la falta de información; la cualificación ocurre cuando el cliente
+  // confirma que desea avanzar, no como sustituto de una respuesta desconocida.
   const requiresGrounding = ["pricing", "business_info", "availability", "product", "purchase"].includes(intent) || detectedIntents.length > 0;
   if (requiresGrounding) {
     const fallback = config.human_handoff_enabled
