@@ -295,9 +295,15 @@ export function orchestrateConversation(input: {
     };
   }
 
+  // Solo iniciar captura si el cliente expresa intención concreta de cotizar/contratar.
+  // Una duda sobre precio, oficinas o cuotas sin respuesta no debe convertirse en un formulario.
+  const explicitPurchaseIntent = /\\b(quiero cotizar|necesito cotizar|quiero contratar|deseo contratar|quiero comprar|deseo comprar|quiero reservar|me interesa contratar|me gustaria contratar|me gustaría contratar)\\b/.test(normalizedMessage);
+  if (explicitPurchaseIntent || (previousCommercial && awaiting)) {
+    return { answer: "Claro, puedo ayudarte a avanzar con tu consulta. " + nextQualificationQuestion(lead_capture), intent: intent === "general" ? "purchase" : intent, route: "qualify", confidence: "limited", sources: [], handoff_required: false, lead_capture, actions: ["capture_purchase_interest", "qualify_lead"] };
+  }
+
   // Una pregunta comercial sin fuente pertinente no debe convertirse en captura de datos.
-  // Primero se reconoce la falta de información; la cualificación ocurre cuando el cliente
-  // confirma que desea avanzar, no como sustituto de una respuesta desconocida.
+  // Primero se reconoce la falta de información; no se inventa ni se desvía a una pregunta de venta.
   const requiresGrounding = ["pricing", "business_info", "availability", "product", "purchase"].includes(intent) || detectedIntents.length > 0;
   if (requiresGrounding) {
     const fallback = config.human_handoff_enabled
