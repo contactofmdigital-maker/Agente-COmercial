@@ -87,6 +87,13 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
     product: ["producto", "productos", "servicio", "servicios", "catalogo", "ofrecen", "landing", "pagina", "web", "mueble", "propiedad"],
   };
   const anchors = intentAnchors[intent] || [];
+  const domainGroups = [
+    ["landing", "landing page", "pagina web", "web corporativa", "sitio web", "seo", "publicidad", "campana"],
+    ["mueble", "muebles", "mesita", "silla", "vanity", "tablones", "catalogo"],
+    ["propiedad", "propiedades", "inmueble", "inmobiliaria", "arriendo", "arrendar", "venta", "vender", "corredor"],
+    ["aplicacion", "aplicaciones", "app", "apps", "movil", "moviles"],
+  ];
+  const requestedDomain = domainGroups.find((group) => group.some((term) => normalize(message).includes(term)));
   const ranked = knowledge.map((item) => {
     const titleTokens = new Set(tokens(item.title));
     const contentTokens = new Set(tokens(item.content));
@@ -94,6 +101,10 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
     const contentHits = [...query].filter((token) => contentTokens.has(token)).length;
     const overlap = titleHits + contentHits;
     const anchorHits = anchors.filter((token) => query.has(stem(token)) && (titleTokens.has(stem(token)) || contentTokens.has(stem(token)))).length;
+    const domainHits = requestedDomain ? requestedDomain.filter((term) => {
+      const normalizedTerm = normalize(term);
+      return normalize(item.title + " " + item.content).includes(normalizedTerm);
+    }).length : 0;
     const titleCoverage = titleHits / Math.max(1, query.size);
     const contentCoverage = contentHits / Math.max(1, query.size);
     const category = normalize(item.category);
@@ -104,13 +115,14 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
       (intent === "availability" && ["product", "business"].includes(category) ? 0.10 : 0) +
       (category === "faq" ? 0.04 : 0);
     const score = titleCoverage * 0.68 + contentCoverage * 0.32 + categoryFit + (titleHits > 0 ? 0.08 : 0);
-    return { item, score, overlap, titleHits, contentHits, anchorHits };
+    return { item, score, overlap, titleHits, contentHits, anchorHits, domainHits };
   }).filter((entry) => {
     // Exige una coincidencia específica: evita recuperar respuestas solo por palabras genéricas.
     if (entry.overlap === 0 || entry.score < 0.30) return false;
     if (anchors.length && entry.anchorHits === 0) return false;
+    if (requestedDomain && entry.domainHits === 0) return false;
     return entry.titleHits > 0 || entry.contentHits >= 2 || entry.anchorHits >= 2;
-  }).sort((a, b) => b.score - a.score || b.titleHits - a.titleHits || b.anchorHits - a.anchorHits || b.contentHits - a.contentHits);
+  }).sort((a, b) => b.score - a.score || b.domainHits - a.domainHits || b.titleHits - a.titleHits || b.anchorHits - a.anchorHits || b.contentHits - a.contentHits);
   return ranked.length ? [ranked[0]] : [];
 }
 function splitCustomerQuestions(message: string) {
