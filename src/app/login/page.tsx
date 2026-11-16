@@ -162,7 +162,7 @@ export default function LoginPage() {
           password
         });
         if (authError) throw authError;
-        router.replace("/");
+        router.replace("/dashboard");
         router.refresh();
         return;
       }
@@ -175,7 +175,7 @@ export default function LoginPage() {
         });
         if (authError) throw authError;
         if (data.session) {
-          router.replace("/");
+          router.replace("/dashboard");
           router.refresh();
           return;
         }
