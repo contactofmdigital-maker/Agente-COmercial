@@ -297,7 +297,7 @@ export function orchestrateConversation(input: {
 
   // Solo iniciar captura si el cliente expresa intención concreta de cotizar/contratar.
   // Una duda sobre precio, oficinas o cuotas sin respuesta no debe convertirse en un formulario.
-  const explicitPurchaseIntent = /\\b(quiero cotizar|necesito cotizar|quiero contratar|deseo contratar|quiero comprar|deseo comprar|quiero reservar|me interesa contratar|me gustaria contratar|me gustaría contratar)\\b/.test(normalizedMessage);
+  const explicitPurchaseIntent = /\b(quiero cotizar|necesito cotizar|quiero contratar|deseo contratar|quiero comprar|deseo comprar|quiero reservar|me interesa contratar|me gustaria contratar|me gustaría contratar)\b/.test(normalizedMessage);
   if (explicitPurchaseIntent || (previousCommercial && awaiting)) {
     return { answer: "Claro, puedo ayudarte a avanzar con tu consulta. " + nextQualificationQuestion(lead_capture), intent: intent === "general" ? "purchase" : intent, route: "qualify", confidence: "limited", sources: [], handoff_required: false, lead_capture, actions: ["capture_purchase_interest", "qualify_lead"] };
   }
