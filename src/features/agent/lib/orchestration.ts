@@ -121,9 +121,13 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
     if (entry.overlap === 0 || entry.score < 0.30) return false;
     if (anchors.length && entry.anchorHits === 0) return false;
     if (requestedDomain && entry.domainHits === 0) return false;
+    if (normalize(message).includes("interes") && !normalize(entry.item.title + " " + entry.item.content).includes("interes")) return false;
     return entry.titleHits > 0 || entry.contentHits >= 2 || entry.anchorHits >= 2;
   }).sort((a, b) => b.score - a.score || b.domainHits - a.domainHits || b.titleHits - a.titleHits || b.anchorHits - a.anchorHits || b.contentHits - a.contentHits);
-  return ranked.length ? [ranked[0]] : [];
+  if (!ranked.length) return [];
+  // Si una pregunta genérica encaja igual de bien en varios rubros, no elegir uno al azar.
+  if (!requestedDomain && ranked.length > 1 && Math.abs(ranked[0].score - ranked[1].score) < 0.05) return [];
+  return [ranked[0]];
 }
 function splitCustomerQuestions(message: string) {
   return message
