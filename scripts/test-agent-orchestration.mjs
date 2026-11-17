@@ -428,4 +428,19 @@ assert.equal(genericServicesWithBusinessContext.route, "answer_from_knowledge");
 assert.equal(genericServicesWithBusinessContext.sources[0].id, "digital-services");
 assert.match(genericServicesWithBusinessContext.answer, /landing pages/i);
 
+const genericServicesWithoutBusinessContext = engine.orchestrateConversation({
+  message: "¿Qué servicios ofrecen?",
+  messages: [],
+  config,
+  knowledge: [
+    { id: "digital-services", title: "¿Qué servicios digitales ofrecen?", content: "Ofrecemos diseño y desarrollo de landing pages.", category: "product" },
+    { id: "real-estate-services", title: "¿Qué servicios inmobiliarios ofrecen?", content: "Ayudamos a vender y arrendar propiedades.", category: "product" },
+  ],
+});
+assert.equal(genericServicesWithoutBusinessContext.route, "clarify");
+assert.equal(genericServicesWithoutBusinessContext.handoff_required, false);
+assert.match(genericServicesWithoutBusinessContext.answer, /¿Te interesa conocer nuestros servicios digitales/i);
+
+
+
 console.log("OK: consultas desconocidas, cuotas sin respaldo, preguntas compuestas y cualificación solo ante intención explícita.");
