@@ -74,10 +74,11 @@ function expandQueryTokens(message: string) {
   return [...new Set(base)];
 }
 
-function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
+function rankKnowledge(message: string, knowledge: KnowledgeSource[], businessContext = "") {
   const queryTokens = expandQueryTokens(message);
   if (!queryTokens.length) return [];
   const query = new Set(queryTokens);
+  const context = new Set(tokens(businessContext));
   const intent = classifyIntent(message);
   const intentAnchors: Record<string, string[]> = {
     pricing: ["precio", "precios", "cuanto", "cuesta", "vale", "valor", "cotizacion", "presupuesto", "tarifa", "costo"],
@@ -100,6 +101,8 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
     const titleHits = [...query].filter((token) => titleTokens.has(token)).length;
     const contentHits = [...query].filter((token) => contentTokens.has(token)).length;
     const overlap = titleHits + contentHits;
+    const itemTokens = new Set([...titleTokens, ...contentTokens]);
+    const contextHits = [...context].filter((token) => itemTokens.has(token)).length;
     const anchorHits = anchors.filter((token) => query.has(stem(token)) && (titleTokens.has(stem(token)) || contentTokens.has(stem(token)))).length;
     const domainHits = requestedDomain ? requestedDomain.filter((term) => {
       const normalizedTerm = normalize(term);
@@ -114,8 +117,9 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
       (intent === "business_info" && category === "business" ? 0.14 : 0) +
       (intent === "availability" && ["product", "business"].includes(category) ? 0.10 : 0) +
       (category === "faq" ? 0.04 : 0);
-    const score = titleCoverage * 0.68 + contentCoverage * 0.32 + categoryFit + (titleHits > 0 ? 0.08 : 0);
-    return { item, score, overlap, titleHits, contentHits, anchorHits, domainHits };
+    const contextFit = context.size ? Math.min(contextHits * 0.04, 0.20) : 0;
+    const score = titleCoverage * 0.68 + contentCoverage * 0.32 + categoryFit + (titleHits > 0 ? 0.08 : 0) + contextFit;
+    return { item, score, overlap, titleHits, contentHits, anchorHits, domainHits, contextHits };
   }).filter((entry) => {
     // Exige una coincidencia específica: evita recuperar respuestas solo por palabras genéricas.
     if (entry.overlap === 0 || entry.score < 0.30) return false;
@@ -123,10 +127,10 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[]) {
     if (requestedDomain && entry.domainHits === 0) return false;
     if (normalize(message).includes("interes") && !normalize(entry.item.title + " " + entry.item.content).includes("interes")) return false;
     return entry.titleHits > 0 || entry.contentHits >= 2 || entry.anchorHits >= 2;
-  }).sort((a, b) => b.score - a.score || b.domainHits - a.domainHits || b.titleHits - a.titleHits || b.anchorHits - a.anchorHits || b.contentHits - a.contentHits);
+  }).sort((a, b) => b.score - a.score || b.contextHits - a.contextHits || b.domainHits - a.domainHits || b.titleHits - a.titleHits || b.anchorHits - a.anchorHits || b.contentHits - a.contentHits);
   if (!ranked.length) return [];
   // Si una pregunta genérica encaja igual de bien en varios rubros, no elegir uno al azar.
-  if (!requestedDomain && ranked.length > 1 && Math.abs(ranked[0].score - ranked[1].score) < 0.05) return [];
+  if (!requestedDomain && !context.size && ranked.length > 1 && Math.abs(ranked[0].score - ranked[1].score) < 0.05) return [];
   return [ranked[0]];
 }
 function splitCustomerQuestions(message: string) {
@@ -233,9 +237,9 @@ function safeGreeting(config: AgentRuntimeConfig) {
 }
 
 export function orchestrateConversation(input: {
-  message: string; messages: ConversationMessage[]; config: AgentRuntimeConfig; knowledge: KnowledgeSource[];
+  message: string; messages: ConversationMessage[]; config: AgentRuntimeConfig; knowledge: KnowledgeSource[]; businessContext?: string;
 }): OrchestrationResult {
-  const { message, messages, config, knowledge } = input;
+  const { message, messages, config, knowledge, businessContext = "" } = input;
   const intent = classifyIntent(message);
   const detectedIntents = detectIntents(message);
   const lead_capture = extractLeadCapture([...messages, { role: "user", content: message }]);
@@ -273,7 +277,7 @@ export function orchestrateConversation(input: {
   const unanswered: string[] = [];
   const sourceMap = new Map<string, { id: string; title: string; category: string }>();
   for (const question of questions) {
-    const matches = rankKnowledge(question, knowledge);
+    const matches = rankKnowledge(question, knowledge, businessContext);
     if (matches.length) {
       const item = matches[0].item;
       if (!answered.includes(item.content)) answered.push(item.content);
