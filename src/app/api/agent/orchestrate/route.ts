@@ -48,6 +48,23 @@ export async function POST(request: Request) {
     }
     if (!config) return json({ error: "Primero guarda la configuración del agente." }, 409);
 
+    const { data: businessProfile, error: profileError } = await supabase
+      .from("business_profiles")
+      .select("business_name,segment,description,products_services,ideal_customer")
+      .eq("user_id", auth.user.id)
+      .maybeSingle();
+    if (profileError) {
+      console.error("Agent orchestration business profile query:", profileError.message);
+      return json({ error: "No se pudo cargar el perfil del negocio." }, 500);
+    }
+    const businessContext = [
+      businessProfile?.business_name,
+      businessProfile?.segment,
+      businessProfile?.description,
+      businessProfile?.products_services,
+      businessProfile?.ideal_customer,
+    ].filter(Boolean).join(" ");
+
     const ids = Array.isArray(config.knowledge_entry_ids) ? config.knowledge_entry_ids : [];
     let knowledgeData: KnowledgeSource[] = [];
     if (ids.length > 0) {
@@ -68,6 +85,7 @@ export async function POST(request: Request) {
       messages: parsed.data.messages as ConversationMessage[],
       config: config as AgentRuntimeConfig,
       knowledge: knowledgeData,
+      businessContext,
     });
 
     const allUserText = [...parsed.data.messages.filter((item) => item.role === "user").map((item) => item.content), parsed.data.message].join(" ");
