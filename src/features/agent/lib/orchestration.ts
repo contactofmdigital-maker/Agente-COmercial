@@ -306,6 +306,17 @@ export function orchestrateConversation(input: {
     return { answer: "Claro, puedo ayudarte a avanzar con tu consulta. " + nextQualificationQuestion(lead_capture), intent: intent === "general" ? "purchase" : intent, route: "qualify", confidence: "limited", sources: [], handoff_required: false, lead_capture, actions: ["capture_purchase_interest", "qualify_lead"] };
   }
 
+  // Una consulta amplia sobre servicios sin contexto suficiente debe pedir precisión,
+  // no activar una derivación humana ni escoger arbitrariamente entre varios rubros.
+  const genericServicesQuestion = /\\b(que servicios ofrecen|que servicio ofrecen|que ofrecen|a que se dedican)\\b/.test(normalizedMessage);
+  if (genericServicesQuestion && !businessContext.trim()) {
+    return {
+      answer: "Puedo orientarte. ¿Te interesa conocer nuestros servicios digitales, productos u otro tipo de servicio? Así puedo darte información precisa.",
+      intent: "product", route: "clarify", confidence: "limited", sources: [],
+      handoff_required: false, lead_capture, actions: ["request_clarification"],
+    };
+  }
+
   // Una pregunta comercial sin fuente pertinente no debe convertirse en captura de datos.
   // Primero se reconoce la falta de información; no se inventa ni se desvía a una pregunta de venta.
   const requiresGrounding = ["pricing", "business_info", "availability", "product", "purchase"].includes(intent) || detectedIntents.length > 0;
