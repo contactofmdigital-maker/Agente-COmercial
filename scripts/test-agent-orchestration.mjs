@@ -413,4 +413,19 @@ const explicitQuoteStillQualifies = engine.orchestrateConversation({
 assert.equal(explicitQuoteStillQualifies.route, "qualify");
 assert.match(explicitQuoteStillQualifies.answer, /nombre/i);
 
+
+const genericServicesWithBusinessContext = engine.orchestrateConversation({
+  message: "¿Qué servicios ofrecen?",
+  messages: [],
+  config,
+  businessContext: "UpScale IA servicios digitales marketing digital landing pages desarrollo web",
+  knowledge: [
+    { id: "digital-services", title: "¿Qué servicios digitales ofrecen?", content: "Ofrecemos diseño y desarrollo de landing pages para emprendedores, empresas y agencias.", category: "product" },
+    { id: "real-estate-services", title: "¿Qué servicios inmobiliarios ofrecen?", content: "Se orienta a propietarios que desean vender o arrendar una propiedad y a personas que buscan comprar o arrendar.", category: "product" },
+  ],
+});
+assert.equal(genericServicesWithBusinessContext.route, "answer_from_knowledge");
+assert.equal(genericServicesWithBusinessContext.sources[0].id, "digital-services");
+assert.match(genericServicesWithBusinessContext.answer, /landing pages/i);
+
 console.log("OK: consultas desconocidas, cuotas sin respaldo, preguntas compuestas y cualificación solo ante intención explícita.");
