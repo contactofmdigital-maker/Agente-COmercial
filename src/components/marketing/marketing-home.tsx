@@ -4,7 +4,7 @@ import {
   ArrowRight, ArrowUpRight, Bot, BrainCircuit, Check, ChevronDown,
   CirclePlay, Database, MessageSquareText, ShieldCheck, Sparkles,
   Target, Workflow, Zap, Layers3, BookOpen, Settings2, Gauge,
-  Building2, LockKeyhole, ChartNoAxesCombined, Cpu, Play
+  LockKeyhole, ChartNoAxesCombined, Cpu
 } from "lucide-react";
 
 const capabilities = [
