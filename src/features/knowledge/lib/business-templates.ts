@@ -1,4 +1,4 @@
-export type BusinessSector = "digital_services" | "furniture" | "real_estate";
+export type BusinessSector = "digital_services" | "furniture" | "real_estate" | "fast_food" | "barber_beauty" | "professional_services";
 
 export type KnowledgeQuestion = {
   question: string;
@@ -77,6 +77,72 @@ export const BUSINESS_TEMPLATES: Record<BusinessSector, BusinessTemplate> = {
       { question: "¿La propiedad admite mascotas?", answer: "La autorización debe confirmarse con el propietario y quedar reflejada en las condiciones del arriendo. No se debe prometer aceptación sin validación." },
       { question: "¿Quién gestiona el contrato y la documentación?", answer: "El agente explica el procedimiento de la corredora y deriva dudas legales o contractuales al responsable correspondiente. No reemplaza asesoría legal." },
       { question: "¿Cómo puedo dejar una propiedad para venta o arriendo?", answer: "Se recopilan datos del propietario, dirección o sector, tipo de operación, características y contacto. Luego se coordina una evaluación y revisión de antecedentes." }
+    ]
+  },
+  fast_food: {
+    id: "fast_food",
+    label: "Comida rápida y restaurantes",
+    description: "Restaurantes, cafeterías, locales de comida rápida y delivery.",
+    questions: [
+      { question: "¿Qué productos y platos ofrecen?", answer: "El agente debe describir únicamente los productos del menú vigente, incluyendo opciones, tamaños y acompañamientos confirmados." },
+      { question: "¿Dónde puedo revisar el menú?", answer: "Se comparte el menú o carta oficial vigente. Si existe una versión digital, se facilita el enlace configurado por el negocio." },
+      { question: "¿Cuáles son los precios?", answer: "Los precios se consultan en el menú vigente y se indican con sus tamaños o variantes. Nunca se inventan valores ni promociones." },
+      { question: "¿Tienen promociones o combos?", answer: "Solo se informan promociones activas y autorizadas, detallando productos incluidos, vigencia y condiciones." },
+      { question: "¿Tienen opciones vegetarianas, veganas o especiales?", answer: "Se revisan los ingredientes y la información confirmada por cocina. No se garantiza que un plato sea apto para alergias o restricciones sin validación." },
+      { question: "¿Qué alérgenos contienen los productos?", answer: "El agente no debe adivinar ingredientes ni asegurar ausencia de trazas. Debe consultar la ficha de ingredientes o derivar la pregunta al equipo." },
+      { question: "¿Puedo personalizar mi pedido?", answer: "Las modificaciones dependen del producto y la operación del local. Se confirma qué ingredientes, agregados o sustituciones están permitidos." },
+      { question: "¿Realizan delivery a mi domicilio?", answer: "La cobertura se verifica según dirección o comuna y canal de despacho. No se confirma disponibilidad fuera de la zona atendida." },
+      { question: "¿Cuánto cuesta el despacho?", answer: "El costo se consulta según ubicación, plataforma y condiciones vigentes. Si no está disponible, se confirma antes de cerrar el pedido." },
+      { question: "¿Cuánto demora mi pedido?", answer: "El tiempo depende de demanda, preparación y distancia. Se informa solo el tiempo estimado confirmado por el sistema o el local." },
+      { question: "¿Puedo retirar mi pedido en el local?", answer: "Se confirma si el local ofrece retiro, la sucursal disponible y el horario para entregar el pedido." },
+      { question: "¿Qué medios de pago aceptan?", answer: "Se informan únicamente los medios de pago habilitados por el comercio o la plataforma de pedidos." },
+      { question: "¿Cuál es el horario de atención?", answer: "Se comparte el horario vigente de la sucursal correspondiente y se advierten cambios o cierres especiales confirmados." },
+      { question: "¿Cómo puedo reservar una mesa o hacer un pedido grupal?", answer: "Se recopilan fecha, hora, cantidad de personas o productos, sucursal y contacto. La reserva o pedido queda sujeto a confirmación del local." },
+      { question: "¿Cómo puedo reclamar o consultar por un pedido?", answer: "Se solicita número de pedido, canal de compra, fecha y detalle del inconveniente, y se deriva al responsable para revisión." }
+    ]
+  },
+  barber_beauty: {
+    id: "barber_beauty",
+    label: "Barbería y peluquería",
+    description: "Barberías, peluquerías, salones de belleza y profesionales del cuidado personal.",
+    questions: [
+      { question: "¿Qué servicios realizan?", answer: "El agente debe informar los servicios incluidos en el catálogo del local, como cortes, barbería, coloración, peinados o tratamientos, según disponibilidad real." },
+      { question: "¿Cuánto cuesta cada servicio?", answer: "Los valores se consultan en la lista de precios vigente y pueden depender del largo, técnica, profesional o complejidad. No se inventan precios." },
+      { question: "¿Cuánto dura cada servicio?", answer: "La duración se informa según la agenda y el servicio solicitado. Si no existe un tiempo definido, se confirma con el profesional." },
+      { question: "¿Necesito reservar una hora?", answer: "Se explica si el local atiende con reserva, por orden de llegada o con ambas modalidades, según su política actual." },
+      { question: "¿Qué horarios y días tienen disponibles?", answer: "La disponibilidad se consulta en la agenda vigente. El horario general del local no garantiza que exista una hora libre." },
+      { question: "¿Puedo elegir a un barbero o estilista?", answer: "Se confirma qué profesionales están disponibles y si el cliente puede seleccionar a una persona al reservar." },
+      { question: "¿Qué incluye el servicio?", answer: "Se detallan solo las etapas y productos incluidos en la ficha del servicio. Extras o adicionales se informan por separado." },
+      { question: "¿Realizan coloración, tintes o decoloración?", answer: "Se confirma según los servicios ofrecidos y se recopila historial químico, largo y objetivo para que el profesional evalúe el procedimiento." },
+      { question: "¿Debo enviar una foto de referencia?", answer: "Se puede solicitar una imagen de referencia para comprender el resultado esperado, aclarando que el profesional debe evaluar su viabilidad." },
+      { question: "¿Ofrecen diagnóstico o asesoría antes del servicio?", answer: "Se confirma si existe evaluación previa y si tiene costo. Las recomendaciones técnicas finales corresponden al profesional." },
+      { question: "¿Qué cuidados debo tener después del servicio?", answer: "Se entregan indicaciones generales aprobadas por el profesional y específicas del tratamiento realizado, sin sustituir evaluación especializada." },
+      { question: "¿Qué pasa si necesito cancelar o cambiar mi hora?", answer: "Se informa la política vigente de cancelaciones, reprogramaciones, anticipos y tiempos mínimos de aviso." },
+      { question: "¿Atienden a niños o grupos?", answer: "Se confirma qué edades atienden, servicios disponibles y condiciones para reservas grupales." },
+      { question: "¿Qué medios de pago aceptan?", answer: "Se indican exclusivamente los medios de pago habilitados por el establecimiento." },
+      { question: "¿Cómo puedo agendar mi atención?", answer: "Se recopilan nombre, servicio, profesional preferido si aplica, fecha y rango horario; la hora queda confirmada solo cuando la agenda la acepta." }
+    ]
+  },
+  professional_services: {
+    id: "professional_services",
+    label: "Servicios profesionales",
+    description: "Consultores, asesores, estudios y profesionales independientes o empresas de servicios.",
+    questions: [
+      { question: "¿Qué servicios profesionales ofrecen?", answer: "El agente debe describir las áreas y prestaciones efectivamente ofrecidas, según el catálogo y las credenciales informadas por el profesional." },
+      { question: "¿A qué tipo de clientes atienden?", answer: "Se explican los perfiles de clientes, sectores o casos que el profesional ha definido como adecuados para su servicio." },
+      { question: "¿Cómo funciona la primera consulta?", answer: "Se informa si existe reunión inicial, evaluación, diagnóstico, duración y costo, únicamente según las condiciones configuradas." },
+      { question: "¿Cuánto cuestan sus servicios?", answer: "Los honorarios dependen del alcance, complejidad y modalidad. Se comparte una tarifa vigente o se recopilan antecedentes para cotizar." },
+      { question: "¿Cómo solicito una cotización?", answer: "Se recopilan necesidad, objetivo, contexto, alcance esperado, plazo y datos de contacto para que el profesional prepare una propuesta." },
+      { question: "¿Qué incluye el servicio contratado?", answer: "Se detallan entregables, sesiones, revisiones, documentación y límites del servicio según la propuesta aceptada." },
+      { question: "¿Qué información o documentos debo preparar?", answer: "Los antecedentes requeridos dependen de la especialidad y se solicitan solo cuando sean necesarios para evaluar el caso." },
+      { question: "¿Atienden de forma presencial o en línea?", answer: "Se indican las modalidades disponibles, ubicación o plataforma de reunión, según la agenda y cobertura del profesional." },
+      { question: "¿En qué zonas o países trabajan?", answer: "Se comunica el alcance geográfico confirmado y cualquier restricción regulatoria o de prestación aplicable." },
+      { question: "¿Cuánto demora el proceso?", answer: "Los plazos dependen del alcance, disponibilidad y entrega de antecedentes. Se informa un plazo solo después de validarlo con el responsable." },
+      { question: "¿Quién será el profesional a cargo?", answer: "Se identifica al profesional responsable y su función cuando esa asignación esté confirmada." },
+      { question: "¿Cómo protegen la confidencialidad de mi información?", answer: "Se explica la política de privacidad y manejo de antecedentes vigente. No se prometen certificaciones o garantías que no estén acreditadas." },
+      { question: "¿Puedo contratar un servicio puntual o un plan continuo?", answer: "Se describen las modalidades realmente disponibles, como asesoría puntual, proyecto o acompañamiento recurrente." },
+      { question: "¿Cómo se realizan los pagos y la facturación?", answer: "Se informan medios, hitos de pago, anticipos y documentos tributarios según las condiciones administrativas del negocio." },
+      { question: "¿Cómo puedo agendar o comenzar a trabajar?", answer: "Se recopilan datos de contacto, servicio requerido y disponibilidad. El inicio queda sujeto a evaluación, aceptación de propuesta y confirmación." }
     ]
   }
 };
