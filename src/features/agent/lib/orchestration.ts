@@ -135,7 +135,7 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[], businessCo
   };
   const anchors = intentAnchors[intent] || [];
   const domainGroups = [
-    ["landing", "landing page", "pagina web", "web corporativa", "sitio web", "seo", "publicidad", "campana"],
+    ["landing", "landing page", "pagina", "pagina web", "web corporativa", "sitio web", "servicios digitales", "promocionar", "seo", "publicidad", "campana"],
     ["mueble", "muebles", "mesita", "silla", "vanity", "tablones", "catalogo"],
     ["propiedad", "propiedades", "inmueble", "inmobiliaria", "arriendo", "arrendar", "venta", "vender", "corredor"],
     ["aplicacion", "aplicaciones", "app", "apps", "movil", "moviles"],
