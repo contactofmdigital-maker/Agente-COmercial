@@ -1,0 +1,101 @@
+import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
+import ts from "typescript";
+
+async function loadTsModule(path) {
+  const source = await readFile(new URL(path, import.meta.url), "utf8");
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  return import("data:text/javascript;base64," + Buffer.from(compiled).toString("base64"));
+}
+
+const [{ businessTemplates }, engine] = await Promise.all([
+  loadTsModule("../src/features/knowledge/lib/business-templates.ts"),
+  loadTsModule("../src/features/agent/lib/orchestration.ts"),
+]);
+
+const config = {
+  agent_name: "Asistente comercial",
+  objective: "Responder consultas usando información publicada.",
+  tone: "professional",
+  personality: "Cercano y resolutivo.",
+  greeting: "Hola, ¿en qué puedo ayudarte?",
+  language: "es",
+  response_style: "clear",
+  target_customer: "",
+  qualification_questions: "",
+  restrictions: "No inventar información.",
+  knowledge_entry_ids: [],
+  human_handoff_enabled: false,
+  handoff_triggers: "",
+  handoff_message: "",
+};
+
+const keys = ["digital_services", "furniture", "real_estate"];
+const allKnowledge = keys.flatMap((key) =>
+  businessTemplates[key].entries.map((entry, index) => ({
+    id: key + "-" + index,
+    title: entry.title,
+    content: entry.content,
+    category: entry.category,
+    template: key,
+  }))
+);
+
+let passed = 0;
+const failures = [];
+
+for (const key of keys) {
+  const entries = businessTemplates[key].entries;
+  assert.equal(entries.length, 15, key + " debe contener exactamente 15 preguntas.");
+
+  for (const [index, entry] of entries.entries()) {
+    const expectedId = key + "-" + index;
+    const result = engine.orchestrateConversation({
+      message: entry.title,
+      messages: [],
+      config,
+      knowledge: allKnowledge,
+      businessContext: "",
+    });
+
+    const correctSource = result.sources.some((source) => source.id === expectedId);
+    const wrongSource = result.sources.some((source) => !source.id.startsWith(key + "-"));
+    const ok = result.route === "answer_from_knowledge"
+      && correctSource
+      && !wrongSource
+      && result.answer.includes(entry.content);
+
+    if (ok) {
+      passed += 1;
+      console.log("PASS [" + key + " " + (index + 1) + "/15] " + entry.title);
+    } else {
+      failures.push({
+        template: key,
+        number: index + 1,
+        question: entry.title,
+        route: result.route,
+        intent: result.intent,
+        confidence: result.confidence,
+        sources: result.sources.map((source) => source.id),
+        answer: result.answer,
+      });
+      console.log("FAIL [" + key + " " + (index + 1) + "/15] " + entry.title);
+      console.log("  route=" + result.route + " confidence=" + result.confidence + " sources=" + result.sources.map((source) => source.id).join(","));
+    }
+  }
+}
+
+console.log("\nRESULTADO: " + passed + "/45 preguntas exactas aprobadas.");
+console.log("FALLOS: " + failures.length);
+
+if (failures.length) {
+  console.log("\nDETALLE DE FALLOS:");
+  for (const failure of failures) {
+    console.log(JSON.stringify(failure, null, 2));
+  }
+  process.exitCode = 1;
+} else {
+  console.log("OK: las 45 preguntas recuperan su respuesta y fuente correctas sin mezclar plantillas.");
+}
