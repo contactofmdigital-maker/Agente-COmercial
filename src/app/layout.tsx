@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://upscaleia.cl"),
   title: {
     default: "UpScale IA | Inteligencia comercial para tu negocio",
     template: "%s | UpScale IA",
