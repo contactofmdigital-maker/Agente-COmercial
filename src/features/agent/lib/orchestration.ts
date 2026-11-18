@@ -141,6 +141,9 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[], businessCo
     ["mueble", "muebles", "mesita", "silla", "vanity", "tablones", "catalogo"],
     ["propiedad", "propiedades", "inmueble", "inmobiliaria", "arriendo", "arrendar", "venta", "vender", "corredor"],
     ["aplicacion", "aplicaciones", "app", "apps", "movil", "moviles"],
+    ["barberia", "peluqueria", "barbero", "peluquero", "corte de cabello", "cabello", "barba", "tinte", "mechas", "capilar"],
+    ["restaurante", "comida rapida", "local de comida", "menu", "carta", "plato", "hamburguesa", "sandwich", "delivery", "pedido", "cocina", "alergenos"],
+    ["servicios profesionales", "profesional", "especialidad", "honorarios", "consulta", "asesoria", "asesoria profesional", "cotizacion", "presupuesto", "prestador"],
   ];
   const requestedDomain = domainGroups.find((group) => group.some((term) => normalize(message).includes(term)));
   // Las consultas sobre capacidad/peso requieren evidencia explícita; una ficha general del producto no basta.
