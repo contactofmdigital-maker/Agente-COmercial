@@ -21,9 +21,7 @@ const steps = [
 ];
 
 const plans = [
-  { name: "Starter", eyebrow: "PARA COMENZAR", title: "Da el primer paso hacia una atención más inteligente.", description: "Empieza a construir un agente comercial con la información y las reglas de tu negocio.", featured: false },
-  { name: "Growth", eyebrow: "PARA CRECER", title: "Perfecciona cada conversación con pruebas y contexto.", description: "Una opción para negocios que quieren trabajar de forma continua la calidad de sus respuestas.", featured: true },
-  { name: "Partner", eyebrow: "PARA EQUIPOS", title: "Lleva una metodología de agentes a más operaciones.", description: "Pensado para equipos y colaboradores que necesitan conversar sobre un uso más amplio de la plataforma.", featured: false }
+  { name: "Growth", eyebrow: "PLAN ÚNICO · UPSCALE IA", title: "Todo lo esencial para construir y mejorar tu agente comercial.", description: "Una única experiencia para configurar tu agente, incorporar el conocimiento de tu negocio, probar conversaciones y revisar los contactos capturados.", featured: true }
 ];
 
 const faqs = [
@@ -32,7 +30,7 @@ const faqs = [
   { q: "¿Cómo aprende el agente sobre mi negocio?", a: "Trabaja con las instrucciones y el conocimiento que incorporas: servicios, preguntas frecuentes y otra información relevante. Por eso es importante mantener esos contenidos claros y actualizados." },
   { q: "¿Puedo probarlo antes de utilizarlo?", a: "Sí. El Playground permite simular preguntas y escenarios para revisar cómo responde el agente y ajustar su configuración antes de llevar esos cambios a tu operación." },
   { q: "¿El agente puede inventar información o precios?", a: "La plataforma permite definir reglas y conocimiento para orientar sus respuestas. Debes incorporar la información autorizada y probar escenarios; no conviene publicar precios, condiciones o promesas que no hayas confirmado." },
-  { q: "¿Qué plan debería elegir?", a: "Depende de cómo quieras utilizar la plataforma y del alcance que necesites. Podemos orientarte entre Starter, Growth y Partner. Los precios y límites se confirman en la propuesta comercial, no se muestran aquí para evitar información desactualizada." }
+  { q: "¿Qué plan debería elegir?", a: "UpScale IA trabajará con un único plan que reúne las herramientas esenciales de la plataforma: configuración del agente, Playground, centro de conocimiento y revisión de contactos capturados. Los precios y límites se confirmarán en la propuesta comercial." }
 ];
 
 export default function MarketingHome() {
@@ -67,7 +65,7 @@ export default function MarketingHome() {
         <div className="marketing-stage" aria-label="Representación visual de UpScale IA">
           <div className="stage-halo" /><div className="stage-ring stage-ring-a" /><div className="stage-ring stage-ring-b" />
           <div className="stage-orbit-dot stage-orbit-dot-a" /><div className="stage-orbit-dot stage-orbit-dot-b" />
-          <div className="stage-core"><div className="stage-core-inner"><Image src="/images/upscale-ia-logo.png" alt="Símbolo de UpScale IA" width={104} height={104} priority /></div><span>INTELIGENCIA COMERCIAL</span></div>
+          <div className="stage-core"><div className="stage-core-inner"><Image src="/images/upscale-ia-horizontal.png" alt="Símbolo de UpScale IA" width={104} height={104} priority /></div><span>INTELIGENCIA COMERCIAL</span></div>
           <div className="stage-ui stage-chat">
             <div className="stage-ui-head"><span className="stage-mini-icon"><Bot size={15} /></span><span><b>Agente comercial</b><small>SIMULACIÓN ACTIVA</small></span><i /></div>
             <div className="stage-chat-bubble">Hola, quiero saber qué servicio me conviene.</div>
