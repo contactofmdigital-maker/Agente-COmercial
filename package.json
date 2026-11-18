@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test:prioritization": "node scripts/test-prioritization.mjs",
     "test:agent": "node scripts/test-agent-orchestration.mjs",
-    "test:templates": "node scripts/test-business-templates.mjs"
+    "test:templates": "node scripts/test-business-templates.mjs",
+    "test:novel": "node scripts/test-novel-questions.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
