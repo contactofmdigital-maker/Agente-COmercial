@@ -19,7 +19,8 @@ import {
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ProspectWorkspace } from "@/features/prospects/components/prospect-workspace";
-import { SignOutButton } from "@/features/auth/components/sign-out-button";\nimport { getBusinessKnowledgeContext } from "@/features/knowledge/lib/get-business-knowledge-context";
+import { SignOutButton } from "@/features/auth/components/sign-out-button";
+import { getBusinessKnowledgeContext } from "@/features/knowledge/lib/get-business-knowledge-context";
 import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 
@@ -50,6 +51,8 @@ export default async function Home() {
   if (!user) {
     redirect("/login");
   }
+
+  const businessKnowledge = await getBusinessKnowledgeContext();
 
   let connected = false;
   let prospectCount: number | null = null;
@@ -173,7 +176,18 @@ export default async function Home() {
                 <div><div className="panel-kicker">AI SALES COPILOT</div><h3>Asistente comercial</h3><p>Prepara el siguiente paso con contexto.</p></div>
                 <div className="ai-icon"><Bot size={19} /></div>
               </div>
-              <div className="assistant-preview">\n                {businessKnowledge ? (\n                  <div className="connection-banner connected" style={{ marginBottom: 14 }}>\n                    <div className="connection-symbol"><ShieldCheck size={17} /></div>\n                    <div><b>Conocimiento del rubro cargado</b><p>{businessKnowledge.businessSector} · {businessKnowledge.questions.length}/15 preguntas disponibles para contextualizar el agente.</p></div>\n                  </div>\n                ) : (\n                  <div className="connection-banner warning" style={{ marginBottom: 14 }}>\n                    <div className="connection-symbol"><CircleHelp size={17} /></div>\n                    <div><b>Falta configurar el conocimiento</b><p>Esta cuenta aún no tiene un rubro y una plantilla asignados. Las cuentas nuevas deben registrarse seleccionando su rubro.</p></div>\n                  </div>\n                )}
+              <div className="assistant-preview">
+                {businessKnowledge ? (
+                  <div className="connection-banner connected" style={{ marginBottom: 14 }}>
+                    <div className="connection-symbol"><ShieldCheck size={17} /></div>
+                    <div><b>Conocimiento del rubro cargado</b><p>{businessKnowledge.businessSector} · {businessKnowledge.questions.length}/15 preguntas disponibles para contextualizar el agente.</p></div>
+                  </div>
+                ) : (
+                  <div className="connection-banner warning" style={{ marginBottom: 14 }}>
+                    <div className="connection-symbol"><CircleHelp size={17} /></div>
+                    <div><b>Falta configurar el conocimiento</b><p>Esta cuenta aún no tiene un rubro y una plantilla asignados. Las cuentas nuevas deben registrarse seleccionando su rubro.</p></div>
+                  </div>
+                )}
                 <div className="assistant-glow"><Sparkles size={20} /></div>
                 <b>Una buena conversación empieza con contexto.</b>
                 <p>El módulo de IA se habilitará al configurar un proveedor y su clave privada en el servidor.</p>

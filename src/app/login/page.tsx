@@ -10,7 +10,9 @@ import {
   BrainCircuit, Workflow, ChevronRight
 } from "lucide-react";
 
-import { BUSINESS_SECTOR_OPTIONS, isBusinessSector, type BusinessSector } from "@/features/knowledge/lib/business-templates";\n\ntype Mode = "login" | "register" | "recover";
+import { BUSINESS_SECTOR_OPTIONS, isBusinessSector, type BusinessSector } from "@/features/knowledge/lib/business-templates";
+
+type Mode = "login" | "register" | "recover";
 type ChatMessage = { from: "prospect" | "agent"; text: string };
 type Scenario = {
   sector: string;
@@ -94,7 +96,8 @@ export default function LoginPage() {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");\n  const [businessSector, setBusinessSector] = useState<BusinessSector | "">("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [businessSector, setBusinessSector] = useState<BusinessSector | "">("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -145,7 +148,11 @@ export default function LoginPage() {
       setError("La contraseña debe tener al menos 8 caracteres.");
       return;
     }
-    if (mode === "register" && !isBusinessSector(businessSector)) {\n      setError("Selecciona el rubro de tu negocio para configurar tu agente.");\n      return;\n    }\n    if (mode === "register" && password !== confirmPassword) {
+    if (mode === "register" && !isBusinessSector(businessSector)) {
+      setError("Selecciona el rubro de tu negocio para configurar tu agente.");
+      return;
+    }
+    if (mode === "register" && password !== confirmPassword) {
       setError("Las contraseñas no coinciden.");
       return;
     }
@@ -169,7 +176,10 @@ export default function LoginPage() {
         const { data, error: authError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: {\n            emailRedirectTo: `${window.location.origin}/auth/confirm?next=/`,\n            data: { business_sector: businessSector }\n          }
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/confirm?next=/`,
+            data: { business_sector: businessSector }
+          }
         });
         if (authError) throw authError;
         if (data.session) {
@@ -180,7 +190,8 @@ export default function LoginPage() {
         setSuccess("Cuenta creada. Si la confirmación por correo está activada, revisa tu bandeja de entrada para verificarla.");
         setMode("login");
         setPassword("");
-        setConfirmPassword("");\n        setBusinessSector("");
+        setConfirmPassword("");
+        setBusinessSector("");
         return;
       }
 
@@ -290,7 +301,16 @@ export default function LoginPage() {
             <label htmlFor="email">Correo electrónico</label>
             <input id="email" type="email" autoComplete="email" placeholder="nombre@empresa.com" value={email} onChange={(event) => setEmail(event.target.value)} required />
 
-            {mode === "register" && <>\n              <label htmlFor="businessSector">Rubro de tu negocio</label>\n              <select id="businessSector" value={businessSector} onChange={(event) => setBusinessSector(isBusinessSector(event.target.value) ? event.target.value : "")} required>\n                <option value="">Selecciona el rubro</option>\n                {BUSINESS_SECTOR_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}\n              </select>\n              <p className="login-field-hint">Cargaremos automáticamente las 15 preguntas y respuestas de este rubro.</p>\n            </>}\n\n            {mode !== "recover" && <>
+            {mode === "register" && <>
+              <label htmlFor="businessSector">Rubro de tu negocio</label>
+              <select id="businessSector" value={businessSector} onChange={(event) => setBusinessSector(isBusinessSector(event.target.value) ? event.target.value : "")} required>
+                <option value="">Selecciona el rubro</option>
+                {BUSINESS_SECTOR_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <p className="login-field-hint">Cargaremos automáticamente las 15 preguntas y respuestas de este rubro.</p>
+            </>}
+
+            {mode !== "recover" && <>
               <label htmlFor="password">Contraseña</label>
               <div className="login-password">
                 <input id="password" type={showPassword ? "text" : "password"} autoComplete={mode === "register" ? "new-password" : "current-password"} placeholder="Mínimo 8 caracteres" value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} required />

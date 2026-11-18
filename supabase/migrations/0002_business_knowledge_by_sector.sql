@@ -121,7 +121,7 @@ declare
 begin
   selected_sector := new.raw_user_meta_data ->> 'business_sector';
 
-  if selected_sector not in ('digital_services', 'furniture', 'real_estate') then
+  if selected_sector is null or selected_sector not in ('digital_services', 'furniture', 'real_estate') then
     raise exception 'Debes seleccionar un rubro válido para crear tu cuenta.';
   end if;
 
