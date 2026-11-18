@@ -94,6 +94,7 @@ const semanticRegressions = [
   { label: "Montaje como armado", question: "¿Los muebles vienen para ensamblar?", expected: "furniture-11", forbidden: ["digital_services-", "real_estate-"] },
   { label: "Montaje como instalación", question: "¿Necesito montar yo mismo el mueble?", expected: "furniture-11", forbidden: ["digital_services-", "real_estate-"] },
   { label: "Definición de landing page", question: "¿Qué es una landing page?", expected: "digital_services-0", forbidden: ["furniture-", "real_estate-"] },
+  { label: "Página para promocionar servicios", question: "Quiero una página para promocionar mis servicios.", expected: "digital_services-2", forbidden: ["furniture-", "real_estate-"] },
 ];
 let semanticPassed = 0;
 for (const regression of semanticRegressions) {
