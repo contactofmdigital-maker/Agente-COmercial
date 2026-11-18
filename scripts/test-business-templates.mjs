@@ -32,7 +32,7 @@ const config = {
   handoff_message: "",
 };
 
-const keys = ["digital_services", "furniture", "real_estate"];
+const keys = ["digital_services", "furniture", "real_estate", "barber_shop", "quick_service", "professional_services"];
 const allKnowledge = keys.flatMap((key) =>
   businessTemplates[key].entries.map((entry, index) => ({
     id: key + "-" + index,
@@ -125,7 +125,7 @@ for (const regression of semanticRegressions) {
   }
 }
 
-console.log("\nRESULTADO: " + passed + "/45 preguntas exactas aprobadas.");
+console.log("\nRESULTADO: " + passed + "/" + (keys.length * 15) + " preguntas exactas aprobadas.");
 console.log("REGRESIONES SEMÁNTICAS: " + semanticPassed + "/" + semanticRegressions.length + " aprobadas.");
 console.log("FALLOS: " + failures.length);
 
@@ -136,5 +136,5 @@ if (failures.length) {
   }
   process.exitCode = 1;
 } else {
-  console.log("OK: las 45 preguntas recuperan su respuesta y fuente correctas sin mezclar plantillas.");
+  console.log("OK: todas las preguntas recuperan su respuesta y fuente correctas sin mezclar plantillas.");
 }
