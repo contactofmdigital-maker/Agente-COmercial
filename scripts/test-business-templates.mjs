@@ -126,7 +126,7 @@ for (const regression of semanticRegressions) {
 }
 
 console.log("\nRESULTADO: " + passed + "/45 preguntas exactas aprobadas.");
-console.log("REGRESIONES SEMÁNTICAS: " + semanticPassed + "/5");
+console.log("REGRESIONES SEMÁNTICAS: " + semanticPassed + "/" + semanticRegressions.length + " aprobadas.");
 console.log("FALLOS: " + failures.length);
 
 if (failures.length) {
