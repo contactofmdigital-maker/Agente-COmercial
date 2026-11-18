@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:prioritization": "node scripts/test-prioritization.mjs",
-    "test:agent": "node scripts/test-agent-orchestration.mjs"
+    "test:agent": "node scripts/test-agent-orchestration.mjs",
+    "test:templates": "node scripts/test-business-templates.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",
