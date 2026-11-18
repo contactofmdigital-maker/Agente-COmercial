@@ -106,8 +106,10 @@ for (const regression of semanticRegressions) {
     businessContext: "",
   });
   const sourceIds = result.sources.map((source) => source.id);
+  const expectedTemplatePrefix = regression.expected.replace(/-\\d+$/, "-");
   const ok = result.route === "answer_from_knowledge"
     && sourceIds.includes(regression.expected)
+    && sourceIds.every((id) => id.startsWith(expectedTemplatePrefix))
     && !sourceIds.some((id) => regression.forbidden.some((prefix) => id.startsWith(prefix)));
   if (ok) {
     semanticPassed += 1;
