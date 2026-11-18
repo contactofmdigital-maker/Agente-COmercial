@@ -87,7 +87,43 @@ for (const key of keys) {
   }
 }
 
+// Regresiones semánticas: variantes de SEO y montaje deben recuperar la fuente específica.
+const semanticRegressions = [
+  { label: "SEO por sinónimos", question: "¿Una landing page incluye posicionamiento SEO en Google?", expected: "digital_services-10", forbidden: ["furniture-", "real_estate-"] },
+  { label: "Montaje por sinónimos", question: "¿Hay que armar los muebles?", expected: "furniture-11", forbidden: ["digital_services-", "real_estate-"] },
+  { label: "Definición de landing page", question: "¿Qué es una landing page?", expected: "digital_services-0", forbidden: ["furniture-", "real_estate-"] },
+];
+let semanticPassed = 0;
+for (const regression of semanticRegressions) {
+  const result = engine.orchestrateConversation({
+    message: regression.question,
+    messages: [],
+    config,
+    knowledge: allKnowledge,
+    businessContext: "",
+  });
+  const sourceIds = result.sources.map((source) => source.id);
+  const ok = result.route === "answer_from_knowledge"
+    && sourceIds.includes(regression.expected)
+    && !sourceIds.some((id) => regression.forbidden.some((prefix) => id.startsWith(prefix)));
+  if (ok) {
+    semanticPassed += 1;
+    console.log("PASS [regresión] " + regression.label + " -> " + regression.expected);
+  } else {
+    failures.push({
+      template: "semantic_regression",
+      question: regression.question,
+      expected: regression.expected,
+      route: result.route,
+      sources: sourceIds,
+      answer: result.answer,
+    });
+    console.log("FAIL [regresión] " + regression.label + " expected=" + regression.expected + " sources=" + sourceIds.join(","));
+  }
+}
+
 console.log("\nRESULTADO: " + passed + "/45 preguntas exactas aprobadas.");
+console.log("REGRESIONES SEMÁNTICAS: " + semanticPassed + "/3");
 console.log("FALLOS: " + failures.length);
 
 if (failures.length) {
