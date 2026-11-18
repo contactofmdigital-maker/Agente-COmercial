@@ -36,7 +36,7 @@ function classifyIntent(message: string) {
   if (/\b(disponible|stock|disponibilidad|plazo|entrega|visitar|visita|agendar|agenda|queda|quedan|unidad|unidades)\b/.test(t)) return "availability";
   if (/\b(montaje|montar|armado|armar|ensamblaje|ensamblar)\b/.test(t)) return "assembly";
   if (/\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido|me interesa)\b/.test(t)) return "purchase";
-  if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina|formulario|formularios|contacto|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|dueno|vender|venta|caracteristicas|incluye|medidas)\b/.test(t)) return "product";
+  if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina|formulario|formularios|contacto|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|dueno|vender|venta|caracteristicas|incluye|medidas|acabado|acabados|decoracion|oferta|aceptada|aceptacion)\b/.test(t)) return "product";
   if (/^(hola( buenas)?( tardes| dias| noches)?|buenas (tardes|noches)|buenos dias|hey|hello)[!. ]*$/.test(t)) return "greeting";
   return "general";
 }
@@ -49,8 +49,8 @@ function detectIntents(message: string) {
     ["business_info", /\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura|comuna|ciudad|oficina|oficinas|sucursal|sucursales|sede|sedes|presencia)\b/],
     ["availability", /\b(disponible|stock|disponibilidad|plazo|entrega|visitar|visita|agendar|agenda|queda|quedan|unidad|unidades)\b/],
     ["assembly", /\b(montaje|montar|armado|armar|ensamblaje|ensamblar)\b/],
-    ["purchase", /\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido|me interesa)\b/],
-    ["product", /\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina|formulario|formularios|contacto|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|dueno|vender|venta|caracteristicas|incluye|medidas)\b/],
+    ["purchase", /\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido|me interesa|oferta|ofertar|aceptada|aceptacion)\b/],
+    ["product", /\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina|formulario|formularios|contacto|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|dueno|vender|venta|caracteristicas|incluye|medidas|acabado|acabados|decoracion|oferta|aceptada|aceptacion)\b/],
   ];
   return rules.filter(([, re]) => re.test(t)).map(([name]) => name);
 }
@@ -66,7 +66,8 @@ function expandQueryTokens(message: string) {
     [/\b(captura|capturas|imagen|imagenes|foto|fotografia)\b/, ["foto", "imagen", "captura", "modelo"]],
     [/\b(acabado|acabados|decoracion|estilo)\b/, ["color", "diseno", "acabado"]],
     [/\b(quede|queda|quedan|unidad|unidades)\b/, ["stock", "disponibilidad", "disponible"]],
-    [/\b(dueno|duena|vender|venta|publicar)\b/, ["propiedad", "vender", "venta", "antecedentes"]],
+    [/\b(dueno|duena|vender|venta|publicar)\b/, ["propiedad", "vender", "venta", "antecedentes", "propietario"]],
+    [/\b(oferta|ofertar|aceptada|aceptacion|automaticamente)\b/, ["oferta", "confirmacion", "aceptacion", "partes"]],
     [/\b(montaje|montar|armado|armar|ensamblaje|ensamblar)\b/, ["montaje", "armado", "ensamblaje"]],
     [/\b(seo|posicionamiento|posicionar|google)\b/, ["seo", "posicionamiento", "google", "buscador"]],
     [/\b(ninos|ninas|infantil|infantiles)\b/, ["infantil", "nino", "nina"]],
@@ -116,8 +117,8 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[], businessCo
     business_info: ["horario", "atencion", "direccion", "ubicacion", "oficina", "oficinas", "sucursal", "sede", "comuna", "ciudad", "cobertura", "envio", "despacho"],
     availability: ["disponible", "stock", "disponibilidad", "plazo", "entrega", "visita", "agenda"],
     assembly: ["montaje", "montar", "armado", "armar", "ensamblaje", "ensamblar"],
-    purchase: ["comprar", "contratar", "pagar", "pago", "cuotas", "pedido", "reservar"],
-    product: ["producto", "productos", "servicio", "servicios", "catalogo", "ofrecen", "landing", "pagina", "web", "mueble", "propiedad", "seo", "posicionamiento", "google", "montaje", "armado", "ensamblaje"],
+    purchase: ["comprar", "contratar", "pagar", "pago", "cuotas", "pedido", "reservar", "oferta", "aceptacion", "confirmacion"],
+    product: ["producto", "productos", "servicio", "servicios", "catalogo", "ofrecen", "landing", "pagina", "web", "formulario", "contacto", "datos", "captacion", "mueble", "propiedad", "vender", "venta", "acabado", "color", "diseno", "seo", "posicionamiento", "google", "montaje", "armado", "ensamblaje"],
   };
   const anchors = intentAnchors[intent] || [];
   const domainGroups = [
