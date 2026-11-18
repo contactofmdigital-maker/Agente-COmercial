@@ -1,9 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ArrowRight, Bot, BrainCircuit, Check, ChevronRight, CirclePlay,
-  Database, MessageSquareText, ShieldCheck, Sparkles, Target,
-  Workflow, Zap, Layers3, BookOpen, Settings2
+  ArrowRight, ArrowUpRight, Bot, BrainCircuit, Check, ChevronDown,
+  CirclePlay, Database, MessageSquareText, ShieldCheck, Sparkles,
+  Target, Workflow, Zap, Layers3, BookOpen, Settings2, Gauge,
+  Building2, LockKeyhole, ChartNoAxesCombined, Cpu, Play
 } from "lucide-react";
 
 const capabilities = [
@@ -19,47 +20,66 @@ const steps = [
   { title: "Simula y mejora", text: "Prueba preguntas reales, detecta vacíos y ajusta las instrucciones antes de usarlo." }
 ];
 
+const plans = [
+  { name: "Starter", eyebrow: "PARA COMENZAR", title: "Da el primer paso hacia una atención más inteligente.", description: "Empieza a construir un agente comercial con la información y las reglas de tu negocio.", featured: false },
+  { name: "Growth", eyebrow: "PARA CRECER", title: "Perfecciona cada conversación con pruebas y contexto.", description: "Una opción para negocios que quieren trabajar de forma continua la calidad de sus respuestas.", featured: true },
+  { name: "Partner", eyebrow: "PARA EQUIPOS", title: "Lleva una metodología de agentes a más operaciones.", description: "Pensado para equipos y colaboradores que necesitan conversar sobre un uso más amplio de la plataforma.", featured: false }
+];
+
+const faqs = [
+  { q: "¿Qué es exactamente UpScale IA?", a: "UpScale IA es una plataforma para configurar, probar y mejorar un agente comercial con el contexto de tu negocio. Reúne la configuración del agente, el Playground para simular conversaciones, el centro de conocimiento y la revisión de contactos capturados." },
+  { q: "¿Necesito conocimientos técnicos para utilizarlo?", a: "La plataforma está organizada para que puedas definir la información de tu negocio, configurar instrucciones y probar respuestas desde tu espacio. No necesitas programar para realizar esas tareas." },
+  { q: "¿Cómo aprende el agente sobre mi negocio?", a: "Trabaja con las instrucciones y el conocimiento que incorporas: servicios, preguntas frecuentes y otra información relevante. Por eso es importante mantener esos contenidos claros y actualizados." },
+  { q: "¿Puedo probarlo antes de utilizarlo?", a: "Sí. El Playground permite simular preguntas y escenarios para revisar cómo responde el agente y ajustar su configuración antes de llevar esos cambios a tu operación." },
+  { q: "¿El agente puede inventar información o precios?", a: "La plataforma permite definir reglas y conocimiento para orientar sus respuestas. Debes incorporar la información autorizada y probar escenarios; no conviene publicar precios, condiciones o promesas que no hayas confirmado." },
+  { q: "¿Qué plan debería elegir?", a: "Depende de cómo quieras utilizar la plataforma y del alcance que necesites. Podemos orientarte entre Starter, Growth y Partner. Los precios y límites se confirman en la propuesta comercial, no se muestran aquí para evitar información desactualizada." }
+];
+
 export default function MarketingHome() {
   return (
     <main className="marketing-shell">
       <div className="marketing-noise" aria-hidden="true" />
+      <div className="marketing-ambient marketing-ambient-one" aria-hidden="true" />
+      <div className="marketing-ambient marketing-ambient-two" aria-hidden="true" />
       <header className="marketing-nav">
         <Link href="/" className="marketing-logo" aria-label="UpScale IA, inicio">
           <Image src="/images/upscale-ia-horizontal.png" alt="UpScale IA" width={220} height={58} priority />
         </Link>
         <nav className="marketing-nav-links" aria-label="Navegación principal">
-          <a href="#plataforma">Plataforma</a><a href="#como-funciona">Cómo funciona</a><a href="#preguntas">Preguntas</a>
+          <a href="#origen">Nosotros</a><a href="#plataforma">Plataforma</a><a href="#planes">Planes</a><a href="#preguntas">FAQ</a>
         </nav>
-        <Link className="marketing-nav-cta" href="/login">Acceder <ArrowRight size={15} /></Link>
+        <div className="marketing-nav-actions"><Link className="marketing-login-link" href="/login">Iniciar sesión</Link><Link className="marketing-nav-cta" href="/login">Explorar UpScale IA <ArrowUpRight size={15} /></Link></div>
       </header>
 
       <section className="marketing-hero">
         <div className="marketing-hero-copy">
-          <div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> INTELIGENCIA COMERCIAL PARA TU NEGOCIO</div>
-          <h1>Las conversaciones<br />también pueden ser<br /><span>tu ventaja comercial.</span></h1>
-          <p>Configura, prueba y mejora un agente comercial con el contexto de tu negocio. Una plataforma para convertir conocimiento en conversaciones más claras y oportunidades mejor atendidas.</p>
+          <div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> INTELIGENCIA COMERCIAL · AUTOMATIZACIÓN · IA</div>
+          <h1>Tu negocio tiene una forma de vender.<br /><span>Enséñasela a la IA.</span></h1>
+          <p className="marketing-hero-lead">Configura, prueba y mejora un agente comercial con el contexto de tu negocio. Convierte tu conocimiento en conversaciones más claras, respuestas coherentes y oportunidades mejor atendidas.</p>
           <div className="marketing-actions">
-            <Link href="/login" className="marketing-button-primary">Entrar a UpScale IA <ArrowRight size={17} /></Link>
-            <a href="#plataforma" className="marketing-button-quiet"><CirclePlay size={17} /> Explorar la plataforma</a>
+            <Link href="/login" className="marketing-button-primary">Descubrir la plataforma <ArrowRight size={17} /></Link>
+            <a href="#demo" className="marketing-button-quiet"><CirclePlay size={17} /> Ver cómo funciona</a>
           </div>
           <div className="marketing-trust"><ShieldCheck size={15} /> Tú defines el conocimiento, las reglas y el comportamiento del agente.</div>
+          <div className="marketing-hero-micro"><span>01 / CONTEXTO</span><i /><span>02 / CONVERSACIÓN</span><i /><span>03 / MEJORA</span></div>
         </div>
 
-        <div className="marketing-visual" aria-label="Vista conceptual de la plataforma UpScale IA">
-          <div className="visual-orbit visual-orbit-a" /><div className="visual-orbit visual-orbit-b" />
-          <div className="visual-glow" />
-          <div className="visual-panel visual-panel-main">
-            <div className="visual-panel-top"><div className="visual-brand-mark"><Sparkles size={17} /></div><div><b>Agente comercial</b><small>ENTORNO DE PRUEBA</small></div><span className="visual-status">LISTO</span></div>
-            <div className="visual-conversation-label">SIMULACIÓN · CONSULTA DE CLIENTE</div>
-            <div className="visual-message visual-message-user">Hola, quiero saber qué servicio me conviene para mi negocio.</div>
-            <div className="visual-message visual-message-agent"><span><Bot size={14} /> UPSCALE IA</span>¡Claro! Para orientarte bien, primero quiero entender qué necesitas conseguir y cómo funciona hoy tu proceso comercial.</div>
-            <div className="visual-input"><span>Escribe una pregunta para probar…</span><span className="visual-send"><ArrowRight size={14} /></span></div>
+        <div className="marketing-stage" aria-label="Representación visual de UpScale IA">
+          <div className="stage-halo" /><div className="stage-ring stage-ring-a" /><div className="stage-ring stage-ring-b" />
+          <div className="stage-orbit-dot stage-orbit-dot-a" /><div className="stage-orbit-dot stage-orbit-dot-b" />
+          <div className="stage-core"><div className="stage-core-inner"><Image src="/images/upscale-ia-logo.png" alt="Símbolo de UpScale IA" width={104} height={104} priority /></div><span>INTELIGENCIA COMERCIAL</span></div>
+          <div className="stage-ui stage-chat">
+            <div className="stage-ui-head"><span className="stage-mini-icon"><Bot size={15} /></span><span><b>Agente comercial</b><small>SIMULACIÓN ACTIVA</small></span><i /></div>
+            <div className="stage-chat-bubble">Hola, quiero saber qué servicio me conviene.</div>
+            <div className="stage-chat-answer"><span>UPSCALE IA</span>¡Claro! Primero quiero entender qué quieres conseguir y cómo funciona hoy tu proceso comercial.</div>
+            <div className="stage-chat-foot"><span /> RESPUESTA CON CONTEXTO</div>
           </div>
-          <div className="visual-float visual-float-knowledge"><div className="visual-float-icon"><Database size={16} /></div><div><b>Centro de conocimiento</b><small>Información de tu negocio</small></div><Check size={15} /></div>
-          <div className="visual-float visual-float-config"><div className="visual-float-icon violet"><BrainCircuit size={16} /></div><div><b>Configuración del agente</b><small>Instrucciones y comportamiento</small></div><span className="visual-config-dot" /></div>
-          <div className="visual-caption"><span /> CONTEXTO · SIMULACIÓN · MEJORA CONTINUA</div>
+          <div className="stage-ui stage-insight"><div className="stage-insight-head"><ChartNoAxesCombined size={15} /> LECTURA COMERCIAL</div><div><span>01</span><b>Intención detectada</b><Check size={13} /></div><div><span>02</span><b>Contexto identificado</b><Check size={13} /></div><div><span>03</span><b>Próximo paso sugerido</b><ArrowUpRight size={13} /></div></div>
+          <div className="stage-float stage-float-knowledge"><Database size={15} /><span><b>Centro de conocimiento</b><small>Tu información, tus reglas</small></span></div>
+          <div className="stage-float stage-float-config"><BrainCircuit size={15} /><span><b>Agente personalizado</b><small>Configurado para tu negocio</small></span></div>
+          <div className="stage-caption"><span /> SISTEMA DE INTELIGENCIA COMERCIAL <span>·</span> UPSCALE IA</div>
         </div>
-        <div className="marketing-scroll-cue"><span /> UNA FORMA MÁS CLARA DE TRABAJAR TUS CONVERSACIONES</div>
+        <div className="marketing-scroll-cue"><span /> DESLIZA PARA DESCUBRIR</div>
       </section>
 
       <section className="marketing-proof-strip">
@@ -69,38 +89,32 @@ export default function MarketingHome() {
         <div><span className="proof-icon"><Zap size={18} /></span><span><b>Mejora</b><small>Ajusta a partir de tus pruebas</small></span></div>
       </section>
 
+      <section className="marketing-origin" id="origen">
+        <div className="origin-mark"><Image src="/images/upscale-ia-logo.png" alt="" width={78} height={78} /></div>
+        <div className="origin-copy"><div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> DE LA EXPERIENCIA A LA INNOVACIÓN</div><h2>Hacemos crecer marcas.<br /><span>Construimos lo que sigue.</span></h2><p>UpScale nace de la experiencia en marketing digital, combinando estrategia, creatividad, datos y tecnología para ayudar a empresas y emprendimientos a crecer. Desde esa experiencia nace UpScale IA: nuestro proyecto tecnológico enfocado en explorar nuevas formas de trabajar con inteligencia artificial y automatización.</p></div>
+        <div className="origin-pillars"><div><Gauge size={18} /><span>Marketing y estrategia</span></div><div><Cpu size={18} /><span>Tecnología e IA</span></div><div><ChartNoAxesCombined size={18} /><span>Datos y crecimiento</span></div></div>
+      </section>
+
       <section className="marketing-section" id="plataforma">
-        <div className="marketing-section-heading">
-          <div><div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> UNA PLATAFORMA, CUATRO ÁREAS</div><h2>Todo empieza por<br /><span>entender tu negocio.</span></h2></div>
-          <p>UpScale IA reúne las herramientas esenciales para construir y revisar el comportamiento de tu agente comercial, sin perder de vista el contexto de tu empresa.</p>
-        </div>
-        <div className="marketing-capabilities">
-          {capabilities.map(({ icon: Icon, number, title, text }) => <article className="marketing-capability" key={number}>
-            <div className="capability-top"><span className="capability-icon"><Icon size={20} /></span><span>{number}</span></div>
-            <h3>{title}</h3><p>{text}</p><a href="/login" aria-label={`Acceder para ${title.toLowerCase()}`}>Conocer en mi espacio <ChevronRight size={14} /></a>
-          </article>)}
-        </div>
+        <div className="marketing-section-heading"><div><div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> UNA PLATAFORMA, CUATRO ÁREAS</div><h2>Todo empieza por<br /><span>entender tu negocio.</span></h2></div><p>UpScale IA reúne las herramientas esenciales para construir y revisar el comportamiento de tu agente comercial, sin perder de vista el contexto de tu empresa.</p></div>
+        <div className="marketing-capabilities">{capabilities.map(({ icon: Icon, number, title, text }) => <article className="marketing-capability" key={number}><div className="capability-top"><span className="capability-icon"><Icon size={20} /></span><span>{number}</span></div><h3>{title}</h3><p>{text}</p><a href="/login" aria-label={`Acceder para ${title.toLowerCase()}`}>Explorar función <ChevronDown size={14} /></a></article>)}</div>
       </section>
 
-      <section className="marketing-process" id="como-funciona">
-        <div className="process-heading"><div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> DE LA CONFIGURACIÓN A LA PRUEBA</div><h2>Construye con criterio.<br /><span>Mejora con cada prueba.</span></h2><p>No necesitas empezar con un agente perfecto. Necesitas información clara, pruebas útiles y un proceso para corregir lo que no funciona.</p></div>
-        <div className="process-steps">{steps.map((step, index) => <article className="process-step" key={step.title}><span className="process-number">0{index + 1}</span><div className="process-line" /><h3>{step.title}</h3><p>{step.text}</p></article>)}</div>
+      <section className="marketing-demo-section" id="demo">
+        <div className="demo-section-copy"><div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> NO TE QUEDES CON LA PROMESA. PONLO A PRUEBA.</div><h2>Una conversación.<br /><span>Una nueva forma de avanzar.</span></h2><p>El agente no debería responder por responder. Debe comprender la consulta, apoyarse en la información de tu negocio y orientar el siguiente paso sin inventar lo que no sabe.</p><Link href="/login" className="marketing-text-link">Conoce el entorno de prueba <ArrowUpRight size={15} /></Link></div>
+        <div className="demo-window"><div className="demo-window-bar"><div><i /><i /><i /></div><span>PLAYGROUND · UPSCALE IA</span><b>DEMO CONCEPTUAL</b></div><div className="demo-window-body"><aside className="demo-side"><span className="demo-side-logo"><Bot size={18} /></span><b>Agente comercial</b><small>ENTORNO DE PRUEBA</small><div className="demo-side-item active"><MessageSquareText size={14} /> Conversación</div><div className="demo-side-item"><BookOpen size={14} /> Conocimiento</div><div className="demo-side-item"><Settings2 size={14} /> Instrucciones</div></aside><div className="demo-conversation"><div className="demo-conversation-title"><span><span className="demo-online" /> Agente listo para probar</span><span>CASO FICTICIO</span></div><div className="demo-bubble prospect">¿Qué servicios ofrecen y cuál me recomendarías para empezar?</div><div className="demo-bubble agent"><b><Sparkles size={13} /> UPSCALE IA</b>Podemos orientarte. Para recomendarte algo útil, primero necesito conocer tu objetivo y cómo estás consiguiendo clientes actualmente.</div><div className="demo-composer"><span>Escribe una consulta para probar...</span><span><ArrowRight size={14} /></span></div><div className="demo-footnote"><ShieldCheck size={13} /> Respuesta ilustrativa. El resultado real depende de la configuración y el conocimiento incorporado.</div></div></div></div>
       </section>
 
-      <section className="marketing-quote-section" id="preguntas">
-        <div className="quote-orb" />
-        <div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> CONTROL Y CONTEXTO</div>
-        <h2>La IA no debería<br />inventar por tu negocio.</h2>
-        <p>Por eso UpScale IA pone el foco en tus instrucciones, tu información y las pruebas antes de dar por válida una respuesta. El conocimiento que incorporas y la configuración que defines son la base del agente.</p>
-        <div className="quote-note"><ShieldCheck size={18} /><span><b>Tu negocio conserva el criterio.</b><small>Revisa y mejora las respuestas desde tu propio espacio.</small></span></div>
-      </section>
+      <section className="marketing-process" id="como-funciona"><div className="process-heading"><div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> DE LA CONFIGURACIÓN A LA PRUEBA</div><h2>Construye con criterio.<br /><span>Mejora con cada prueba.</span></h2><p>No necesitas empezar con un agente perfecto. Necesitas información clara, pruebas útiles y un proceso para corregir lo que no funciona.</p></div><div className="process-steps">{steps.map((step, index) => <article className="process-step" key={step.title}><span className="process-number">0{index + 1}</span><div className="process-line" /><h3>{step.title}</h3><p>{step.text}</p></article>)}</div></section>
 
-      <section className="marketing-final-cta">
-        <div><div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> EMPIEZA A CONSTRUIR</div><h2>Tu próximo paso es<br /><span>ponerlo a prueba.</span></h2><p>Accede a tu espacio y comienza a configurar el agente comercial de tu negocio.</p></div>
-        <Link href="/login" className="marketing-button-primary">Acceder a UpScale IA <ArrowRight size={17} /></Link>
-      </section>
+      <section className="marketing-plans" id="planes"><div className="plans-heading"><div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> ENCUENTRA TU FORMA DE CRECER</div><h2>Un punto de partida.<br /><span>Un camino para escalar.</span></h2><p>Elige el enfoque que mejor encaje con tu operación. Te ayudamos a definir el alcance y la propuesta adecuada.</p></div><div className="plans-grid">{plans.map((plan) => <article className={`plan-card ${plan.featured ? "plan-card-featured" : ""}`} key={plan.name}>{plan.featured && <div className="plan-ribbon">RECOMENDADO</div>}<div className="plan-eyebrow">{plan.eyebrow}</div><h3>{plan.name}</h3><p className="plan-title">{plan.title}</p><p className="plan-description">{plan.description}</p><div className="plan-divider" /><ul><li><Check size={15} /> Configuración del agente</li><li><Check size={15} /> Pruebas en Playground</li><li><Check size={15} /> Centro de conocimiento</li><li><Check size={15} /> Revisión de contactos</li></ul><Link href="/login" className={plan.featured ? "plan-cta plan-cta-primary" : "plan-cta"}>Consultar este plan <ArrowUpRight size={15} /></Link></article>)}</div><p className="plans-note"><LockKeyhole size={13} /> Alcance, precios y límites se confirman en la propuesta comercial. No publicamos cifras sin validar.</p></section>
 
-      <footer className="marketing-footer"><Link href="/" className="marketing-footer-brand"><Image src="/images/upscale-ia-horizontal.png" alt="UpScale IA" width={150} height={40} /></Link><span>Inteligencia comercial con contexto.</span><div><Link href="/login">Acceso a la plataforma</Link><span>© {new Date().getFullYear()} UpScale IA</span></div></footer>
+      <section className="marketing-control"><div className="control-visual"><div className="control-orbit" /><div className="control-card"><ShieldCheck size={26} /><span>CONTROL Y CONTEXTO</span><b>La IA no debería<br />inventar por tu negocio.</b><small>Tú defines qué información puede utilizar.</small></div><div className="control-chip"><Check size={13} /> Conocimiento autorizado</div><div className="control-chip control-chip-two"><Check size={13} /> Instrucciones propias</div></div><div className="control-copy"><div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> TU NEGOCIO CONSERVA EL CRITERIO</div><h2>La IA trabaja mejor<br /><span>cuando tiene contexto.</span></h2><p>Por eso UpScale IA pone el foco en tus instrucciones, tu información y las pruebas antes de dar por válida una respuesta. El conocimiento que incorporas y la configuración que defines son la base del agente.</p><div className="control-points"><span><Check size={15} /> Tú defines las reglas</span><span><Check size={15} /> Tú incorporas la información</span><span><Check size={15} /> Tú revisas y mejoras</span></div></div></section>
+
+      <section className="marketing-faq" id="preguntas"><div className="faq-intro"><div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> RESPUESTAS CLARAS ANTES DE EMPEZAR</div><h2>¿Tienes preguntas?<br /><span>Vamos a resolverlas.</span></h2><p>Queremos que entiendas qué hace la plataforma, cómo se utiliza y qué puedes esperar de ella.</p><Link href="/login" className="marketing-text-link">Hablar sobre UpScale IA <ArrowUpRight size={15} /></Link></div><div className="faq-list">{faqs.map((faq, index) => <details className="faq-item" key={faq.q}><summary><span className="faq-index">0{index + 1}</span><b>{faq.q}</b><ChevronDown size={17} /></summary><p>{faq.a}</p></details>)}</div></section>
+
+      <section className="marketing-final-cta"><div><div className="marketing-eyebrow"><span className="marketing-eyebrow-dot" /> EL SIGUIENTE PASO EMPIEZA AQUÍ</div><h2>Tu negocio ya tiene el conocimiento.<br /><span>Es hora de ponerlo en acción.</span></h2><p>Entra a UpScale IA y comienza a construir un agente comercial con el contexto de tu negocio.</p></div><Link href="/login" className="marketing-button-primary">Quiero conocer UpScale IA <ArrowRight size={17} /></Link></section>
+      <footer className="marketing-footer"><Link href="/" className="marketing-footer-brand"><Image src="/images/upscale-ia-horizontal.png" alt="UpScale IA" width={150} height={40} /></Link><span>Hacemos crecer marcas. Construimos lo que sigue.</span><div><Link href="/login">Acceso a la plataforma</Link><span>© {new Date().getFullYear()} UpScale IA</span></div></footer>
     </main>
   );
 }
