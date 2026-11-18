@@ -1,4 +1,3 @@
-import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import ts from "typescript";
 
@@ -47,7 +46,7 @@ const allKnowledge = keys.flatMap((key) =>
 // Las preguntas unsupported deben abstenerse de responder desde una fuente no pertinente.
 const cases = [
   { group: "Servicios digitales", question: "Necesito una página para que las personas dejen sus datos y me contacten.", expected: "digital_services-3" },
-  { group: "Servicios digitales", question: "¿Puedo promocionar un solo servicio sin montar un sitio con muchas secciones?", expected: "digital_services-1" },
+  { group: "Servicios digitales", question: "¿Puedo promocionar un solo servicio sin tener una web corporativa con muchas secciones?", expected: "digital_services-1" },
   { group: "Servicios digitales", question: "¿Puedo incluir un botón para que me escriban directamente por WhatsApp?", expected: "digital_services-8" },
   { group: "Servicios digitales", question: "¿Me aseguran quedar en el primer resultado de Google?", expected: "digital_services-10" },
   { group: "Servicios digitales", question: "¿Cuántas visitas y ventas obtendré durante la primera semana?", expected: null },
@@ -58,7 +57,7 @@ const cases = [
   { group: "Muebles", question: "¿La mesita soporta 80 kilos?", expected: null },
   { group: "Inmobiliaria", question: "Soy dueño de un departamento y quiero ponerlo en venta, ¿qué datos les paso?", expected: "real_estate-1" },
   { group: "Inmobiliaria", question: "Busco una vivienda en arriendo: ¿qué presupuesto y características debo indicar?", expected: "real_estate-3" },
-  { group: "Inmobiliaria", question: "¿Podemos reservar una hora para conocer la casa?", expected: "real_estate-5" },
+  { group: "Inmobiliaria", question: "¿Podemos coordinar una visita para conocer la casa?", expected: "real_estate-5" },
   { group: "Inmobiliaria", question: "Si presento una oferta, ¿queda aceptada automáticamente?", expected: "real_estate-10" },
   { group: "Inmobiliaria", question: "¿El banco aprobará mi crédito hipotecario?", expected: null },
 ];
