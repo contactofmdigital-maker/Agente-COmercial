@@ -60,6 +60,8 @@ function expandQueryTokens(message: string) {
     [/\b(que es|para que sirve|significa)\b/, ["definicion", "utilidad", "explicacion"]],
     [/\b(servicios|ofrecen|hacen|trabajan)\b/, ["servicio", "producto", "catalogo"]],
     [/\b(muebles|mueble|mesitas|mesita|sillas|silla|vanitys|vanity)\b/, ["mueble", "infantil", "producto", "catalogo"]],
+    [/\b(montaje|montar|armado|armar|ensamblaje|ensamblar)\b/, ["montaje", "armado", "ensamblaje"]],
+    [/\b(seo|posicionamiento|posicionar|google)\b/, ["seo", "posicionamiento", "google", "buscador"]],
     [/\b(ninos|ninas|infantil|infantiles)\b/, ["infantil", "nino", "nina"]],
     [/\b(casas|casa|propiedades|propiedad|terreno|departamento)\b/, ["inmueble", "venta", "arriendo"]],
     [/\b(precio|precios|cuanto cuesta|cuanto vale|valor)\b/, ["precio", "valor", "tarifa", "costo"]],
@@ -75,6 +77,12 @@ function expandQueryTokens(message: string) {
 }
 
 function rankKnowledge(message: string, knowledge: KnowledgeSource[], businessContext = "") {
+  const normalizedQuestion = normalize(message);
+  // Una coincidencia exacta con el título tiene prioridad sobre similitudes de contenido.
+  // Evita que una ficha general gane a la respuesta específica por repetir términos del rubro.
+  const exactTitleMatch = knowledge.find((item) => normalize(item.title) === normalizedQuestion);
+  if (exactTitleMatch) return [{ item: exactTitleMatch }];
+
   const queryTokens = expandQueryTokens(message);
   if (!queryTokens.length) return [];
   const query = new Set(queryTokens);
@@ -85,7 +93,7 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[], businessCo
     business_info: ["horario", "atencion", "direccion", "ubicacion", "oficina", "oficinas", "sucursal", "sede", "comuna", "ciudad", "cobertura", "envio", "despacho"],
     availability: ["disponible", "stock", "disponibilidad", "plazo", "entrega", "visita", "agenda"],
     purchase: ["comprar", "contratar", "pagar", "pago", "cuotas", "pedido", "reservar"],
-    product: ["producto", "productos", "servicio", "servicios", "catalogo", "ofrecen", "landing", "pagina", "web", "mueble", "propiedad"],
+    product: ["producto", "productos", "servicio", "servicios", "catalogo", "ofrecen", "landing", "pagina", "web", "mueble", "propiedad", "seo", "posicionamiento", "google", "montaje", "armado", "ensamblaje"],
   };
   const anchors = intentAnchors[intent] || [];
   const domainGroups = [
