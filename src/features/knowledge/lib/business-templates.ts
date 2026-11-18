@@ -1,4 +1,4 @@
-export type BusinessTemplateKey = "digital_services" | "furniture" | "real_estate";
+export type BusinessTemplateKey = "digital_services" | "furniture" | "real_estate" | "barber_shop" | "quick_service" | "professional_services";
 
 export type StarterKnowledge = {
   category: "product" | "faq" | "policy" | "business";
