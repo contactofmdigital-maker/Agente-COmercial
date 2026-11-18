@@ -167,44 +167,70 @@ export function KnowledgeHub() {
       if (!auth.user) throw new Error("Tu sesión no está activa. Inicia sesión nuevamente.");
 
       const template = businessTemplates[templateKey];
-      const existingTitles = new Set(entries.map((entry) => entry.title.trim().toLocaleLowerCase()));
-      const missing = template.entries.filter((entry) => !existingTitles.has(entry.title.trim().toLocaleLowerCase()));
-      if (!missing.length) {
-        setNotice("Esta plantilla ya está incorporada. Puedes editar sus contenidos desde la biblioteca.");
-        return;
+      const normalizeTitle = (value: string) => value.trim().toLocaleLowerCase();
+      const allTemplateTitles = new Set(
+        Object.values(businessTemplates).flatMap((item) => item.entries.map((entry) => normalizeTitle(entry.title))),
+      );
+      const selectedTemplateTitles = new Set(template.entries.map((entry) => normalizeTitle(entry.title)));
+      const existingTitles = new Set(entries.map((entry) => normalizeTitle(entry.title)));
+      const missing = template.entries.filter((entry) => !existingTitles.has(normalizeTitle(entry.title)));
+
+      let createdIds: string[] = [];
+      if (missing.length) {
+        const payload = missing.map((entry, index) => ({
+          user_id: auth.user.id,
+          category: entry.category,
+          title: entry.title,
+          content: entry.content,
+          status: "published" as const,
+          sort_order: entries.length + index,
+        }));
+        const { data: created, error: insertError } = await supabase
+          .from("agent_knowledge_entries")
+          .insert(payload)
+          .select("id");
+        if (insertError) throw insertError;
+        createdIds = (created ?? []).map((item) => item.id as string);
       }
 
-      const payload = missing.map((entry, index) => ({
-        user_id: auth.user.id,
-        category: entry.category,
-        title: entry.title,
-        content: entry.content,
-        status: "published" as const,
-        sort_order: entries.length + index,
-      }));
-      const { data: created, error: insertError } = await supabase
+      // La configuración solo debe autorizar una plantilla comercial a la vez.
+      // Los conocimientos creados manualmente se conservan; las entradas reconocidas
+      // como parte de cualquiera de las plantillas se sustituyen por las del rubro elegido.
+      const { data: allEntries, error: entriesError } = await supabase
         .from("agent_knowledge_entries")
-        .insert(payload)
-        .select("id");
-      if (insertError) throw insertError;
+        .select("id,title,status")
+        .eq("user_id", auth.user.id);
+      if (entriesError) throw entriesError;
 
-      const createdIds = (created ?? []).map((item) => item.id as string);
+      const templateManagedIds = new Set(
+        (allEntries ?? [])
+          .filter((entry) => allTemplateTitles.has(normalizeTitle(entry.title)))
+          .map((entry) => entry.id as string),
+      );
+      const selectedPublishedIds = (allEntries ?? [])
+        .filter((entry) => selectedTemplateTitles.has(normalizeTitle(entry.title)) && entry.status === "published")
+        .map((entry) => entry.id as string);
       const { data: savedConfig, error: configReadError } = await supabase
         .from("agent_configurations")
         .select("knowledge_entry_ids")
         .eq("user_id", auth.user.id)
         .maybeSingle();
       if (configReadError) throw configReadError;
+
       const currentIds = Array.isArray(savedConfig?.knowledge_entry_ids) ? savedConfig.knowledge_entry_ids as string[] : [];
+      const customKnowledgeIds = currentIds.filter((id) => !templateManagedIds.has(id));
+      const nextKnowledgeIds = [...new Set([...customKnowledgeIds, ...selectedPublishedIds])];
       const { error: configError } = await supabase.from("agent_configurations").upsert({
         user_id: auth.user.id,
-        knowledge_entry_ids: [...new Set([...currentIds, ...createdIds])],
+        knowledge_entry_ids: nextKnowledgeIds,
       }, { onConflict: "user_id" });
       if (configError) throw configError;
 
       setSelectedId(null);
       setDraft(emptyDraft);
-      setNotice(`Plantilla aplicada: se añadieron ${createdIds.length} conocimientos publicados y se autorizaron en la configuración del agente. Revisa y personaliza los datos de tu negocio.`);
+      setNotice(
+        `Plantilla activa: ${template.label}. Se habilitaron ${selectedPublishedIds.length} conocimientos de este rubro y se conservaron tus conocimientos personalizados. Las otras plantillas dejaron de estar disponibles para el agente.`,
+      );
       await loadEntries();
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo aplicar la configuración rápida.");
