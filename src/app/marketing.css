@@ -125,3 +125,6 @@
 @keyframes authFadeIn { from { opacity:0; } to { opacity:1; } }
 @media(max-width:600px) { .pricing-breakdown { grid-template-columns:1fr; } .auth-modal { padding:27px 22px; } .pricing-currency { flex-wrap:wrap; } }
 @media(prefers-reduced-motion:reduce) { .auth-modal-backdrop { animation:none; } }
+
+/* Aprovechar el ancho disponible para el plan único */
+.plans-grid { grid-template-columns:minmax(0,850px); justify-content:center; }
