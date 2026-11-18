@@ -91,6 +91,19 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[], businessCo
   const exactTitleMatch = knowledge.find((item) => normalize(item.title) === normalizedQuestion);
   if (exactTitleMatch) return [{ item: exactTitleMatch }];
 
+  // Resuelve formulaciones comerciales frecuentes hacia la ficha específica.
+  const semanticTargets: Array<[RegExp, RegExp]> = [
+    [/\b(dejen sus datos|dejar sus datos|captar datos|captacion de datos|recoger datos|formulario de contacto)\b/, /que incluye el desarrollo de una landing page/],
+    [/\b(acabado|acabados|decoracion|decorar|estilo de la habitacion)\b/, /hay distintos colores o disenos/],
+    [/\b(dueno|duena|propietario|propietaria)\b.*\b(vender|venta|ponerlo en venta|ponerla en venta)\b|\b(vender|venta)\b.*\b(mi|una) propiedad\b/, /pueden ayudarme a vender mi propiedad/],
+    [/\b(oferta|ofertar|aceptada|aceptacion|automaticamente)\b/, /puedo hacer una oferta por una propiedad/],
+  ];
+  for (const [questionPattern, titlePattern] of semanticTargets) {
+    if (!questionPattern.test(normalizedQuestion)) continue;
+    const targeted = knowledge.find((item) => titlePattern.test(normalize(item.title)));
+    if (targeted) return [{ item: targeted }];
+  }
+
   const queryTokens = expandQueryTokens(message);
   if (!queryTokens.length) return [];
   const query = new Set(queryTokens);
