@@ -90,6 +90,22 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[], businessCo
   const query = new Set(queryTokens);
   const context = new Set(tokens(businessContext));
   const intent = classifyIntent(message);
+  // Para consultas de montaje, prioriza una ficha que trate explícitamente el armado.
+  // Evita que variaciones gramaticales como "montar yo mismo" queden fuera por el solapamiento de tokens.
+  if (intent === "assembly") {
+    const assemblyTerms = ["montaje", "montar", "armado", "armar", "ensamblaje", "ensamblar"];
+    const assemblyMatches = knowledge
+      .filter((item) => assemblyTerms.some((term) => {
+        const text = normalize(item.title + " " + item.content);
+        return text.includes(term);
+      }))
+      .sort((a, b) => {
+        const titleA = assemblyTerms.some((term) => normalize(a.title).includes(term)) ? 1 : 0;
+        const titleB = assemblyTerms.some((term) => normalize(b.title).includes(term)) ? 1 : 0;
+        return titleB - titleA;
+      });
+    if (assemblyMatches.length) return [{ item: assemblyMatches[0] }];
+  }
   const intentAnchors: Record<string, string[]> = {
     pricing: ["precio", "precios", "cuanto", "cuesta", "vale", "valor", "cotizacion", "presupuesto", "tarifa", "costo"],
     business_info: ["horario", "atencion", "direccion", "ubicacion", "oficina", "oficinas", "sucursal", "sede", "comuna", "ciudad", "cobertura", "envio", "despacho"],
