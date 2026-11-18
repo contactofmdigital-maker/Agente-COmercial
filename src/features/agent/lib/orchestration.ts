@@ -33,10 +33,10 @@ function classifyIntent(message: string) {
   if (/\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\b/.test(t)) return "complaint";
   if (/\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar|cuanto sale|que precio)\b/.test(t)) return "pricing";
   if (/\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura|comuna|ciudad|oficina|oficinas|sucursal|sucursales|sede|sedes|presencia)\b/.test(t)) return "business_info";
-  if (/\b(disponible|stock|disponibilidad|plazo|entrega|visitar|visita|agendar|agenda)\b/.test(t)) return "availability";
+  if (/\b(disponible|stock|disponibilidad|plazo|entrega|visitar|visita|agendar|agenda|queda|quedan|unidad|unidades)\b/.test(t)) return "availability";
   if (/\b(montaje|montar|armado|armar|ensamblaje|ensamblar)\b/.test(t)) return "assembly";
   if (/\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido|me interesa)\b/.test(t)) return "purchase";
-  if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|caracteristicas|incluye|medidas)\b/.test(t)) return "product";
+  if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina|formulario|formularios|contacto|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|dueno|vender|venta|caracteristicas|incluye|medidas)\b/.test(t)) return "product";
   if (/^(hola( buenas)?( tardes| dias| noches)?|buenas (tardes|noches)|buenos dias|hey|hello)[!. ]*$/.test(t)) return "greeting";
   return "general";
 }
@@ -47,10 +47,10 @@ function detectIntents(message: string) {
     ["complaint", /\b(reclamo|reclamacion|denuncia|molesto|estafa|devolucion urgente|problema grave)\b/],
     ["pricing", /\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar|cuanto sale|que precio)\b/],
     ["business_info", /\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura|comuna|ciudad|oficina|oficinas|sucursal|sucursales|sede|sedes|presencia)\b/],
-    ["availability", /\b(disponible|stock|disponibilidad|plazo|entrega|visitar|visita|agendar|agenda)\b/],
+    ["availability", /\b(disponible|stock|disponibilidad|plazo|entrega|visitar|visita|agendar|agenda|queda|quedan|unidad|unidades)\b/],
     ["assembly", /\b(montaje|montar|armado|armar|ensamblaje|ensamblar)\b/],
     ["purchase", /\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido|me interesa)\b/],
-    ["product", /\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|caracteristicas|incluye|medidas)\b/],
+    ["product", /\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina|formulario|formularios|contacto|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|dueno|vender|venta|caracteristicas|incluye|medidas)\b/],
   ];
   return rules.filter(([, re]) => re.test(t)).map(([name]) => name);
 }
@@ -62,6 +62,11 @@ function expandQueryTokens(message: string) {
     [/\b(que es|para que sirve|significa)\b/, ["definicion", "utilidad", "explicacion"]],
     [/\b(servicios|ofrecen|hacen|trabajan)\b/, ["servicio", "producto", "catalogo"]],
     [/\b(muebles|mueble|mesitas|mesita|sillas|silla|vanitys|vanity)\b/, ["mueble", "infantil", "producto", "catalogo"]],
+    [/\b(formulario|formularios|datos|contacten|contactarme|contacto)\b/, ["formulario", "contacto", "datos", "captacion"]],
+    [/\b(captura|capturas|imagen|imagenes|foto|fotografia)\b/, ["foto", "imagen", "captura", "modelo"]],
+    [/\b(acabado|acabados|decoracion|estilo)\b/, ["color", "diseno", "acabado"]],
+    [/\b(quede|queda|quedan|unidad|unidades)\b/, ["stock", "disponibilidad", "disponible"]],
+    [/\b(dueno|duena|vender|venta|publicar)\b/, ["propiedad", "vender", "venta", "antecedentes"]],
     [/\b(montaje|montar|armado|armar|ensamblaje|ensamblar)\b/, ["montaje", "armado", "ensamblaje"]],
     [/\b(seo|posicionamiento|posicionar|google)\b/, ["seo", "posicionamiento", "google", "buscador"]],
     [/\b(ninos|ninas|infantil|infantiles)\b/, ["infantil", "nino", "nina"]],
@@ -122,7 +127,12 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[], businessCo
     ["aplicacion", "aplicaciones", "app", "apps", "movil", "moviles"],
   ];
   const requestedDomain = domainGroups.find((group) => group.some((term) => normalize(message).includes(term)));
-  const ranked = knowledge.map((item) => {
+  // Las consultas sobre capacidad/peso requieren evidencia explícita; una ficha general del producto no basta.
+  const asksWeightOrLoad = /\b(soporta|peso|carga|kilos|kilogramos|kg)\b/.test(normalizedQuestion);
+  const eligibleKnowledge = asksWeightOrLoad
+    ? knowledge.filter((item) => /\b(peso|carga|soporta|kilos|kilogramos|kg)\b/.test(normalize(item.title + " " + item.content)))
+    : knowledge;
+  const ranked = eligibleKnowledge.map((item) => {
     const titleTokens = new Set(tokens(item.title));
     const contentTokens = new Set(tokens(item.content));
     const titleHits = [...query].filter((token) => titleTokens.has(token)).length;
