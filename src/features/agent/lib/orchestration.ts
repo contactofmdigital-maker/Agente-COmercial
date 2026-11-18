@@ -34,6 +34,7 @@ function classifyIntent(message: string) {
   if (/\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar|cuanto sale|que precio)\b/.test(t)) return "pricing";
   if (/\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura|comuna|ciudad|oficina|oficinas|sucursal|sucursales|sede|sedes|presencia)\b/.test(t)) return "business_info";
   if (/\b(disponible|stock|disponibilidad|plazo|entrega|visitar|visita|agendar|agenda)\b/.test(t)) return "availability";
+  if (/\b(montaje|montar|armado|armar|ensamblaje|ensamblar)\b/.test(t)) return "assembly";
   if (/\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido|me interesa)\b/.test(t)) return "purchase";
   if (/\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|caracteristicas|incluye|medidas)\b/.test(t)) return "product";
   if (/^(hola( buenas)?( tardes| dias| noches)?|buenas (tardes|noches)|buenos dias|hey|hello)[!. ]*$/.test(t)) return "greeting";
@@ -47,6 +48,7 @@ function detectIntents(message: string) {
     ["pricing", /\b(precio|precios|cuanto cuesta|cuanto vale|valor|cotizacion|presupuesto|cotizar|cuanto sale|que precio)\b/],
     ["business_info", /\b(horario|horarios|atencion|atienden|abren|abierto|abierta|cierran|fin de semana|fines de semana|sabado|domingo|direccion|ubicacion|donde estan|despacho|envio|cobertura|comuna|ciudad|oficina|oficinas|sucursal|sucursales|sede|sedes|presencia)\b/],
     ["availability", /\b(disponible|stock|disponibilidad|plazo|entrega|visitar|visita|agendar|agenda)\b/],
+    ["assembly", /\b(montaje|montar|armado|armar|ensamblaje|ensamblar)\b/],
     ["purchase", /\b(comprar|contratar|reservar|quiero adquirir|como pago|pagar|pedido|me interesa)\b/],
     ["product", /\b(producto|productos|servicio|servicios|catalogo|ofrecen|trabajan|landing|pagina web|marketing|muebles|mueble|mesita|silla|vanity|casa|casas|propiedad|propiedades|inmueble|terreno|departamento|caracteristicas|incluye|medidas)\b/],
   ];
@@ -92,6 +94,7 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[], businessCo
     pricing: ["precio", "precios", "cuanto", "cuesta", "vale", "valor", "cotizacion", "presupuesto", "tarifa", "costo"],
     business_info: ["horario", "atencion", "direccion", "ubicacion", "oficina", "oficinas", "sucursal", "sede", "comuna", "ciudad", "cobertura", "envio", "despacho"],
     availability: ["disponible", "stock", "disponibilidad", "plazo", "entrega", "visita", "agenda"],
+    assembly: ["montaje", "montar", "armado", "armar", "ensamblaje", "ensamblar"],
     purchase: ["comprar", "contratar", "pagar", "pago", "cuotas", "pedido", "reservar"],
     product: ["producto", "productos", "servicio", "servicios", "catalogo", "ofrecen", "landing", "pagina", "web", "mueble", "propiedad", "seo", "posicionamiento", "google", "montaje", "armado", "ensamblaje"],
   };
@@ -327,7 +330,7 @@ export function orchestrateConversation(input: {
 
   // Una pregunta comercial sin fuente pertinente no debe convertirse en captura de datos.
   // Primero se reconoce la falta de información; no se inventa ni se desvía a una pregunta de venta.
-  const requiresGrounding = ["pricing", "business_info", "availability", "product", "purchase"].includes(intent) || detectedIntents.length > 0;
+  const requiresGrounding = ["pricing", "business_info", "availability", "product", "purchase", "assembly"].includes(intent) || detectedIntents.length > 0;
   if (requiresGrounding) {
     const fallback = config.human_handoff_enabled
       ? "No tengo información publicada suficiente para confirmar ese dato. Esta consulta requiere confirmación del equipo; en esta simulación no se realiza una derivación automática."
