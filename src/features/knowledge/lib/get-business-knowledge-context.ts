@@ -38,7 +38,7 @@ export async function getBusinessKnowledgeContext(): Promise<BusinessKnowledgeCo
     ]);
 
   if (profileError || questionsError || !profile) return null;
-  if (!["digital_services", "furniture", "real_estate"].includes(profile.business_sector)) return null;
+  if (!["digital_services", "furniture", "real_estate", "fast_food", "barber_beauty", "professional_services"].includes(profile.business_sector)) return null;
 
   return {
     businessSector: profile.business_sector as BusinessSector,
