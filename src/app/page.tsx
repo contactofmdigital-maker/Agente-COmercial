@@ -21,6 +21,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ProspectWorkspace } from "@/features/prospects/components/prospect-workspace";
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { getBusinessKnowledgeContext } from "@/features/knowledge/lib/get-business-knowledge-context";
+import { BUSINESS_TEMPLATES } from "@/features/knowledge/lib/business-templates";
 import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 
@@ -180,7 +181,7 @@ export default async function Home() {
                 {businessKnowledge ? (
                   <div className="connection-banner connected" style={{ marginBottom: 14 }}>
                     <div className="connection-symbol"><ShieldCheck size={17} /></div>
-                    <div><b>Conocimiento del rubro cargado</b><p>{businessKnowledge.businessSector} · {businessKnowledge.questions.length}/15 preguntas disponibles para contextualizar el agente.</p></div>
+                    <div><b>Conocimiento del rubro cargado</b><p>{BUSINESS_TEMPLATES[businessKnowledge.businessSector].label} · {businessKnowledge.questions.length}/15 preguntas disponibles para contextualizar el agente.</p></div>
                   </div>
                 ) : (
                   <div className="connection-banner warning" style={{ marginBottom: 14 }}>

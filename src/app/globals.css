@@ -740,6 +740,7 @@
 }
 
 .login-form > input,
+.login-form > select,
 .login-password input {
   width: 100%;
   min-width: 0;
@@ -759,6 +760,7 @@
 }
 
 .login-form > input:focus,
+.login-form > select:focus,
 .login-password input:focus {
   border-color: var(--login-gold);
   background: #0d141e;
@@ -1887,3 +1889,20 @@
   }
 }
 
+
+.login-form > select {
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  height: 47px;
+  padding: 0 13px;
+  border: 1px solid #354258;
+  border-radius: 9px;
+  background: #111b29;
+  color: #e8eef7;
+  font: inherit;
+  font-size: 13px;
+}
+
+.login-form > select:invalid { color: #9aa9bd; }
+.login-field-hint { margin: -2px 0 5px; color: #91a0b5; font-size: 10px; line-height: 1.5; }
