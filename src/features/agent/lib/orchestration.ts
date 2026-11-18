@@ -93,6 +93,7 @@ function rankKnowledge(message: string, knowledge: KnowledgeSource[], businessCo
 
   // Resuelve formulaciones comerciales frecuentes hacia la ficha específica.
   const semanticTargets: Array<[RegExp, RegExp]> = [
+    [/\b(un solo servicio|un servicio|sin tener una web corporativa|sin una web corporativa|sin muchas secciones|web corporativa con muchas secciones)\b/, /que diferencia hay entre una landing page y una web corporativa/],
     [/\b(pagina|p[aá]gina|landing)\b.*\b(promocionar|promocion|ofrecer|servicios?)\b|\b(promocionar|promocion)\b.*\b(servicios?)\b/, /que servicios digitales ofrecen/],
     [/\b(dejen sus datos|dejar sus datos|captar datos|captacion de datos|recoger datos|formulario de contacto)\b/, /que incluye el desarrollo de una landing page/],
     [/\b(acabado|acabados|decoracion|decorar|estilo de la habitacion)\b/, /hay distintos colores o disenos/],
