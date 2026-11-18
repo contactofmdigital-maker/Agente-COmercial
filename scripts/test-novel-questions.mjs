@@ -60,6 +60,15 @@ const cases = [
   { group: "Inmobiliaria", question: "¿Podemos coordinar una visita para conocer la casa?", expected: "real_estate-5" },
   { group: "Inmobiliaria", question: "Si presento una oferta, ¿queda aceptada automáticamente?", expected: "real_estate-10" },
   { group: "Inmobiliaria", question: "¿El banco aprobará mi crédito hipotecario?", expected: null },
+  { group: "Barbería y peluquería", question: "¿Puedo pedir un degradado y que me perfilen la barba?", expected: "barber_shop-2" },
+  { group: "Barbería y peluquería", question: "¿Me pueden hacer unas mechas o cambiar el color?", expected: "barber_shop-4" },
+  { group: "Barbería y peluquería", question: "¿Cuánto cuesta un corte de pelo?", expected: "barber_shop-6" },
+  { group: "Comida rápida y restaurante", question: "¿Puedo pedir una hamburguesa para que me la lleven a casa?", expected: "quick_service-10" },
+  { group: "Comida rápida y restaurante", question: "Soy alérgico a los frutos secos, ¿pueden garantizar que no haya contaminación cruzada?", expected: "quick_service-5" },
+  { group: "Comida rápida y restaurante", question: "¿Tienen platos veganos?", expected: "quick_service-4" },
+  { group: "Servicios profesionales", question: "Necesito asesoría, ¿cómo sé si trabajan esa especialidad?", expected: "professional_services-1" },
+  { group: "Servicios profesionales", question: "¿Puedo hacer una reunión por videollamada?", expected: "professional_services-7" },
+  { group: "Servicios profesionales", question: "¿Me garantizan que voy a conseguir el resultado que busco?", expected: "professional_services-13" },
 ];
 
 let passed = 0;
@@ -76,7 +85,10 @@ for (const testCase of cases) {
   const sourceIds = result.sources.map((source) => source.id);
   const wrongBusiness = sourceIds.some((id) => !id.startsWith(
     testCase.group === "Servicios digitales" ? "digital_services-"
-      : testCase.group === "Muebles" ? "furniture-" : "real_estate-"
+      : testCase.group === "Muebles" ? "furniture-"
+      : testCase.group === "Inmobiliaria" ? "real_estate-"
+      : testCase.group === "Barbería y peluquería" ? "barber_shop-"
+      : testCase.group === "Comida rápida y restaurante" ? "quick_service-" : "professional_services-"
   ));
   const ok = testCase.expected
     ? result.route === "answer_from_knowledge"
