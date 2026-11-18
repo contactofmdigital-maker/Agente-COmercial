@@ -50,7 +50,7 @@ const cases = [
   { group: "Servicios digitales", question: "¿Puedo incluir un botón para que me escriban directamente por WhatsApp?", expected: "digital_services-8" },
   { group: "Servicios digitales", question: "¿Me aseguran quedar en el primer resultado de Google?", expected: "digital_services-10" },
   { group: "Servicios digitales", question: "¿Cuántas visitas y ventas obtendré durante la primera semana?", expected: null },
-  { group: "Muebles", question: "Busco un mueble para que mi hija dibuje, ¿qué opciones tienen?", expected: "furniture-1" },
+  { group: "Muebles", question: "Busco un mueble para que mi hija dibuje, ¿qué opciones tienen?", expected: "furniture-0" },
   { group: "Muebles", question: "Si les mando una captura, ¿pueden reconocer qué modelo es?", expected: "furniture-8" },
   { group: "Muebles", question: "¿Puedo escoger el acabado según la decoración de la habitación?", expected: "furniture-5" },
   { group: "Muebles", question: "¿Cómo averiguo si todavía queda una unidad del modelo que vi?", expected: "furniture-7" },
