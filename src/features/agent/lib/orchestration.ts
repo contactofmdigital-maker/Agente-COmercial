@@ -308,7 +308,7 @@ export function orchestrateConversation(input: {
 
   // Una consulta amplia sobre servicios sin contexto suficiente debe pedir precisión,
   // no activar una derivación humana ni escoger arbitrariamente entre varios rubros.
-  const genericServicesQuestion = /\\b(que servicios ofrecen|que servicio ofrecen|que ofrecen|a que se dedican)\\b/.test(normalizedMessage);
+  const genericServicesQuestion = /\b(que servicios ofrecen|que servicio ofrecen|que ofrecen|a que se dedican)\b/.test(normalizedMessage);
   if (genericServicesQuestion && !businessContext.trim()) {
     return {
       answer: "Puedo orientarte. ¿Te interesa conocer nuestros servicios digitales, productos u otro tipo de servicio? Así puedo darte información precisa.",
