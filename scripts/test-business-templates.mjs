@@ -91,6 +91,8 @@ for (const key of keys) {
 const semanticRegressions = [
   { label: "SEO por sinónimos", question: "¿Una landing page incluye posicionamiento SEO en Google?", expected: "digital_services-10", forbidden: ["furniture-", "real_estate-"] },
   { label: "Montaje por sinónimos", question: "¿Hay que armar los muebles?", expected: "furniture-11", forbidden: ["digital_services-", "real_estate-"] },
+  { label: "Montaje como armado", question: "¿Los muebles vienen para ensamblar?", expected: "furniture-11", forbidden: ["digital_services-", "real_estate-"] },
+  { label: "Montaje como instalación", question: "¿Necesito montar yo mismo el mueble?", expected: "furniture-11", forbidden: ["digital_services-", "real_estate-"] },
   { label: "Definición de landing page", question: "¿Qué es una landing page?", expected: "digital_services-0", forbidden: ["furniture-", "real_estate-"] },
 ];
 let semanticPassed = 0;
@@ -123,7 +125,7 @@ for (const regression of semanticRegressions) {
 }
 
 console.log("\nRESULTADO: " + passed + "/45 preguntas exactas aprobadas.");
-console.log("REGRESIONES SEMÁNTICAS: " + semanticPassed + "/3");
+console.log("REGRESIONES SEMÁNTICAS: " + semanticPassed + "/5");
 console.log("FALLOS: " + failures.length);
 
 if (failures.length) {
