@@ -13,6 +13,7 @@ type AssistantChatProps = {
   sectorLabel: string;
   knowledgeCount: number;
   enabled: boolean;
+  providerConfigured: boolean;
 };
 
 const initialMessage: ChatMessage = {
@@ -20,7 +21,7 @@ const initialMessage: ChatMessage = {
   content: "¡Hola! Soy el asistente comercial de tu negocio. Cuéntame qué necesita tu cliente y te ayudaré a orientar la conversación con la información disponible.",
 };
 
-export function AssistantChat({ sectorLabel, knowledgeCount, enabled }: AssistantChatProps) {
+export function AssistantChat({ sectorLabel, knowledgeCount, enabled, providerConfigured }: AssistantChatProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([initialMessage]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -78,7 +79,7 @@ export function AssistantChat({ sectorLabel, knowledgeCount, enabled }: Assistan
     <div className="assistant-chat">
       <div className="assistant-chat-status">
         <span className="assistant-chat-status-dot" />
-        <span>{enabled ? "Agente disponible para pruebas" : "Configuración incompleta"}</span>
+        <span>{enabled ? "Agente listo para pruebas" : !providerConfigured ? "Proveedor IA pendiente" : "Conocimiento incompleto"}</span>
         <span className="assistant-chat-sector">{sectorLabel}</span>
       </div>
 
@@ -90,7 +91,9 @@ export function AssistantChat({ sectorLabel, knowledgeCount, enabled }: Assistan
 
       {!enabled && (
         <div className="assistant-chat-disabled">
-          Para activar el chat necesitas una cuenta con las 15 preguntas del rubro y la clave privada del proveedor configurada en el servidor.
+          {!providerConfigured
+            ? "Falta configurar OPENAI_API_KEY en .env.local. La clave debe permanecer en el servidor y nunca debe llevar el prefijo NEXT_PUBLIC_."
+            : "Esta cuenta necesita tener cargadas las 15 preguntas de su rubro para habilitar el agente."}
         </div>
       )}
 
