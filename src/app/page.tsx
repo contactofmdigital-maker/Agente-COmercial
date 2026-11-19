@@ -182,6 +182,7 @@ export default async function Home() {
                 knowledgeCount={businessKnowledge?.questions.length ?? 0}
                 enabled={Boolean(businessKnowledge && businessKnowledge.questions.length === 15 && process.env.OPENAI_API_KEY)}
                 providerConfigured={Boolean(process.env.OPENAI_API_KEY)}
+                needsSectorSetup={!businessKnowledge}
               />
             </section>
           </div>
