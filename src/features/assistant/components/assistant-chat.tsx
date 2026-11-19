@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { useRouter } from "next/navigation";
+import { BUSINESS_SECTOR_OPTIONS, isBusinessSector, type BusinessSector } from "@/features/knowledge/lib/business-templates";
 import { Bot, LoaderCircle, RotateCcw, Send, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 
 type ChatMessage = {
@@ -14,6 +16,7 @@ type AssistantChatProps = {
   knowledgeCount: number;
   enabled: boolean;
   providerConfigured: boolean;
+  needsSectorSetup: boolean;
 };
 
 const initialMessage: ChatMessage = {
@@ -21,7 +24,11 @@ const initialMessage: ChatMessage = {
   content: "¡Hola! Soy el asistente comercial de tu negocio. Cuéntame qué necesita tu cliente y te ayudaré a orientar la conversación con la información disponible.",
 };
 
-export function AssistantChat({ sectorLabel, knowledgeCount, enabled, providerConfigured }: AssistantChatProps) {
+export function AssistantChat({ sectorLabel, knowledgeCount, enabled, providerConfigured, needsSectorSetup }: AssistantChatProps) {
+  const router = useRouter();
+  const [selectedSector, setSelectedSector] = useState<BusinessSector | "">("");
+  const [setupBusy, setSetupBusy] = useState(false);
+  const [setupError, setSetupError] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([initialMessage]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -79,7 +86,7 @@ export function AssistantChat({ sectorLabel, knowledgeCount, enabled, providerCo
     <div className="assistant-chat">
       <div className="assistant-chat-status">
         <span className="assistant-chat-status-dot" />
-        <span>{enabled ? "Agente listo para pruebas" : !providerConfigured ? "Proveedor IA pendiente" : "Conocimiento incompleto"}</span>
+        <span>{needsSectorSetup ? "Configura el rubro de tu negocio" : enabled ? "Agente listo para pruebas" : !providerConfigured ? "Proveedor IA pendiente" : "Conocimiento incompleto"}</span>
         <span className="assistant-chat-sector">{sectorLabel}</span>
       </div>
 
@@ -89,7 +96,50 @@ export function AssistantChat({ sectorLabel, knowledgeCount, enabled, providerCo
         <span className="assistant-chat-privacy">Historial temporal</span>
       </div>
 
-      {!enabled && (
+      {needsSectorSetup && (
+        <form
+          className="assistant-sector-setup"
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (!isBusinessSector(selectedSector) || setupBusy) return;
+            setSetupBusy(true);
+            setSetupError("");
+            try {
+              const response = await fetch("/api/assistant/setup", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ businessSector: selectedSector }),
+              });
+              const data = (await response.json()) as { error?: string };
+              if (!response.ok) throw new Error(data.error || "No se pudo configurar el rubro.");
+              router.refresh();
+            } catch (caught) {
+              setSetupError(caught instanceof Error ? caught.message : "No se pudo configurar el rubro.");
+            } finally {
+              setSetupBusy(false);
+            }
+          }}
+        >
+          <strong>Primero, configuremos tu negocio</strong>
+          <p>Selecciona el rubro de esta cuenta. Cargaremos sus 15 preguntas y respuestas para que el agente mantenga el contexto correcto.</p>
+          <select
+            value={selectedSector}
+            onChange={(event) => setSelectedSector(isBusinessSector(event.target.value) ? event.target.value : "")}
+            required
+          >
+            <option value="">Selecciona el rubro</option>
+            {BUSINESS_SECTOR_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+          <button type="submit" disabled={!isBusinessSector(selectedSector) || setupBusy}>
+            {setupBusy ? "Configurando..." : "Guardar rubro y cargar conocimiento"}
+          </button>
+          {setupError && <span role="alert">{setupError}</span>}
+        </form>
+      )}
+
+      {!enabled && !needsSectorSetup && (
         <div className="assistant-chat-disabled">
           {!providerConfigured
             ? "Falta configurar OPENAI_API_KEY en .env.local. La clave debe permanecer en el servidor y nunca debe llevar el prefijo NEXT_PUBLIC_."
