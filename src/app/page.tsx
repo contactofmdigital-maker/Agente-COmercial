@@ -5,7 +5,6 @@ import {
   Building2,
   ChartNoAxesCombined,
   CircleHelp,
-  Command,
   LayoutDashboard,
   MessageSquareText,
   Search,
@@ -22,6 +21,7 @@ import { ProspectWorkspace } from "@/features/prospects/components/prospect-work
 import { SignOutButton } from "@/features/auth/components/sign-out-button";
 import { getBusinessKnowledgeContext } from "@/features/knowledge/lib/get-business-knowledge-context";
 import { BUSINESS_TEMPLATES } from "@/features/knowledge/lib/business-templates";
+import { AssistantChat } from "@/features/assistant/components/assistant-chat";
 import type { ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
 
@@ -177,25 +177,11 @@ export default async function Home() {
                 <div><div className="panel-kicker">AI SALES COPILOT</div><h3>Asistente comercial</h3><p>Prepara el siguiente paso con contexto.</p></div>
                 <div className="ai-icon"><Bot size={19} /></div>
               </div>
-              <div className="assistant-preview">
-                {businessKnowledge ? (
-                  <div className="connection-banner connected" style={{ marginBottom: 14 }}>
-                    <div className="connection-symbol"><ShieldCheck size={17} /></div>
-                    <div><b>Conocimiento del rubro cargado</b><p>{BUSINESS_TEMPLATES[businessKnowledge.businessSector].label} · {businessKnowledge.questions.length}/15 preguntas disponibles para contextualizar el agente.</p></div>
-                  </div>
-                ) : (
-                  <div className="connection-banner warning" style={{ marginBottom: 14 }}>
-                    <div className="connection-symbol"><CircleHelp size={17} /></div>
-                    <div><b>Falta configurar el conocimiento</b><p>Esta cuenta aún no tiene un rubro y una plantilla asignados. Las cuentas nuevas deben registrarse seleccionando su rubro.</p></div>
-                  </div>
-                )}
-                <div className="assistant-glow"><Sparkles size={20} /></div>
-                <b>Una buena conversación empieza con contexto.</b>
-                <p>El módulo de IA se habilitará al configurar un proveedor y su clave privada en el servidor.</p>
-                <div className="feature-row"><span><ShieldCheck size={14} /> Revisión humana</span><span><Command size={14} /> Contexto comercial</span></div>
-              </div>
-              <button className="button button-disabled" disabled><Bot size={16} /> IA pendiente de configuración</button>
-              <div className="assistant-foot"><span className="mini-dot" /> No se envían mensajes automáticamente</div>
+              <AssistantChat
+                sectorLabel={businessKnowledge ? BUSINESS_TEMPLATES[businessKnowledge.businessSector].label : "Rubro sin configurar"}
+                knowledgeCount={businessKnowledge?.questions.length ?? 0}
+                enabled={Boolean(businessKnowledge && businessKnowledge.questions.length === 15)}
+              />
             </section>
           </div>
 
