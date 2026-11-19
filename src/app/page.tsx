@@ -180,7 +180,8 @@ export default async function Home() {
               <AssistantChat
                 sectorLabel={businessKnowledge ? BUSINESS_TEMPLATES[businessKnowledge.businessSector].label : "Rubro sin configurar"}
                 knowledgeCount={businessKnowledge?.questions.length ?? 0}
-                enabled={Boolean(businessKnowledge && businessKnowledge.questions.length === 15)}
+                enabled={Boolean(businessKnowledge && businessKnowledge.questions.length === 15 && process.env.OPENAI_API_KEY)}
+                providerConfigured={Boolean(process.env.OPENAI_API_KEY)}
               />
             </section>
           </div>
