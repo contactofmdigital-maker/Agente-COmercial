@@ -1952,3 +1952,11 @@
 .assistant-chat-disclaimer{margin:0;color:#738198;font-size:8px;line-height:1.55}
 @media(max-width:720px){.assistant-chat-messages{max-height:340px}.assistant-chat-row{max-width:100%}.assistant-chat-knowledge{flex-wrap:wrap}.assistant-chat-privacy{margin-left:0}}
 @media(prefers-reduced-motion:reduce){.assistant-chat-typing i,.assistant-chat-spinner{animation:none}}
+
+.assistant-sector-setup{display:grid;gap:8px;padding:12px;border:1px solid #665333;border-radius:10px;background:linear-gradient(145deg,#2b251b,#171b22)}
+.assistant-sector-setup strong{color:#f0d49a;font-size:11px}
+.assistant-sector-setup p{margin:0;color:#aeb9c9;font-size:9px;line-height:1.65}
+.assistant-sector-setup select{width:100%;min-width:0;height:39px;padding:0 10px;border:1px solid #465168;border-radius:8px;background:#101824;color:#e9eef6;font:inherit;font-size:10px}
+.assistant-sector-setup button{min-height:38px;padding:8px 11px;border:1px solid #e4c17b;border-radius:8px;background:linear-gradient(135deg,#f0d49a,#d9ab5d);color:#19150d;font-size:9px;font-weight:800}
+.assistant-sector-setup button:disabled{opacity:.45;cursor:not-allowed}
+.assistant-sector-setup [role=alert]{color:#ffb8bf;font-size:9px;line-height:1.5}
