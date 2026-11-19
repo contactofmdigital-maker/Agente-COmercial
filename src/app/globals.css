@@ -1913,7 +1913,7 @@
    ========================================================= */
 .assistant-chat{display:flex;flex-direction:column;gap:11px;min-width:0}
 .assistant-chat-status{display:flex;align-items:center;gap:7px;flex-wrap:wrap;color:#aab5c7;font-size:9px}
-.assistant-chat-status-dot{width:7px;height:7px;border-radius:50%;background:#63d7a4;box-shadow:0 0 0 4px #63d7a41a}
+.assistant-chat-status-dot{width:7px;height:7px;border-radius:50%;background:#d2a45d;box-shadow:0 0 0 4px #d2a45d1a}.assistant-chat-status-dot.is-ready{background:#63d7a4;box-shadow:0 0 0 4px #63d7a41a}
 .assistant-chat-sector{margin-left:auto;padding:4px 7px;border:1px solid #394052;border-radius:20px;color:#d6c59f;font-size:8px}
 .assistant-chat-knowledge{display:flex;align-items:center;gap:7px;padding:9px 10px;border:1px solid #2b493e;border-radius:8px;background:#13251f;color:#a8c8b9;font-size:9px}
 .assistant-chat-knowledge svg{flex:0 0 auto;color:#70d6a9}
