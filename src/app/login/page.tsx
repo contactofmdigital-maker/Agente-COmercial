@@ -10,6 +10,8 @@ import {
   BrainCircuit, Workflow, ChevronRight
 } from "lucide-react";
 
+import { BUSINESS_SECTOR_OPTIONS, isBusinessSector, type BusinessSector } from "@/features/knowledge/lib/business-templates";
+
 type Mode = "login" | "register" | "recover";
 type ChatMessage = { from: "prospect" | "agent"; text: string };
 type Scenario = {
@@ -95,6 +97,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [businessSector, setBusinessSector] = useState<BusinessSector | "">("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -145,6 +148,10 @@ export default function LoginPage() {
       setError("La contraseña debe tener al menos 8 caracteres.");
       return;
     }
+    if (mode === "register" && !isBusinessSector(businessSector)) {
+      setError("Selecciona el rubro de tu negocio para configurar tu agente.");
+      return;
+    }
     if (mode === "register" && password !== confirmPassword) {
       setError("Las contraseñas no coinciden.");
       return;
@@ -169,7 +176,10 @@ export default function LoginPage() {
         const { data, error: authError } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: `${window.location.origin}/login` }
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/confirm?next=/`,
+            data: { business_sector: businessSector }
+          }
         });
         if (authError) throw authError;
         if (data.session) {
@@ -181,6 +191,7 @@ export default function LoginPage() {
         setMode("login");
         setPassword("");
         setConfirmPassword("");
+        setBusinessSector("");
         return;
       }
 
@@ -289,6 +300,15 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="login-form">
             <label htmlFor="email">Correo electrónico</label>
             <input id="email" type="email" autoComplete="email" placeholder="nombre@empresa.com" value={email} onChange={(event) => setEmail(event.target.value)} required />
+
+            {mode === "register" && <>
+              <label htmlFor="businessSector">Rubro de tu negocio</label>
+              <select id="businessSector" value={businessSector} onChange={(event) => setBusinessSector(isBusinessSector(event.target.value) ? event.target.value : "")} required>
+                <option value="">Selecciona el rubro</option>
+                {BUSINESS_SECTOR_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+              </select>
+              <p className="login-field-hint">Cargaremos automáticamente las 15 preguntas y respuestas de este rubro.</p>
+            </>}
 
             {mode !== "recover" && <>
               <label htmlFor="password">Contraseña</label>
