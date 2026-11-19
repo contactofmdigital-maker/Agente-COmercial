@@ -85,7 +85,7 @@ export function AssistantChat({ sectorLabel, knowledgeCount, enabled, providerCo
   return (
     <div className="assistant-chat">
       <div className="assistant-chat-status">
-        <span className="assistant-chat-status-dot" />
+        <span className={`assistant-chat-status-dot ${enabled ? "is-ready" : ""}`} />
         <span>{needsSectorSetup ? "Configura el rubro de tu negocio" : enabled ? "Agente listo para pruebas" : !providerConfigured ? "Proveedor IA pendiente" : "Conocimiento incompleto"}</span>
         <span className="assistant-chat-sector">{sectorLabel}</span>
       </div>
