@@ -34,15 +34,6 @@ const SECTOR_RULES: Record<string, string> = {
 };
 
 export async function POST(request: Request) {
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "El servidor todavía no tiene configurada la clave de OpenAI." },
-      { status: 503 },
-    );
-  }
-
   let body: unknown;
   try {
     body = await request.json();
@@ -85,6 +76,14 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: "La base de conocimiento de esta cuenta está incompleta. Se requieren las 15 preguntas del rubro." },
         { status: 409 },
+      );
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "El servidor todavía no tiene configurada la clave de OpenAI." },
+        { status: 503 },
       );
     }
 
